@@ -16,6 +16,16 @@ export type SortingVizProps = {
   initialSpeedMs?: number;
 };
 
+function deterministicSeed(algorithm: string, size: number): number {
+  let h = 2166136261 >>> 0;
+  const key = `${algorithm}:${size}`;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h || 1;
+}
+
 function makeRandomArray(size: number, seed: number): number[] {
   let s = seed;
   const rand = () => {
@@ -61,7 +71,10 @@ export function SortingViz({
   initialSpeedMs = 200,
 }: SortingVizProps) {
   const [size, setSize] = useState(initialSize);
-  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
+  // Deterministic initial seed so SSR and client hydration agree on the array.
+  // We re-seed (with Math.random) only in response to user actions like resizing,
+  // which happen post-hydration and are therefore safe.
+  const [seed, setSeed] = useState(() => deterministicSeed(algorithm, initialSize));
 
   const algorithmFn = sortAlgorithms[algorithm];
   const input = useMemo(() => makeRandomArray(size, seed), [size, seed]);
