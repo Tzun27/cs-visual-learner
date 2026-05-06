@@ -1,0 +1,63 @@
+import { SortingViz } from "@/components/visualizations/SortingViz";
+
+export const metadata = {
+  title: "Quick Sort",
+  description:
+    "Watch quicksort partition the array around a pivot, then recurse into each half. Average O(n log n), worst-case O(n²).",
+};
+
+# Quick Sort
+
+**Difficulty:** intermediate · **Category:** sorting
+
+Quicksort, like merge sort, is _divide-and-conquer_ — but it splits differently. Instead of cutting
+the array in the middle, it picks a **pivot** value and rearranges the array so that all values
+$\le$ pivot end up on the left and all values $>$ pivot end up on the right. Then it recurses on
+each side.
+
+This implementation uses the **Lomuto partition scheme** with the rightmost element as the pivot.
+
+<SortingViz algorithm="quick" initialSize={16} />
+
+## What you're seeing
+
+- The **dashed bracket** marks the sub-range currently being partitioned.
+- The bar with a **dot underneath** is the _pivot_.
+- **Yellow** bars are being _compared_ to the pivot.
+- **Blue** bars are positions being _swapped_ to put a smaller-than-pivot value on the left.
+- **Green** bars are in their _final sorted position_.
+
+After each partition, the pivot lands in its final place, and the algorithm recurses on the two
+sub-ranges. Notice how the active range shrinks each time.
+
+## Why $\Theta(n \log n)$ on average?
+
+A "good" pivot splits the array into roughly equal halves. With balanced splits, the recursion
+depth is $\log_2 n$, and each level does $O(n)$ work to partition. That gives $\Theta(n \log n)$
+in total — same as merge sort.
+
+But unlike merge sort, the constant factor is small: quicksort sorts _in place_, with no
+auxiliary array, and its memory access patterns are cache-friendly. In practice, a tuned
+quicksort beats merge sort on random in-memory data.
+
+## What about the worst case?
+
+If the pivot is always the smallest (or largest) remaining value — e.g. on an already-sorted
+input with the last-element pivot strategy — every partition splits off only one element. That
+gives recursion depth $n$ and total work $\Theta(n^2)$.
+
+Try the visualization on a small array a few times. Most runs feel fast. Production
+implementations defend against the worst case in two common ways:
+
+1. **Randomize the pivot.** Pick a random index instead of the last one. Worst-case input becomes
+   astronomically unlikely.
+2. **Median-of-three.** Look at the first, middle, and last elements; pick their median as the
+   pivot. Cheap and very effective on partially-sorted input.
+
+These tricks don't change the asymptotic _worst case_, but they make it practically unreachable.
+
+## Stability and space
+
+- Quicksort is **not stable** — equal elements may be reordered relative to each other.
+- It uses $O(\log n)$ space on average (the recursion stack), which is a meaningful advantage
+  over merge sort's $O(n)$ auxiliary array.

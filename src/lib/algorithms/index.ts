@@ -1,10 +1,12 @@
 import { bubbleSort } from "./bubbleSort";
 import { mergeSort } from "./mergeSort";
+import { quickSort } from "./quickSort";
 import type { SortAlgorithm } from "./types";
 
 export const sortAlgorithms = {
   bubble: bubbleSort,
   merge: mergeSort,
+  quick: quickSort,
 } as const satisfies Record<string, SortAlgorithm>;
 
 export type SortAlgorithmKey = keyof typeof sortAlgorithms;

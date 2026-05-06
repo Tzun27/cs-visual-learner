@@ -15,6 +15,7 @@ export type SortStep =
     }
   | { kind: "write"; index: number; array: readonly number[]; range?: Range }
   | { kind: "range"; range: Range; array: readonly number[] }
+  | { kind: "pivot"; index: number; array: readonly number[]; range?: Range }
   | { kind: "done"; array: readonly number[] };
 
 export type SortAlgorithm = (input: readonly number[]) => Generator<SortStep, void, void>;

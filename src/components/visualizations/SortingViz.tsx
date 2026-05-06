@@ -37,6 +37,8 @@ function highlightsFor(step: SortStep | undefined): Highlight[] {
       return step.indices.map((i) => ({ index: i, kind: "swap" }) as const);
     case "write":
       return [{ index: step.index, kind: "swap" }];
+    case "pivot":
+      return [{ index: step.index, kind: "pivot" }];
     case "range":
       return [];
     case "done":
