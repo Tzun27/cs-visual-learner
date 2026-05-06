@@ -8,6 +8,7 @@ export type Highlight = {
 export type ArrayBarsProps = {
   array: readonly number[];
   highlights?: readonly Highlight[];
+  activeRange?: readonly [number, number];
   max?: number;
   className?: string;
 };
@@ -31,7 +32,7 @@ const kindLabel: Record<HighlightKind, string> = {
   sorted: "in final sorted position",
 };
 
-export function ArrayBars({ array, highlights = [], max, className }: ArrayBarsProps) {
+export function ArrayBars({ array, highlights = [], activeRange, max, className }: ArrayBarsProps) {
   const length = array.length;
   if (length === 0) {
     return (
@@ -52,21 +53,44 @@ export function ArrayBars({ array, highlights = [], max, className }: ArrayBarsP
   const highlightByIndex = new Map<number, HighlightKind>();
   for (const h of highlights) highlightByIndex.set(h.index, h.kind);
 
-  const summary = highlights.length
-    ? highlights.map((h) => `position ${h.index} ${kindLabel[h.kind]}`).join("; ")
-    : null;
+  const labelParts: string[] = [];
+  if (activeRange) labelParts.push(`active range positions ${activeRange[0]} to ${activeRange[1]}`);
+  for (const h of highlights) labelParts.push(`position ${h.index} ${kindLabel[h.kind]}`);
+  const ariaLabel = labelParts.length
+    ? `Array of ${length} values; ${labelParts.join("; ")}`
+    : `Array of ${length} values awaiting action`;
+
+  let rangeRect: { x: number; width: number } | null = null;
+  if (activeRange) {
+    const [lo, hi] = activeRange;
+    const clampedLo = Math.max(0, Math.min(lo, length - 1));
+    const clampedHi = Math.max(0, Math.min(hi, length - 1));
+    const xStart = PADDING + clampedLo * (barWidth + GAP);
+    const xEnd = PADDING + clampedHi * (barWidth + GAP) + barWidth;
+    rangeRect = { x: xStart, width: xEnd - xStart };
+  }
 
   return (
     <svg
       viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
       className={className}
       role="img"
-      aria-label={
-        summary
-          ? `Array of ${length} values; ${summary}`
-          : `Array of ${length} values awaiting action`
-      }
+      aria-label={ariaLabel}
     >
+      {rangeRect && (
+        <rect
+          x={rangeRect.x - 2}
+          y={PADDING - 2}
+          width={rangeRect.width + 4}
+          height={innerHeight + 4}
+          rx={4}
+          ry={4}
+          fill="var(--bar-range-fill)"
+          stroke="var(--bar-range-stroke)"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+        />
+      )}
       {array.map((value, i) => {
         const kind = highlightByIndex.get(i);
         const colors = kind ? palette[kind] : undefined;

@@ -26,4 +26,9 @@ describe("SortingViz", () => {
     const dl = screen.getByText(/Status/).closest("dl");
     expect(dl!.textContent).toMatch(/Comparisons\s*1/);
   });
+
+  it("renders merge sort algorithm via the registry", () => {
+    render(<SortingViz algorithm="merge" initialSize={8} />);
+    expect(screen.getByRole("toolbar", { name: /Playback/ })).toBeInTheDocument();
+  });
 });

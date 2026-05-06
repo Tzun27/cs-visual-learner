@@ -35,9 +35,20 @@ function highlightsFor(step: SortStep | undefined): Highlight[] {
       return step.indices.map((i) => ({ index: i, kind: "compare" }) as const);
     case "swap":
       return step.indices.map((i) => ({ index: i, kind: "swap" }) as const);
+    case "write":
+      return [{ index: step.index, kind: "swap" }];
+    case "range":
+      return [];
     case "done":
       return step.array.map((_, i) => ({ index: i, kind: "sorted" }) as const);
   }
+}
+
+function activeRangeFor(step: SortStep | undefined): readonly [number, number] | undefined {
+  if (!step) return undefined;
+  if (step.kind === "range") return step.range;
+  if ("range" in step) return step.range;
+  return undefined;
 }
 
 export function SortingViz({
@@ -64,10 +75,11 @@ export function SortingViz({
   const displayArray = playback.currentStep?.array ?? input;
   const max = useMemo(() => Math.max(...input, 1), [input]);
   const highlights = highlightsFor(playback.currentStep);
+  const activeRange = activeRangeFor(playback.currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
   const compares = visibleSteps.filter((s) => s.kind === "compare").length;
-  const swaps = visibleSteps.filter((s) => s.kind === "swap").length;
+  const swaps = visibleSteps.filter((s) => s.kind === "swap" || s.kind === "write").length;
 
   const handleSizeChange = (next: number) => {
     setSize(next);
@@ -80,7 +92,13 @@ export function SortingViz({
       aria-label="Sorting visualization"
       className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
     >
-      <ArrayBars array={displayArray} highlights={highlights} max={max} className="h-48 w-full" />
+      <ArrayBars
+        array={displayArray}
+        highlights={highlights}
+        activeRange={activeRange}
+        max={max}
+        className="h-48 w-full"
+      />
 
       <dl className="grid grid-cols-3 gap-3 text-sm">
         <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">

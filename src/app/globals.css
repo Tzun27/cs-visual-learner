@@ -17,6 +17,8 @@
   --bar-pivot-stroke: #8a3d00;
   --bar-sorted: #009e73;
   --bar-sorted-stroke: #00684c;
+  --bar-range-fill: rgba(15, 23, 42, 0.04);
+  --bar-range-stroke: rgba(15, 23, 42, 0.25);
 }
 
 .dark {
@@ -31,6 +33,8 @@
   --bar-pivot-stroke: #f5b083;
   --bar-sorted: #2eb38a;
   --bar-sorted-stroke: #6dd0b1;
+  --bar-range-fill: rgba(244, 244, 245, 0.06);
+  --bar-range-stroke: rgba(244, 244, 245, 0.3);
 }
 
 @theme inline {

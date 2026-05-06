@@ -1,0 +1,58 @@
+import { SortingViz } from "@/components/visualizations/SortingViz";
+
+export const metadata = {
+  title: "Merge Sort",
+  description:
+    "See divide-and-conquer in action: merge sort splits the array down to single elements, then re-merges them in O(n log n) total work.",
+};
+
+# Merge Sort
+
+**Difficulty:** intermediate · **Category:** sorting
+
+Merge sort is a _divide-and-conquer_ algorithm. It splits the array in half, sorts each half
+recursively, and then merges the two sorted halves back together. The merge step does the actual
+ordering — comparing the front of each half and writing the smaller value to the output.
+
+<SortingViz algorithm="merge" initialSize={16} />
+
+## What you're seeing
+
+- The **dashed bracket** marks the sub-range currently being merged.
+- **Yellow** bars are the two values being _compared_ across the two sorted halves.
+- **Blue** bars are positions being _written_ as the merge proceeds left to right.
+- **Green** bars are in their _final sorted position_.
+
+Watch the bracket grow: small ranges merge first (pairs, then quads, then eights), and the
+final merge spans the whole array.
+
+## Why is it $O(n \log n)$?
+
+Two observations:
+
+1. **Splitting halves the problem $\log_2 n$ times.** Starting from $n$ and halving until
+   you reach single elements gives you a recursion depth of $\log_2 n$.
+2. **Each level of recursion does $O(n)$ work.** Across all merges at a given level, the total
+   number of comparisons and writes is bounded by $n$ — every element is touched at most a
+   constant number of times per level.
+
+Multiply: $\log_2 n$ levels times $n$ work per level gives $\Theta(n \log n)$ total.
+
+The recurrence makes this precise:
+
+$$
+T(n) = 2 T\!\left(\tfrac{n}{2}\right) + \Theta(n) = \Theta(n \log n).
+$$
+
+## When is merge sort the right choice?
+
+- **Linked lists.** Merge sort is the natural sort for linked lists — it doesn't need random
+  access, and you can merge two sorted lists in $O(n)$ without any extra space.
+- **External sorting.** When data doesn't fit in memory, merge sort streams over the input,
+  reading and writing in sequential passes — extremely cache-friendly.
+- **Stability matters.** Merge sort is _stable_ (it preserves the relative order of equal
+  elements), which matters when sorting by multiple keys.
+
+The downside: classic merge sort uses $O(n)$ auxiliary memory for the merge buffer. For sorting
+arrays in place with a small constant memory footprint, quicksort or heapsort is usually
+preferred.
