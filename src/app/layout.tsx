@@ -16,13 +16,28 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "CS Concept Visualizer",
     template: "%s — CS Concept Visualizer",
   },
   description:
     "Learn computer science concepts through interactive visualizations — sorting algorithms, data structures, and more.",
+  openGraph: {
+    type: "website",
+    siteName: "CS Concept Visualizer",
+    title: "CS Concept Visualizer",
+    description:
+      "Learn computer science by watching algorithms run. Step through them, scrub backwards, change the inputs.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CS Concept Visualizer",
+    description: "Learn computer science by watching algorithms run.",
+  },
 };
 
 export default function RootLayout({
