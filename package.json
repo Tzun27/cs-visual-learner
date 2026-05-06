@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
+    "analyze": "ANALYZE=true next build",
     "prepare": "simple-git-hooks"
   },
   "simple-git-hooks": {
@@ -47,6 +48,8 @@
     "shiki": "4.0.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.11.3",
+    "@next/bundle-analyzer": "16.2.4",
     "@playwright/test": "1.59.1",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "0.5.19",
@@ -58,6 +61,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "6.0.1",
     "@vitest/coverage-v8": "4.1.5",
+    "axe-core": "4.11.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "eslint-config-prettier": "10.1.8",
