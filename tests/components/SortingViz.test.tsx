@@ -1,0 +1,29 @@
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SortingViz } from "@/components/visualizations/SortingViz";
+
+describe("SortingViz", () => {
+  it("renders the controls toolbar and counters", () => {
+    render(<SortingViz algorithm="bubble" initialSize={8} />);
+    expect(screen.getByRole("toolbar", { name: /Playback/ })).toBeInTheDocument();
+    expect(screen.getByText(/Comparisons/)).toBeInTheDocument();
+    expect(screen.getByText(/Swaps/)).toBeInTheDocument();
+  });
+
+  it("starts with all counters at zero and status 'idle'", () => {
+    render(<SortingViz algorithm="bubble" initialSize={6} />);
+    const dl = screen.getByText(/Status/).closest("dl");
+    expect(dl).not.toBeNull();
+    expect(dl!.textContent).toMatch(/Comparisons\s*0/);
+    expect(dl!.textContent).toMatch(/Swaps\s*0/);
+    expect(dl!.textContent).toMatch(/idle/i);
+  });
+
+  it("step forward advances comparison counter", async () => {
+    render(<SortingViz algorithm="bubble" initialSize={6} />);
+    await userEvent.click(screen.getByRole("button", { name: /Step forward/ }));
+    const dl = screen.getByText(/Status/).closest("dl");
+    expect(dl!.textContent).toMatch(/Comparisons\s*1/);
+  });
+});

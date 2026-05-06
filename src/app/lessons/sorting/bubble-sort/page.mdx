@@ -1,0 +1,51 @@
+import { SortingViz } from "@/components/visualizations/SortingViz";
+
+export const metadata = {
+  title: "Bubble Sort",
+  description:
+    "Watch why bubble sort is O(n²): comparisons stack up, the largest values bubble to the end one pass at a time.",
+};
+
+# Bubble Sort
+
+**Difficulty:** beginner · **Category:** sorting
+
+Bubble sort walks the array from left to right, comparing each pair of adjacent elements and
+swapping them when they're out of order. Each full pass guarantees that the largest still-unsorted
+value settles into its final position at the end. After $n - 1$ passes, the array is sorted.
+
+<SortingViz algorithm="bubble" initialSize={16} />
+
+## What you're seeing
+
+- **Yellow** bars are being _compared_.
+- **Blue** bars (with a tick mark) just _swapped_.
+- **Green** bars are in their _final sorted position_.
+
+Step forward and watch the largest value drift right one position per swap. Each outer pass shortens
+the unsorted prefix by one — that's why the algorithm makes fewer comparisons toward the end.
+
+## Why is it $O(n^2)$?
+
+Each pass through the array makes at most $n - 1$ comparisons. We need up to $n - 1$ passes to
+guarantee everything is sorted. So the total comparisons are bounded by
+
+$$
+(n-1) + (n-2) + \cdots + 1 = \tfrac{n(n-1)}{2} = \Theta(n^2).
+$$
+
+Try increasing the array size and play it again. You'll feel the quadratic growth — doubling the
+size roughly _quadruples_ the number of comparisons.
+
+## When is it actually useful?
+
+Almost never in practice — but two cases matter for intuition:
+
+1. **Already-sorted input.** A small optimization (stop early when no swap occurred during a pass)
+   makes bubble sort run in $O(n)$ on already-sorted data.
+2. **Tiny arrays.** With fewer than ~10 elements, the constant-factor overhead of fancier
+   algorithms can lose to bubble sort. This is why some library implementations of `quicksort`
+   fall back to an $O(n^2)$ sort below a threshold.
+
+The real value of bubble sort is pedagogical: it gives you an intuitive picture of "comparing
+adjacent pairs," which is the foundation for understanding more sophisticated sorts.
