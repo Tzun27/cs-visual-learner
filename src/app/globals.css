@@ -5,11 +5,31 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Color-blind safe palette (Wong, 2011). Verified for protan/deutan/tritan. */
+  --bar-default: #94a3b8;
+  --bar-compare: #e69f00;
+  --bar-compare-stroke: #ad7800;
+  --bar-swap: #56b4e9;
+  --bar-swap-stroke: #1e7aa8;
+  --bar-pivot: #d55e00;
+  --bar-pivot-stroke: #8a3d00;
+  --bar-sorted: #009e73;
+  --bar-sorted-stroke: #00684c;
 }
 
 .dark {
   --background: #0a0a0a;
   --foreground: #ededed;
+  --bar-default: #475569;
+  --bar-compare: #f0b441;
+  --bar-compare-stroke: #fbd281;
+  --bar-swap: #7cc8f0;
+  --bar-swap-stroke: #b3dff5;
+  --bar-pivot: #e57b3a;
+  --bar-pivot-stroke: #f5b083;
+  --bar-sorted: #2eb38a;
+  --bar-sorted-stroke: #6dd0b1;
 }
 
 @theme inline {
