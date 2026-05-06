@@ -1,0 +1,119 @@
+# Next Session Handoff
+
+Quick orientation for the next agent picking up this project.
+
+## Where we are
+
+- **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
+- **Local path:** `/home/tzun/repos/addyosmani-test`
+- **Branch:** `main`, clean, tracking `origin/main`
+- **Status:** v1 implemented and pushed. 18 commits since `init`. Not yet deployed.
+
+Read these before writing code:
+
+1. `AGENTS.md` — repo-level instructions. **Important:** Next.js 16 has breaking changes from training data; consult `node_modules/next/dist/docs/` rather than recalling Next 14/15 patterns from memory.
+2. `docs/SPEC.md` — v1 spec, success criteria checklist, walkthrough.
+3. `docs/PLAN.md` — phased plan (A scaffolding → B viz core → C content/MDX → D polish/deploy).
+4. `docs/TASKS.md` — task breakdown (D6 deploy is the only remaining open item).
+
+## What v1 ships
+
+- **Three sorting visualizations** at `/lessons/sorting/{bubble,merge,quick}-sort` — step forward/back, play/pause, speed slider, array-size slider, live comparison/swap counters.
+- **Production landing** at `/` with embedded bubble-sort playground.
+- **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
+- **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
+- **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
+- **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
+- **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + lessons + axe).
+
+## Architectural load-bearing decisions
+
+These are easy to miss and expensive to violate:
+
+1. **String-keyed algorithm registry** (`src/lib/algorithms/index.ts`). RSC cannot serialize functions across the server→client boundary. `SortingViz` takes `algorithm: SortAlgorithmKey` (a string) and looks it up via `sortAlgorithms[key]`. Do not change this to pass the function directly — server-rendered pages that import `SortingViz` from MDX will fail to build.
+2. **Pure generator pattern.** Algorithms in `src/lib/algorithms/*.ts` are pure functions returning `Generator<SortStep>`. The viz replays steps; algorithms never touch React. Adding a new sort = add a generator + register it. `SortStep` is an additive discriminated union (`src/lib/algorithms/types.ts`) — adding a new variant is safe.
+3. **MDX plugins as string names.** Under Turbopack, `next.config.ts` must use string names (e.g. `"remark-gfm"`) not imported functions, due to the JS/Rust boundary. Per Next 16 docs in `node_modules/next/dist/docs/01-app/02-guides/mdx.md`.
+4. **Deterministic seed in `SortingViz`.** The initial array uses an FNV-1a hash of `(algorithm, size)` so SSR and client agree. `Math.random` reseed only on user-driven size changes (post-hydration). Do not reintroduce `Math.random` in the `useState` initializer — it triggers hydration mismatch.
+5. **`useReducedMotion`** uses `useSyncExternalStore` with `getServerSnapshot` returning `false` for SSR safety. `useStepThrough` no-ops `play()` under reduced motion and skips the auto-advance effect.
+6. **100% coverage threshold** on `src/lib/algorithms/**/*.ts` (`vitest.config.ts`). Adding an algorithm without tests will fail CI.
+
+## Useful commands
+
+```
+npm run dev              # turbopack dev server
+npm run build            # production build
+npm run start            # serve production build (used by playwright)
+npm test                 # unit + property tests
+npm run test:coverage    # with coverage gate
+npm run e2e              # playwright (chromium only)
+npm run analyze          # ANALYZE=true bundle analyzer
+npm run typecheck
+npm run lint
+npm run format           # prettier --write .
+npm run format:check
+```
+
+Pre-commit (`simple-git-hooks` + `lint-staged`) auto-runs Prettier and ESLint on staged files. Don't bypass with `--no-verify` — fix the underlying issue.
+
+## Open work
+
+### Pending: D6 — Deploy to Vercel
+
+User deferred this. When you do it:
+
+- Set `NEXT_PUBLIC_SITE_URL` to the production origin so `metadataBase`, the sitemap, and robots produce absolute URLs.
+- Verify the edge-runtime OG image renders correctly (sanity-check the unfurl in a Slack/Discord preview).
+- Add the deploy URL to the GitHub repo's "About" section.
+
+### Suggested next features
+
+- **Insertion sort, heap sort, radix sort** — already advertised as "Coming soon" on `/lessons`. Each is one new generator + one MDX lesson; the viz layer handles them as-is.
+- **Side-by-side comparison page** — run all three sorts on the same input simultaneously, show race-to-sorted with shared counters. The architecture supports this trivially since algorithms are pure.
+- **Data structures track** — BSTs, hash tables, heaps. Will need a new viz primitive (graph/tree layout) but `useStepThrough` is reusable as-is.
+- **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
+
+### Light follow-ups
+
+- Real-device Lighthouse pass (D4 was checked off based on local Lighthouse, not field data).
+- Property-test coverage for `quickSort` is currently length-only (in-place partition has transient duplicates). If we add a stable sort, tighten its property test to a full multiset-equality check.
+- The smoke test relies on heading text ("Learn computer science"). If the landing copy changes, update `e2e/smoke.spec.ts` in the same commit.
+
+## Things to leave alone
+
+- `eslint.config.mjs` does not need `eslint-plugin-jsx-a11y` — `eslint-config-next` already includes it. Adding it back causes a plugin conflict.
+- `vitest.config.ts` uses Vitest 4's native `resolve.tsconfigPaths: true`. Don't add `vite-tsconfig-paths`.
+- `ThemeToggle` reads `resolvedTheme` lazily in the click handler and uses Tailwind's `dark:` variant for the icon swap. The "mounted" pattern triggers React 19's `react-hooks/set-state-in-effect` rule.
+
+## File map quick reference
+
+```
+src/app/                            App Router routes
+  page.tsx                          Production landing
+  layout.tsx                        Root layout, metadata, fonts
+  lessons/page.tsx                  Topic-grouped index
+  lessons/sorting/*/page.mdx        Per-algorithm lesson content
+  opengraph-image.tsx               Edge-runtime OG card (1200x630)
+  sitemap.ts, robots.ts             SEO
+
+src/components/
+  layout/{Nav,Footer,ThemeToggle}.tsx
+  providers.tsx                     next-themes wrapper
+  visualizations/
+    ArrayBars.tsx                   SVG presentational
+    Controls.tsx                    Toolbar (play/pause/step/reset/speed/size)
+    SortingViz.tsx                  Composition + state
+
+src/lib/
+  algorithms/
+    types.ts                        SortStep discriminated union
+    index.ts                        String-keyed registry
+    {bubble,merge,quick}Sort.ts     Pure generators
+  hooks/
+    useStepThrough.ts               Reducer state machine
+    useReducedMotion.ts             SSR-safe matchMedia
+
+tests/                              Unit + property tests (Vitest)
+e2e/                                Playwright (smoke, lessons, a11y)
+docs/                               SPEC, PLAN, TASKS
+```
