@@ -5,29 +5,183 @@ export const metadata = {
   description: "Browse interactive computer science lessons.",
 };
 
-const lessons = [
-  { slug: "bubble-sort", title: "Bubble Sort" },
-  { slug: "merge-sort", title: "Merge Sort" },
-  { slug: "quick-sort", title: "Quick Sort" },
-] as const;
+type Difficulty = "beginner" | "intermediate" | "advanced";
+
+type Lesson =
+  | { status: "live"; slug: string; title: string; difficulty: Difficulty; blurb: string }
+  | { status: "coming-soon"; title: string; difficulty: Difficulty; blurb: string };
+
+type Topic = {
+  title: string;
+  description: string;
+  lessons: readonly Lesson[];
+};
+
+const topics: readonly Topic[] = [
+  {
+    title: "Sorting algorithms",
+    description: "Three classic sorts, three different ways to think about ordering data.",
+    lessons: [
+      {
+        status: "live",
+        slug: "bubble-sort",
+        title: "Bubble Sort",
+        difficulty: "beginner",
+        blurb: "Adjacent swaps until everything is in place. The simplest sort.",
+      },
+      {
+        status: "live",
+        slug: "merge-sort",
+        title: "Merge Sort",
+        difficulty: "intermediate",
+        blurb: "Divide-and-conquer with a guaranteed O(n log n) ceiling.",
+      },
+      {
+        status: "live",
+        slug: "quick-sort",
+        title: "Quick Sort",
+        difficulty: "intermediate",
+        blurb: "Pick a pivot, partition, recurse. Fast on average.",
+      },
+      {
+        status: "coming-soon",
+        title: "Insertion Sort",
+        difficulty: "beginner",
+        blurb: "How most people sort cards in their hand.",
+      },
+      {
+        status: "coming-soon",
+        title: "Heap Sort",
+        difficulty: "intermediate",
+        blurb: "An in-place O(n log n) sort built on a binary heap.",
+      },
+      {
+        status: "coming-soon",
+        title: "Radix Sort",
+        difficulty: "intermediate",
+        blurb: "Sorting without comparisons, one digit at a time.",
+      },
+    ],
+  },
+  {
+    title: "Data structures",
+    description: "Coming soon.",
+    lessons: [
+      {
+        status: "coming-soon",
+        title: "Binary Search Trees",
+        difficulty: "intermediate",
+        blurb: "Insertion, lookup, deletion — and why balance matters.",
+      },
+      {
+        status: "coming-soon",
+        title: "Hash Tables",
+        difficulty: "intermediate",
+        blurb: "Collision strategies, load factor, and when O(1) is a lie.",
+      },
+      {
+        status: "coming-soon",
+        title: "Heaps & Priority Queues",
+        difficulty: "intermediate",
+        blurb: "The data structure behind heap sort and Dijkstra.",
+      },
+    ],
+  },
+  {
+    title: "Machine learning intuitions",
+    description: "Coming soon. Visualizations that build intuition for ML internals.",
+    lessons: [
+      {
+        status: "coming-soon",
+        title: "Gradient Descent",
+        difficulty: "beginner",
+        blurb: "Watch the optimizer walk down a loss landscape.",
+      },
+      {
+        status: "coming-soon",
+        title: "Backpropagation",
+        difficulty: "intermediate",
+        blurb: "How a network learns by reverse-mode differentiation.",
+      },
+      {
+        status: "coming-soon",
+        title: "Transformer Attention",
+        difficulty: "advanced",
+        blurb: "The attention head, decomposed into Q, K, V — and what each one is doing.",
+      },
+    ],
+  },
+];
+
+const difficultyStyles: Record<Difficulty, string> = {
+  beginner: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  intermediate: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  advanced: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300",
+};
+
+function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${difficultyStyles[difficulty]}`}
+    >
+      {difficulty}
+    </span>
+  );
+}
 
 export default function LessonsPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-12">
+    <main className="mx-auto w-full max-w-4xl px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Lessons</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">Pick an algorithm to step through.</p>
-      <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-        {lessons.map((l) => (
-          <li key={l.slug}>
-            <Link
-              href={`/lessons/sorting/${l.slug}`}
-              className="block rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none dark:border-zinc-800 dark:hover:bg-zinc-900"
-            >
-              <span className="font-medium">{l.title}</span>
-            </Link>
-          </li>
+      <p className="mt-2 max-w-2xl text-zinc-600 dark:text-zinc-400">
+        Each lesson combines short prose with an interactive visualization you can step through. New
+        topics are added as the project grows.
+      </p>
+
+      <div className="mt-12 flex flex-col gap-14">
+        {topics.map((topic) => (
+          <section key={topic.title} aria-labelledby={`topic-${topic.title}`}>
+            <h2 id={`topic-${topic.title}`} className="text-xl font-semibold tracking-tight">
+              {topic.title}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">{topic.description}</p>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+              {topic.lessons.map((l) =>
+                l.status === "live" ? (
+                  <li key={l.slug}>
+                    <Link
+                      href={`/lessons/sorting/${l.slug}`}
+                      className="flex h-full flex-col rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none dark:border-zinc-800 dark:hover:bg-zinc-900"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{l.title}</span>
+                        <DifficultyBadge difficulty={l.difficulty} />
+                      </div>
+                      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{l.blurb}</p>
+                    </Link>
+                  </li>
+                ) : (
+                  <li key={l.title}>
+                    <div
+                      aria-disabled
+                      className="flex h-full flex-col rounded-lg border border-dashed border-zinc-200 p-4 opacity-70 dark:border-zinc-800"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-zinc-500">{l.title}</span>
+                        <DifficultyBadge difficulty={l.difficulty} />
+                      </div>
+                      <p className="mt-2 text-sm text-zinc-500">{l.blurb}</p>
+                      <span className="mt-3 text-xs tracking-wider text-zinc-400 uppercase">
+                        Coming soon
+                      </span>
+                    </div>
+                  </li>
+                ),
+              )}
+            </ul>
+          </section>
         ))}
-      </ul>
+      </div>
     </main>
   );
 }
