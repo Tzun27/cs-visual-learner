@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 const lessons = [
   { slug: "bubble-sort", title: "Bubble Sort" },
+  { slug: "insertion-sort", title: "Insertion Sort" },
   { slug: "merge-sort", title: "Merge Sort" },
   { slug: "quick-sort", title: "Quick Sort" },
 ] as const;

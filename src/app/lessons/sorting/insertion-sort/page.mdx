@@ -1,0 +1,60 @@
+import { SortingViz } from "@/components/visualizations/SortingViz";
+
+export const metadata = {
+  title: "Insertion Sort",
+  description:
+    "How most people sort cards in their hand: take the next unsorted value and slot it into the right place among the values you've already sorted.",
+};
+
+# Insertion Sort
+
+**Difficulty:** beginner · **Category:** sorting
+
+Insertion sort is how most people sort cards in their hand. Pick up the next card; slide it left past
+the cards you've already arranged until it sits next to a smaller one. The sorted prefix grows by
+one with each pass, and the unsorted suffix shrinks by one — until the whole array is sorted.
+
+<SortingViz algorithm="insertion" initialSize={16} />
+
+## What you're seeing
+
+- **Yellow** bars are being _compared_ — the freshly-picked-up value next to its left neighbor in
+  the sorted prefix.
+- **Blue** bars (with a tick mark) just _swapped_ as the picked value sifts left into place.
+- **Green** bars are in their _final sorted position_ — once the algorithm finishes.
+
+Step forward and watch the new value walk left until it hits something smaller. Then the algorithm
+moves on to the next unsorted element and repeats.
+
+## Why is it $O(n^2)$ in the worst case?
+
+Inserting the $i$-th element can take up to $i$ swaps — if the array is reverse-sorted, every value
+has to walk all the way to position $0$. Summing over the outer loop:
+
+$$
+1 + 2 + \cdots + (n-1) = \tfrac{n(n-1)}{2} = \Theta(n^2).
+$$
+
+Try the visualization on a small reverse-sorted array (Step Back to the start, then drag the size
+slider to a fresh shuffle a few times until you get a near-reverse run). You'll see the swap
+counter blow up.
+
+## When is it actually fast?
+
+- **Already-sorted or nearly-sorted input.** Each insertion finds its place after one comparison
+  (the new value isn't smaller than its left neighbor), so the algorithm runs in $O(n + k)$ where
+  $k$ is the number of inversions. On perfectly sorted input that's $O(n)$ — far better than
+  bubble sort's naive $O(n^2)$.
+- **Tiny arrays.** Like bubble sort, insertion sort beats fancier algorithms below ~10 elements
+  thanks to small constant factors. Hybrid sorts like Timsort and introsort fall back to insertion
+  sort once a partition gets small enough.
+- **Online sorting.** If data arrives one element at a time, insertion sort keeps the running
+  window sorted with each arrival — useful in streaming or interactive contexts.
+
+## Stability and space
+
+- Insertion sort is **stable** — equal elements never cross each other.
+- It sorts **in place**, using $O(1)$ extra memory.
+
+For these reasons it's a real production sort despite the $O(n^2)$ worst case — just packaged
+inside a hybrid algorithm rather than used standalone on big arrays.

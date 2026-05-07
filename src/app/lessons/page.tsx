@@ -44,7 +44,8 @@ const topics: readonly Topic[] = [
         blurb: "Pick a pivot, partition, recurse. Fast on average.",
       },
       {
-        status: "coming-soon",
+        status: "live",
+        slug: "insertion-sort",
         title: "Insertion Sort",
         difficulty: "beginner",
         blurb: "How most people sort cards in their hand.",

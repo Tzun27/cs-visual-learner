@@ -6,6 +6,7 @@ const staticRoutes = [
   "",
   "/lessons",
   "/lessons/sorting/bubble-sort",
+  "/lessons/sorting/insertion-sort",
   "/lessons/sorting/merge-sort",
   "/lessons/sorting/quick-sort",
 ] as const;
