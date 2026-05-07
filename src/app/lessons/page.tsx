@@ -51,7 +51,8 @@ const topics: readonly Topic[] = [
         blurb: "How most people sort cards in their hand.",
       },
       {
-        status: "coming-soon",
+        status: "live",
+        slug: "heap-sort",
         title: "Heap Sort",
         difficulty: "intermediate",
         blurb: "An in-place O(n log n) sort built on a binary heap.",

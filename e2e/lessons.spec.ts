@@ -5,6 +5,7 @@ const lessons = [
   { slug: "insertion-sort", title: "Insertion Sort" },
   { slug: "merge-sort", title: "Merge Sort" },
   { slug: "quick-sort", title: "Quick Sort" },
+  { slug: "heap-sort", title: "Heap Sort" },
 ] as const;
 
 async function gotoLesson(page: Page, slug: string) {
