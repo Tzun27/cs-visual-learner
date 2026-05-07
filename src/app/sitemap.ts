@@ -10,6 +10,7 @@ const staticRoutes = [
   "/lessons/sorting/insertion-sort",
   "/lessons/sorting/merge-sort",
   "/lessons/sorting/quick-sort",
+  "/lessons/sorting/radix-sort",
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {

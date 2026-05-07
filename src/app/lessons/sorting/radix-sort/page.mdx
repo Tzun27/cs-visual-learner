@@ -1,0 +1,82 @@
+import { SortingViz } from "@/components/visualizations/SortingViz";
+
+export const metadata = {
+  title: "Radix Sort",
+  description:
+    "Sorting without comparisons, one digit at a time. LSD radix sort distributes values into ten buckets per digit and stably re-collects them — O(n · k) for k-digit values.",
+};
+
+# Radix Sort
+
+**Difficulty:** intermediate · **Category:** sorting
+
+Every sort we've seen so far works by _comparing_ values: bubble, insertion, merge, quick, and
+heap sort all decide where things go by asking "is $a < b$?". Radix sort doesn't. Instead, it
+sorts by **digits**.
+
+The version below is **LSD (least-significant-digit) radix sort**, base 10:
+
+1. Bucket every value by its **ones** digit. Concatenate the buckets back into the array.
+2. Bucket every value by its **tens** digit. Concatenate again.
+3. Repeat for hundreds, thousands, and so on, until you've covered the most significant digit
+   of the largest value.
+
+Crucially, each pass must be **stable** — values with the same digit retain their relative order
+from the previous pass. That's what lets the algorithm work bottom-up.
+
+<SortingViz algorithm="radix" initialSize={16} />
+
+## What you're seeing
+
+- The **dashed bracket** flashes at the start of each digit pass — once for ones, once for tens,
+  once for hundreds, and so on.
+- **Blue** bars (with a tick mark) are positions being _written_ as the bucket-collected values
+  are placed back into the array. Radix sort doesn't compare or swap — every observable operation
+  is a write.
+- **Green** bars are in their _final sorted position_ once the algorithm finishes.
+
+The "Swaps" counter under the visualization is really counting writes here, since radix sort
+doesn't perform any swaps in the traditional sense. The "Comparisons" counter stays at zero —
+that's the whole point.
+
+## Why is radix sort $O(n \cdot k)$?
+
+For values up to $V$ with $k = \lceil \log_{10} V \rceil$ digits:
+
+- Each pass touches every element once to bucket it ($O(n)$) and once to collect it ($O(n)$).
+- There are $k$ passes — one per digit.
+
+Total: $O(n \cdot k)$. When $k$ is constant (or bounded by, say, 64-bit integers giving $k \le 20$
+in base 10), this is **linear in $n$** — beating the $\Omega(n \log n)$ lower bound that applies
+to comparison-based sorts.
+
+The trade-off is the assumption: radix only works on data with a digit-like structure
+(integers, fixed-length strings, IP addresses). It can't sort arbitrary objects with a custom
+comparator.
+
+## Stability is load-bearing
+
+Watch a pass on values that share their last digit — say `[21, 11, 23, 13]`. The ones digits are
+`[1, 1, 3, 3]`. After the ones-pass bucket and re-concatenation, the values must still appear in
+input order: `[21, 11, 23, 13]`. If the algorithm reordered same-digit values, the next pass
+would lose information about their lower digits and the final sort would be wrong.
+
+This is why we use a **stable** bucket distribution (bucket-then-flatten), not a swap-based
+partition.
+
+## What about negative numbers?
+
+Classic LSD radix sort assumes non-negative integers. The visualization here applies a small
+internal trick: it adds a constant offset to every value (large enough to make the smallest
+value zero) before bucketing, then strips the offset off the displayed values. The math works
+out and you see the original numbers — but in production code you'd typically split the input
+into negative and non-negative partitions, sort each, and concatenate.
+
+## Where radix sort wins
+
+- **Sorting large numbers of fixed-width keys** — IPv4 addresses, integer IDs, hash buckets.
+- **Sorting strings of equal length** — character-by-character with 256 buckets.
+- **External sorting at extreme scale** — LSD radix is the basis for many disk-and-network
+  sorters because each pass is a single linear scan with predictable I/O.
+
+It's not a general-purpose sort, but in its niche it's hard to beat.

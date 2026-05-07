@@ -6,6 +6,7 @@ const lessons = [
   { slug: "merge-sort", title: "Merge Sort" },
   { slug: "quick-sort", title: "Quick Sort" },
   { slug: "heap-sort", title: "Heap Sort" },
+  { slug: "radix-sort", title: "Radix Sort" },
 ] as const;
 
 async function gotoLesson(page: Page, slug: string) {
@@ -37,27 +38,30 @@ for (const { slug, title } of lessons) {
       expect(errors).toEqual([]);
     });
 
-    test("Step forward advances the comparison counter; Reset returns to zero", async ({
-      page,
-    }) => {
+    test("Step forward advances at least one counter; Reset returns to zero", async ({ page }) => {
       await gotoLesson(page, slug);
       const stepForward = page.getByRole("button", { name: /Step forward/ });
       const reset = page.getByRole("button", { name: /Reset/ });
       const counters = page.locator("dl");
 
+      // Comparisons-or-Swaps because radix sort is non-comparison-based and
+      // only emits writes (counted under Swaps).
+      const advanced = /(Comparisons|Swaps)\s*[1-9]/;
+
       await expect(counters).toContainText(/Comparisons\s*0/);
       await stepForward.click();
-      // Some algorithms emit a 'range' or 'pivot' before any comparison; click
-      // up to a few times so the counter reliably shows ≥ 1.
+      // Some algorithms emit a 'range' or 'pivot' before any comparison/write;
+      // click up to a few times so a counter reliably shows ≥ 1.
       for (let i = 0; i < 6; i++) {
         const text = (await counters.textContent()) ?? "";
-        if (/Comparisons\s*[1-9]/.test(text)) break;
+        if (advanced.test(text)) break;
         await stepForward.click();
       }
-      await expect(counters).toContainText(/Comparisons\s*[1-9]/);
+      await expect(counters).toContainText(advanced);
 
       await reset.click();
       await expect(counters).toContainText(/Comparisons\s*0/);
+      await expect(counters).toContainText(/Swaps\s*0/);
       await expect(counters).toContainText(/idle/i);
     });
   });

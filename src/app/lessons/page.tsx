@@ -58,7 +58,8 @@ const topics: readonly Topic[] = [
         blurb: "An in-place O(n log n) sort built on a binary heap.",
       },
       {
-        status: "coming-soon",
+        status: "live",
+        slug: "radix-sort",
         title: "Radix Sort",
         difficulty: "intermediate",
         blurb: "Sorting without comparisons, one digit at a time.",
