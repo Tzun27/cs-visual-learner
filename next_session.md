@@ -5,9 +5,9 @@ Quick orientation for the next agent picking up this project.
 ## Where we are
 
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
-- **Local path:** `/home/tzun/repos/addyosmani-test`
-- **Branch:** `main`, clean, tracking `origin/main`
-- **Status:** v1 implemented and pushed. 18 commits since `init`. Not yet deployed.
+- **Local path:** `/home/tzun/repos/cs-visual-learner`
+- **Branch:** `main`, clean. The four most recent commits (insertion / heap / radix sort + sorting copy refresh) are local-only at the time of this handoff and may need to be pushed.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix). Not yet deployed.
 
 Read these before writing code:
 
@@ -16,9 +16,9 @@ Read these before writing code:
 3. `docs/PLAN.md` — phased plan (A scaffolding → B viz core → C content/MDX → D polish/deploy).
 4. `docs/TASKS.md` — task breakdown (D6 deploy is the only remaining open item).
 
-## What v1 ships
+## What ships today
 
-- **Three sorting visualizations** at `/lessons/sorting/{bubble,merge,quick}-sort` — step forward/back, play/pause, speed slider, array-size slider, live comparison/swap counters.
+- **Six sorting visualizations** at `/lessons/sorting/{bubble,insertion,merge,quick,heap,radix}-sort` — step forward/back, play/pause, speed slider, array-size slider, live comparison/swap counters. (Radix sort is non-comparison-based so its Comparisons counter stays at 0; the Swaps counter doubles as a "writes" counter for it.)
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
@@ -68,16 +68,17 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **Insertion sort, heap sort, radix sort** — already advertised as "Coming soon" on `/lessons`. Each is one new generator + one MDX lesson; the viz layer handles them as-is.
-- **Side-by-side comparison page** — run all three sorts on the same input simultaneously, show race-to-sorted with shared counters. The architecture supports this trivially since algorithms are pure.
+- **Side-by-side comparison page** — run multiple sorts on the same input simultaneously, show race-to-sorted with shared counters. The architecture supports this trivially since algorithms are pure.
 - **Data structures track** — BSTs, hash tables, heaps. Will need a new viz primitive (graph/tree layout) but `useStepThrough` is reusable as-is.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
+- **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
 
 ### Light follow-ups
 
 - Real-device Lighthouse pass (D4 was checked off based on local Lighthouse, not field data).
-- Property-test coverage for `quickSort` is currently length-only (in-place partition has transient duplicates). If we add a stable sort, tighten its property test to a full multiset-equality check.
+- Property-test coverage for `quickSort` is currently length-only (in-place partition has transient duplicates). The newly added stable sorts (insertion, radix) keep this constraint at the per-step level for similar reasons (transient writes); their final-array property tests do the full multiset check.
 - The smoke test relies on heading text ("Learn computer science"). If the landing copy changes, update `e2e/smoke.spec.ts` in the same commit.
+- The package.json `name` is still `addyosmani-test` from initial scaffolding — harmless but inconsistent with the repo name. Rename if/when convenient.
 
 ## Things to leave alone
 
