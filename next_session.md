@@ -6,7 +6,7 @@ Quick orientation for the next agent picking up this project.
 
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
-- **Branch:** `main`, clean. The four most recent commits (insertion / heap / radix sort + sorting copy refresh) are local-only at the time of this handoff and may need to be pushed.
+- **Branch:** `main`, tracking `origin/main`.
 - **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix). Not yet deployed.
 
 Read these before writing code:
@@ -109,7 +109,8 @@ src/lib/
   algorithms/
     types.ts                        SortStep discriminated union
     index.ts                        String-keyed registry
-    {bubble,merge,quick}Sort.ts     Pure generators
+    {bubble,heap,insertion,         Pure generators (one per algorithm)
+     merge,quick,radix}Sort.ts
   hooks/
     useStepThrough.ts               Reducer state machine
     useReducedMotion.ts             SSR-safe matchMedia
