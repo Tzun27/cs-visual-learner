@@ -68,7 +68,15 @@ export default function Home() {
           What you&apos;ll learn first
         </h2>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          Three classic sorts, three different approaches to the same problem.
+          Start with three classic sorts — each a different approach to the same problem. More on
+          the{" "}
+          <Link
+            href="/lessons"
+            className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-300"
+          >
+            lessons page
+          </Link>
+          .
         </p>
         <ul className="mt-6 grid gap-3 sm:grid-cols-3">
           {lessons.map((l) => (

@@ -20,7 +20,8 @@ type Topic = {
 const topics: readonly Topic[] = [
   {
     title: "Sorting algorithms",
-    description: "Three classic sorts, three different ways to think about ordering data.",
+    description:
+      "Six classic sorts — comparison-based and not — six different ways to think about ordering data.",
     lessons: [
       {
         status: "live",
