@@ -7,7 +7,7 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix). Not yet deployed.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page. Not yet deployed.
 
 Read these before writing code:
 
@@ -19,6 +19,7 @@ Read these before writing code:
 ## What ships today
 
 - **Six sorting visualizations** at `/lessons/sorting/{bubble,insertion,merge,quick,heap,radix}-sort` — step forward/back, play/pause, speed slider, array-size slider, live comparison/swap counters. (Radix sort is non-comparison-based so its Comparisons counter stays at 0; the Swaps counter doubles as a "writes" counter for it.)
+- **Side-by-side compare page** at `/lessons/sorting/compare` — three algorithm slots, each with a dropdown picker, all sharing one input and one playback toolbar. Per-slot step/compare/swap counters; finish indicator shows total step count when a slot completes. Uses `RaceViz` + `useParallelStepThrough`.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
@@ -37,6 +38,8 @@ These are easy to miss and expensive to violate:
 4. **Deterministic seed in `SortingViz`.** The initial array uses an FNV-1a hash of `(algorithm, size)` so SSR and client agree. `Math.random` reseed only on user-driven size changes (post-hydration). Do not reintroduce `Math.random` in the `useState` initializer — it triggers hydration mismatch.
 5. **`useReducedMotion`** uses `useSyncExternalStore` with `getServerSnapshot` returning `false` for SSR safety. `useStepThrough` no-ops `play()` under reduced motion and skips the auto-advance effect.
 6. **100% coverage threshold** on `src/lib/algorithms/**/*.ts` (`vitest.config.ts`). Adding an algorithm without tests will fail CI.
+7. **Step→view helpers live in `stepView.ts`.** `SortingViz` and `RaceViz` both import `highlightsFor` / `activeRangeFor` / `countCompares` / `countSwapsAndWrites` from `src/components/visualizations/stepView.ts`. Keep new viz consumers using these helpers rather than re-implementing the discriminated-union switch.
+8. **`useParallelStepThrough` keys totals by content, not reference.** The hook joins `totals` into a string for the effect dep array (with `eslint-disable-next-line` on capture sites). If you change its API, preserve that behavior so caller-side `useMemo` churn doesn't restart the playback timer.
 
 ## Useful commands
 
@@ -68,7 +71,6 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **Side-by-side comparison page** — run multiple sorts on the same input simultaneously, show race-to-sorted with shared counters. The architecture supports this trivially since algorithms are pure.
 - **Data structures track** — BSTs, hash tables, heaps. Will need a new viz primitive (graph/tree layout) but `useStepThrough` is reusable as-is.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
@@ -94,6 +96,7 @@ src/app/                            App Router routes
   layout.tsx                        Root layout, metadata, fonts
   lessons/page.tsx                  Topic-grouped index
   lessons/sorting/*/page.mdx        Per-algorithm lesson content
+  lessons/sorting/compare/page.mdx  Side-by-side comparison lesson
   opengraph-image.tsx               Edge-runtime OG card (1200x630)
   sitemap.ts, robots.ts             SEO
 
@@ -103,19 +106,22 @@ src/components/
   visualizations/
     ArrayBars.tsx                   SVG presentational
     Controls.tsx                    Toolbar (play/pause/step/reset/speed/size)
-    SortingViz.tsx                  Composition + state
+    SortingViz.tsx                  Single-algorithm composition + state
+    RaceViz.tsx                     Multi-slot composition + parallel state
+    stepView.ts                     Shared step→highlight + counter helpers
 
 src/lib/
   algorithms/
     types.ts                        SortStep discriminated union
-    index.ts                        String-keyed registry
+    index.ts                        String-keyed registry + display labels
     {bubble,heap,insertion,         Pure generators (one per algorithm)
      merge,quick,radix}Sort.ts
   hooks/
-    useStepThrough.ts               Reducer state machine
+    useStepThrough.ts               Single-list reducer state machine
+    useParallelStepThrough.ts       N-list reducer with shared timer
     useReducedMotion.ts             SSR-safe matchMedia
 
 tests/                              Unit + property tests (Vitest)
-e2e/                                Playwright (smoke, lessons, a11y)
+e2e/                                Playwright (smoke, lessons, compare, a11y)
 docs/                               SPEC, PLAN, TASKS
 ```
