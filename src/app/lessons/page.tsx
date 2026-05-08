@@ -14,6 +14,7 @@ type Lesson =
 type Topic = {
   title: string;
   description: string;
+  pathPrefix: string;
   lessons: readonly Lesson[];
 };
 
@@ -22,6 +23,7 @@ const topics: readonly Topic[] = [
     title: "Sorting algorithms",
     description:
       "Six classic sorts — comparison-based and not — six different ways to think about ordering data.",
+    pathPrefix: "/lessons/sorting",
     lessons: [
       {
         status: "live",
@@ -76,13 +78,16 @@ const topics: readonly Topic[] = [
   },
   {
     title: "Data structures",
-    description: "Coming soon.",
+    description:
+      "How values get organized so that lookup, insert, and delete stay fast — and what breaks when the structure goes wrong.",
+    pathPrefix: "/lessons/data-structures",
     lessons: [
       {
-        status: "coming-soon",
+        status: "live",
+        slug: "binary-search-tree",
         title: "Binary Search Trees",
         difficulty: "intermediate",
-        blurb: "Insertion, lookup, deletion — and why balance matters.",
+        blurb: "Watch insertion order decide whether lookups stay O(log n) or collapse to O(n).",
       },
       {
         status: "coming-soon",
@@ -101,6 +106,7 @@ const topics: readonly Topic[] = [
   {
     title: "Machine learning intuitions",
     description: "Coming soon. Visualizations that build intuition for ML internals.",
+    pathPrefix: "/lessons/ml",
     lessons: [
       {
         status: "coming-soon",
@@ -161,7 +167,7 @@ export default function LessonsPage() {
                 l.status === "live" ? (
                   <li key={l.slug}>
                     <Link
-                      href={`/lessons/sorting/${l.slug}`}
+                      href={`${topic.pathPrefix}/${l.slug}`}
                       className="flex h-full flex-col rounded-lg border border-zinc-200 p-4 transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none dark:border-zinc-800 dark:hover:bg-zinc-900"
                     >
                       <div className="flex items-center justify-between gap-2">

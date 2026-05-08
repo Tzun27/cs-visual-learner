@@ -6,6 +6,7 @@ const routes = [
   "/lessons",
   "/lessons/sorting/bubble-sort",
   "/lessons/sorting/compare",
+  "/lessons/data-structures/binary-search-tree",
 ] as const;
 
 for (const route of routes) {

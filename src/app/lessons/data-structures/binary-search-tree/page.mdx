@@ -1,0 +1,67 @@
+import { BSTViz } from "@/components/visualizations/BSTViz";
+
+export const metadata = {
+  title: "Binary Search Tree",
+  description:
+    "Watch a BST grow one insert at a time and see firsthand why the order of inserts decides whether lookups stay O(log n) or collapse to O(n).",
+};
+
+# Binary Search Tree
+
+**Difficulty:** intermediate · **Category:** data structures
+
+A binary search tree is a binary tree where every node satisfies a single invariant: every value
+in the left subtree is _less than_ the node's value, and every value in the right subtree is
+_greater_. That one rule is what makes lookup, insert, and delete all $O(h)$ — where $h$ is the
+height of the tree.
+
+The catch — and the lesson this page is about — is that $h$ depends entirely on the order of
+inserts.
+
+<BSTViz />
+
+## Reading the visualization
+
+Press **Play** and watch the tree fill in one node at a time. For each insert, the algorithm walks
+down from the root, comparing the new value against each node it visits and turning left or right
+based on the BST invariant — until it falls off the end of a subtree, where the new node gets
+attached.
+
+- **Yellow** rings are nodes _being compared_ against the value about to be inserted.
+- **Blue** rings (with a dashed halo) just got _placed_.
+- **Orange** rings indicate a _duplicate_ — the value is already in the tree, so no new node is
+  added.
+
+The status line under the tree narrates each step in plain text — useful for stepping manually.
+
+## Why insert order matters
+
+Toggle between **Balanced order** and **Sorted order** and watch the **Max depth** counter.
+
+The balanced sequence is constructed by inserting the median first, then the medians of each half,
+and so on. That produces a tree of depth $\lceil \log_2 n \rceil$ — for 12 nodes, depth 4.
+
+The sorted sequence inserts in ascending order. Each new value is greater than every existing
+node, so it always travels down the right child until it reaches the bottom — producing a
+right-only chain of depth $n - 1$. That tree is technically still a valid BST, but it's a linked
+list wearing a tree disguise.
+
+The two trees hold the **same set of values**. Lookup in the balanced one takes $\log_2 12 \approx 4$
+comparisons in the worst case; lookup in the degenerate one takes 12. That's the difference between
+$O(\log n)$ and $O(n)$.
+
+## How real systems handle this
+
+Production-grade BSTs guarantee balance through one of a few strategies:
+
+- **AVL trees** strictly bound the height difference between sibling subtrees to one. They
+  guarantee $O(\log n)$ but rebalance frequently, which makes them write-heavy.
+- **Red-black trees** allow looser balance (height $\leq 2 \log_2(n+1)$) but rebalance less, so
+  they're a better fit for general-purpose ordered maps. Linux's `rbtree`, Java's `TreeMap`, and
+  C++'s `std::map` all use them.
+- **B-trees** generalize the idea to many children per node, which dramatically reduces tree
+  height in exchange for more work per node. Almost every relational database index is a B-tree
+  variant — disk and SSD reads are the bottleneck, and shallower trees mean fewer of them.
+
+The plain BST you see here is the conceptual ancestor of all of these — the right place to start
+before reaching for the more sophisticated variants.

@@ -11,6 +11,8 @@ const staticRoutes = [
   "/lessons/sorting/merge-sort",
   "/lessons/sorting/quick-sort",
   "/lessons/sorting/radix-sort",
+  "/lessons/sorting/compare",
+  "/lessons/data-structures/binary-search-tree",
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
