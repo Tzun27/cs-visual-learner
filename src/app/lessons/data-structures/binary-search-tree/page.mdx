@@ -1,10 +1,11 @@
 import { BSTViz } from "@/components/visualizations/BSTViz";
 import { BSTSearchViz } from "@/components/visualizations/BSTSearchViz";
+import { BSTDeleteViz } from "@/components/visualizations/BSTDeleteViz";
 
 export const metadata = {
   title: "Binary Search Tree",
   description:
-    "Watch a BST grow one insert at a time, then walk the search path against the same tree. See firsthand why insertion order decides whether both insert and lookup stay O(log n) or collapse to O(n).",
+    "Watch a BST grow one insert at a time, walk the search path against the same tree, then see all three delete cases play out — leaf, one child, and two children with the inorder successor swap.",
 };
 
 # Binary Search Tree
@@ -77,6 +78,34 @@ inorder traversal of any BST and you get the values in sorted order — the same
 ("smaller goes left, larger goes right") implicitly arranges the values that way. That's why
 ordered map types like `std::map` are tree-based: range queries, predecessors, and successors are
 all cheap walks once the structure is right.
+
+## Deleting from a BST
+
+Insert and search are easy because they only ever _add_ to the tree or _read_ from it. Delete is
+the operation that has to actually re-shape the structure while keeping the BST invariant intact —
+and there are exactly three cases to handle.
+
+<BSTDeleteViz />
+
+The viz removes three values from the same balanced tree, one per case:
+
+- **6 — leaf.** No children, no rewiring. Detach it from its parent and you're done.
+- **38 — one child.** Node 38's only child is $31$. Splice $31$ into 38's position by pointing
+  $38$'s parent ($25$) directly at $31$. The structure stays valid because the entire subtree
+  rooted at $31$ already sat on the correct side of every ancestor.
+- **50 — two children.** This is the interesting case. We can't just promote one of the children,
+  because then the _other_ child has no home. The trick is to find the **inorder successor** —
+  the smallest value in the right subtree, found by going right once and then left as far as
+  possible — copy its value into the slot we're deleting, and then delete _that_ node. The
+  successor is guaranteed to have at most one child (it can't have a left child by construction),
+  which reduces the two-children case to one of the two simpler cases.
+
+Watch the **Successor walks** counter — it only ticks while we're inside that third case.
+
+The trade-off is that delete has more bookkeeping than insert or search, but it's still
+$O(h)$: the search to find the node is bounded by height, and the successor walk is also
+bounded by height. So the same balance argument from the insert section applies — a degenerate
+tree turns delete into $O(n)$ along with everything else.
 
 ## How real systems handle this
 

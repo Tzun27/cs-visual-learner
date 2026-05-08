@@ -76,4 +76,33 @@ test.describe("/lessons/data-structures/binary-search-tree", () => {
     for (let i = 0; i < 4; i++) await stepForward.click();
     await expect(searchRegion.locator("dl")).toContainText(/Comparisons\s*[1-9]/);
   });
+
+  test("the delete section renders with its own toolbar and the three case-specific counters", async ({
+    page,
+  }) => {
+    await page.goto("/lessons/data-structures/binary-search-tree");
+    const deleteRegion = page.getByRole("region", { name: /Binary search tree delete/ });
+    await expect(deleteRegion).toBeVisible();
+    await expect(deleteRegion.getByText(/Deleting/)).toBeVisible();
+    const counters = deleteRegion.locator("dl");
+    await expect(counters).toContainText(/Comparisons\s*0/);
+    await expect(counters).toContainText(/Successor walks\s*0/);
+    await expect(counters).toContainText(/Removed\s*0/);
+  });
+
+  test("stepping the delete viz eventually ticks Removed (a full delete completes)", async ({
+    page,
+  }) => {
+    await page.goto("/lessons/data-structures/binary-search-tree");
+    const deleteRegion = page.getByRole("region", { name: /Binary search tree delete/ });
+    const stepForward = deleteRegion.getByRole("button", { name: /Step forward/ });
+    const counters = deleteRegion.locator("dl");
+    // Worst case (3-cmp leaf delete) is 5 steps to first unlink; budget some slack.
+    for (let i = 0; i < 12; i++) {
+      await stepForward.click();
+      const text = (await counters.textContent()) ?? "";
+      if (/Removed\s*[1-9]/.test(text)) break;
+    }
+    await expect(counters).toContainText(/Removed\s*[1-9]/);
+  });
 });
