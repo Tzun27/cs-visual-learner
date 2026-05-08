@@ -7,7 +7,7 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + first data-structures lesson (BST insert + search). Not yet deployed.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + first data-structures lesson (BST insert + search + delete). Not yet deployed.
 
 Read these before writing code:
 
@@ -20,16 +20,17 @@ Read these before writing code:
 
 - **Six sorting visualizations** at `/lessons/sorting/{bubble,insertion,merge,quick,heap,radix}-sort` — step forward/back, play/pause, speed slider, array-size slider, live comparison/swap counters. (Radix sort is non-comparison-based so its Comparisons counter stays at 0; the Swaps counter doubles as a "writes" counter for it.)
 - **Side-by-side compare page** at `/lessons/sorting/compare` — three algorithm slots, each with a dropdown picker, all sharing one input and one playback toolbar. Per-slot step/compare/swap counters; finish indicator shows total step count when a slot completes. Uses `RaceViz` + `useParallelStepThrough`.
-- **Binary Search Tree lesson** at `/lessons/data-structures/binary-search-tree` — covers both insert and search.
+- **Binary Search Tree lesson** at `/lessons/data-structures/binary-search-tree` — covers insert, search, and delete.
   - Insert section: `insertSequence` generator + `BSTViz`. Toggle between Balanced and Sorted insert order to see Max depth jump from 4 to 12.
-  - Search section: `searchSequence` generator + `BSTSearchViz`, walking a curated mix of hits and misses against the balanced tree. `TreeView` SVG primitive (inorder x-positioning, dynamic row height) is shared between both.
+  - Search section: `searchSequence` generator + `BSTSearchViz`, walking a curated mix of hits and misses against the balanced tree.
+  - Delete section: `deleteSequence` generator + `BSTDeleteViz`. Curated demo deletes 6 (leaf), 38 (one child), and 50 (two children, successor walk 75 → 63 → 56) against the same balanced tree, exercising all three textbook cases. `TreeView` SVG primitive (inorder x-positioning, dynamic row height) is shared by all three vizes.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST + axe).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + axe).
 
 ## Architectural load-bearing decisions
 
@@ -43,10 +44,11 @@ These are easy to miss and expensive to violate:
 6. **100% coverage threshold** on `src/lib/algorithms/**/*.ts` (`vitest.config.ts`). Adding an algorithm without tests will fail CI.
 7. **Step→view helpers live in `stepView.ts`.** `SortingViz` and `RaceViz` both import `highlightsFor` / `activeRangeFor` / `countCompares` / `countSwapsAndWrites` from `src/components/visualizations/stepView.ts`. Keep new viz consumers using these helpers rather than re-implementing the discriminated-union switch.
 8. **`useParallelStepThrough` keys totals by content, not reference.** The hook joins `totals` into a string for the effect dep array (with `eslint-disable-next-line` on capture sites). If you change its API, preserve that behavior so caller-side `useMemo` churn doesn't restart the playback timer.
-9. **BST node ids equal their array index.** `BstSnapshot.nodes` is keyed positionally — `nodes[id]` is the node with `id`. The generator assigns `id = nodes.length` at insert time. If you ever delete nodes, you'll need to either tombstone (preserve indices) or rewrite this contract; lookups assume dense ids today.
+9. **BST node ids equal their array index — and stay that way through deletes.** `BstSnapshot.nodes` is keyed positionally — `nodes[id]` is the node with `id`. `insertSequence` assigns `id = nodes.length` on insert. `deleteSequence` preserves this contract by **orphaning rather than splicing**: removed nodes stay in `nodes[]` but no parent points at them and they're unreachable from `rootId`. `TreeView` walks from the root to build its layout, so orphans render as gone for free, while `nodes[id]` lookups stay valid even after deletes. Don't try to compact ids on delete — every step's snapshot would change cardinality and indexes.
 10. **Lessons index uses `topic.pathPrefix`.** `src/app/lessons/page.tsx` builds links as `${topic.pathPrefix}/${slug}` so non-sorting topics route correctly. When adding a new topic, set `pathPrefix` (e.g. `/lessons/ml`) at the topic level, not per-lesson.
 11. **`Controls`'s array-size slider is conditional.** It renders only when both `arraySize` and `onArraySizeChange` are passed. Keep it that way — `BSTViz` and any future non-array viz needs to omit them cleanly.
-12. **Multiple vizes on one lesson page → scope e2e selectors to a region.** The BST page renders both `BSTViz` and `BSTSearchViz`, so each gets its own `<section aria-label>` and the e2e tests use `page.getByRole("region", { name: ... })` as a parent before locating buttons / dl counters. Page-level `page.locator("dl")` will match both and fail the assertions silently.
+12. **Multiple vizes on one lesson page → scope e2e selectors to a region.** The BST page renders `BSTViz`, `BSTSearchViz`, and `BSTDeleteViz` together, so each gets its own `<section aria-label>` and the e2e tests use `page.getByRole("region", { name: ... })` as a parent before locating buttons / dl counters. Page-level `page.locator("dl")` will match all three and fail the assertions silently.
+13. **`deleteSequence`'s `swap-value` step is intentionally a non-BST snapshot for one tick.** During the two-children case, the target's value gets overwritten with the successor's value before the successor is unlinked — so for that one step the tree contains a duplicate value and violates the right-subtree-greater rule. The next `unlink` step restores the invariant. Property tests must skip `swap-value` snapshots when asserting BST-ness, and any future code that walks delete steps should know this transient exists.
 
 ## Useful commands
 
@@ -78,7 +80,7 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **More data-structures lessons.** BST insert and search both ship. The next natural BST follow-up is **delete** — meaty (three cases: leaf, one-child, two-children-with-successor-swap), worth its own section on the same page. After that, **Hash Tables** (`/lessons/data-structures/hash-tables`) needs a new presentational primitive — a row of buckets with linked-list chains or open-addressing probes — but follows the same generator pattern.
+- **More data-structures lessons.** BST insert, search, and delete all ship now. **Hash Tables** (`/lessons/data-structures/hash-tables`) is the next natural one — needs a new presentational primitive (a row of buckets with linked-list chains or open-addressing probes) but follows the same generator pattern. **Tree traversal** (preorder / inorder / postorder / level-order) is also a great fit since `TreeView` is already a reusable primitive — could even live on the BST page or a sibling page.
 - **Heaps & Priority Queues.** The `heap-sort` lesson already animates the heap inside an array. A dedicated heap lesson would visualize it as an actual binary tree (TreeView reusable!) and walk through `siftUp`/`siftDown`.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
@@ -122,6 +124,7 @@ src/components/
     RaceViz.tsx                     Multi-slot composition + parallel state
     BSTViz.tsx                      BST insert composition + state
     BSTSearchViz.tsx                BST search composition + state
+    BSTDeleteViz.tsx                BST delete composition + state (3-case demo)
     stepView.ts                     Shared step→highlight + counter helpers (sort)
 
 src/lib/
@@ -131,15 +134,15 @@ src/lib/
     {bubble,heap,insertion,         Pure generators (one per algorithm)
      merge,quick,radix}Sort.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / BstStep / BstSearchStep
-    binarySearchTree.ts             insertSequence + searchSequence + buildTree
-    index.ts                        Operation registry + labels
+    types.ts                        BstNode / BstSnapshot / BstStep / BstSearchStep / BstDeleteStep
+    binarySearchTree.ts             insertSequence + searchSequence + deleteSequence + buildTree
+    index.ts                        Operation registry + labels (insert only — search/delete have a different signature)
   hooks/
     useStepThrough.ts               Single-list reducer state machine
     useParallelStepThrough.ts       N-list reducer with shared timer
     useReducedMotion.ts             SSR-safe matchMedia
 
 tests/                              Unit + property tests (Vitest)
-e2e/                                Playwright (smoke, lessons, compare, BST, a11y)
+e2e/                                Playwright (smoke, lessons, compare, BST insert/search/delete, a11y)
 docs/                               SPEC, PLAN, TASKS
 ```
