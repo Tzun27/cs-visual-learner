@@ -29,7 +29,7 @@ Read these before writing code:
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + lessons + axe).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST + axe).
 
 ## Architectural load-bearing decisions
 
@@ -107,7 +107,7 @@ src/app/                            App Router routes
   lessons/sorting/*/page.mdx        Per-algorithm sort lesson content
   lessons/sorting/compare/page.mdx  Side-by-side comparison lesson
   lessons/data-structures/          Data-structures track (layout + lessons)
-    binary-search-tree/page.mdx     BST insert lesson
+    binary-search-tree/page.mdx     BST insert + search lesson
   opengraph-image.tsx               Edge-runtime OG card (1200x630)
   sitemap.ts, robots.ts             SEO
 
