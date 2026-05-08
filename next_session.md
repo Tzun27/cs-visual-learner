@@ -7,7 +7,7 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + first data-structures lesson (BST insert). Not yet deployed.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + first data-structures lesson (BST insert + search). Not yet deployed.
 
 Read these before writing code:
 
@@ -20,7 +20,9 @@ Read these before writing code:
 
 - **Six sorting visualizations** at `/lessons/sorting/{bubble,insertion,merge,quick,heap,radix}-sort` — step forward/back, play/pause, speed slider, array-size slider, live comparison/swap counters. (Radix sort is non-comparison-based so its Comparisons counter stays at 0; the Swaps counter doubles as a "writes" counter for it.)
 - **Side-by-side compare page** at `/lessons/sorting/compare` — three algorithm slots, each with a dropdown picker, all sharing one input and one playback toolbar. Per-slot step/compare/swap counters; finish indicator shows total step count when a slot completes. Uses `RaceViz` + `useParallelStepThrough`.
-- **Binary Search Tree lesson** at `/lessons/data-structures/binary-search-tree` — pure `insertSequence` generator, `TreeView` SVG primitive (inorder x-positioning, dynamic row height), `BSTViz` composition. Toggle between Balanced and Sorted insert order to see Max depth jump from 4 to 12.
+- **Binary Search Tree lesson** at `/lessons/data-structures/binary-search-tree` — covers both insert and search.
+  - Insert section: `insertSequence` generator + `BSTViz`. Toggle between Balanced and Sorted insert order to see Max depth jump from 4 to 12.
+  - Search section: `searchSequence` generator + `BSTSearchViz`, walking a curated mix of hits and misses against the balanced tree. `TreeView` SVG primitive (inorder x-positioning, dynamic row height) is shared between both.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
@@ -44,6 +46,7 @@ These are easy to miss and expensive to violate:
 9. **BST node ids equal their array index.** `BstSnapshot.nodes` is keyed positionally — `nodes[id]` is the node with `id`. The generator assigns `id = nodes.length` at insert time. If you ever delete nodes, you'll need to either tombstone (preserve indices) or rewrite this contract; lookups assume dense ids today.
 10. **Lessons index uses `topic.pathPrefix`.** `src/app/lessons/page.tsx` builds links as `${topic.pathPrefix}/${slug}` so non-sorting topics route correctly. When adding a new topic, set `pathPrefix` (e.g. `/lessons/ml`) at the topic level, not per-lesson.
 11. **`Controls`'s array-size slider is conditional.** It renders only when both `arraySize` and `onArraySizeChange` are passed. Keep it that way — `BSTViz` and any future non-array viz needs to omit them cleanly.
+12. **Multiple vizes on one lesson page → scope e2e selectors to a region.** The BST page renders both `BSTViz` and `BSTSearchViz`, so each gets its own `<section aria-label>` and the e2e tests use `page.getByRole("region", { name: ... })` as a parent before locating buttons / dl counters. Page-level `page.locator("dl")` will match both and fail the assertions silently.
 
 ## Useful commands
 
@@ -75,7 +78,7 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **More data-structures lessons.** BST insert ships; the natural follow-ups are **BST search** (reuse the `TreeView`, add a new generator that walks the tree comparing against a target value) and **BST delete** (the meaty one — three cases: leaf, one-child, two-children-with-successor-swap). After that, **Hash Tables** (`/lessons/data-structures/hash-tables`) needs a new presentational primitive — a row of buckets with linked-list chains or open-addressing probes — but follows the same generator pattern.
+- **More data-structures lessons.** BST insert and search both ship. The next natural BST follow-up is **delete** — meaty (three cases: leaf, one-child, two-children-with-successor-swap), worth its own section on the same page. After that, **Hash Tables** (`/lessons/data-structures/hash-tables`) needs a new presentational primitive — a row of buckets with linked-list chains or open-addressing probes — but follows the same generator pattern.
 - **Heaps & Priority Queues.** The `heap-sort` lesson already animates the heap inside an array. A dedicated heap lesson would visualize it as an actual binary tree (TreeView reusable!) and walk through `siftUp`/`siftDown`.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
@@ -117,7 +120,8 @@ src/components/
     Controls.tsx                    Toolbar (play/pause/step/reset/speed; size optional)
     SortingViz.tsx                  Single-algorithm composition + state
     RaceViz.tsx                     Multi-slot composition + parallel state
-    BSTViz.tsx                      BST composition + state
+    BSTViz.tsx                      BST insert composition + state
+    BSTSearchViz.tsx                BST search composition + state
     stepView.ts                     Shared step→highlight + counter helpers (sort)
 
 src/lib/
@@ -127,8 +131,8 @@ src/lib/
     {bubble,heap,insertion,         Pure generators (one per algorithm)
      merge,quick,radix}Sort.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / BstStep
-    binarySearchTree.ts             insertSequence generator + utilities
+    types.ts                        BstNode / BstSnapshot / BstStep / BstSearchStep
+    binarySearchTree.ts             insertSequence + searchSequence + buildTree
     index.ts                        Operation registry + labels
   hooks/
     useStepThrough.ts               Single-list reducer state machine
