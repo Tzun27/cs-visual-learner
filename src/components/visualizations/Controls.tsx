@@ -6,7 +6,6 @@ import type { StepThroughStatus } from "@/lib/hooks/useStepThrough";
 export type ControlsProps = {
   status: StepThroughStatus;
   speed: number;
-  arraySize: number;
   reducedMotion: boolean;
   canStepBack: boolean;
   canStepForward: boolean;
@@ -16,7 +15,12 @@ export type ControlsProps = {
   onStepForward: () => void;
   onReset: () => void;
   onSpeedChange: (ms: number) => void;
-  onArraySizeChange: (n: number) => void;
+  /**
+   * When omitted (along with onArraySizeChange), the array-size slider is hidden.
+   * Both must be set together for the slider to render.
+   */
+  arraySize?: number;
+  onArraySizeChange?: (n: number) => void;
   minSpeedMs?: number;
   maxSpeedMs?: number;
   minArraySize?: number;
@@ -91,7 +95,11 @@ export function Controls({
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div
+        className={
+          arraySize !== undefined && onArraySizeChange ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"
+        }
+      >
         <label className="flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-400">
           <span className="flex items-center justify-between">
             <span>Step delay</span>
@@ -109,22 +117,24 @@ export function Controls({
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-400">
-          <span className="flex items-center justify-between">
-            <span>Array size</span>
-            <span className="font-mono text-zinc-500">{arraySize}</span>
-          </span>
-          <input
-            type="range"
-            min={minArraySize}
-            max={maxArraySize}
-            step={1}
-            value={arraySize}
-            onChange={(e) => onArraySizeChange(Number(e.target.value))}
-            className="w-full accent-zinc-700 dark:accent-zinc-300"
-            aria-label="Array size"
-          />
-        </label>
+        {arraySize !== undefined && onArraySizeChange && (
+          <label className="flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-400">
+            <span className="flex items-center justify-between">
+              <span>Array size</span>
+              <span className="font-mono text-zinc-500">{arraySize}</span>
+            </span>
+            <input
+              type="range"
+              min={minArraySize}
+              max={maxArraySize}
+              step={1}
+              value={arraySize}
+              onChange={(e) => onArraySizeChange(Number(e.target.value))}
+              className="w-full accent-zinc-700 dark:accent-zinc-300"
+              aria-label="Array size"
+            />
+          </label>
+        )}
       </div>
 
       {reducedMotion && (
