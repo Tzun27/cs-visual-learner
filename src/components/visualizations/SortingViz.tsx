@@ -5,8 +5,9 @@ import { sortAlgorithms, type SortAlgorithmKey } from "@/lib/algorithms";
 import type { SortStep } from "@/lib/algorithms/types";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { ArrayBars, type Highlight } from "./ArrayBars";
+import { ArrayBars } from "./ArrayBars";
 import { Controls } from "./Controls";
+import { activeRangeFor, countCompares, countSwapsAndWrites, highlightsFor } from "./stepView";
 
 export type SortingVizProps = {
   algorithm: SortAlgorithmKey;
@@ -36,31 +37,6 @@ function makeRandomArray(size: number, seed: number): number[] {
     .map((value) => ({ value, key: rand() }))
     .sort((a, b) => a.key - b.key)
     .map((entry) => entry.value);
-}
-
-function highlightsFor(step: SortStep | undefined): Highlight[] {
-  if (!step) return [];
-  switch (step.kind) {
-    case "compare":
-      return step.indices.map((i) => ({ index: i, kind: "compare" }) as const);
-    case "swap":
-      return step.indices.map((i) => ({ index: i, kind: "swap" }) as const);
-    case "write":
-      return [{ index: step.index, kind: "swap" }];
-    case "pivot":
-      return [{ index: step.index, kind: "pivot" }];
-    case "range":
-      return [];
-    case "done":
-      return step.array.map((_, i) => ({ index: i, kind: "sorted" }) as const);
-  }
-}
-
-function activeRangeFor(step: SortStep | undefined): readonly [number, number] | undefined {
-  if (!step) return undefined;
-  if (step.kind === "range") return step.range;
-  if ("range" in step) return step.range;
-  return undefined;
 }
 
 export function SortingViz({
@@ -93,8 +69,8 @@ export function SortingViz({
   const activeRange = activeRangeFor(playback.currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const compares = visibleSteps.filter((s) => s.kind === "compare").length;
-  const swaps = visibleSteps.filter((s) => s.kind === "swap" || s.kind === "write").length;
+  const compares = countCompares(visibleSteps);
+  const swaps = countSwapsAndWrites(visibleSteps);
 
   const handleSizeChange = (next: number) => {
     setSize(next);

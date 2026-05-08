@@ -18,3 +18,12 @@ export const sortAlgorithms = {
 export type SortAlgorithmKey = keyof typeof sortAlgorithms;
 
 export const sortAlgorithmKeys = Object.keys(sortAlgorithms) as readonly SortAlgorithmKey[];
+
+export const sortAlgorithmLabels: Record<SortAlgorithmKey, string> = {
+  bubble: "Bubble Sort",
+  heap: "Heap Sort",
+  insertion: "Insertion Sort",
+  merge: "Merge Sort",
+  quick: "Quick Sort",
+  radix: "Radix Sort",
+};
