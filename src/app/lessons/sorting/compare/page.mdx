@@ -1,0 +1,61 @@
+import { RaceViz } from "@/components/visualizations/RaceViz";
+
+export const metadata = {
+  title: "Compare Sorting Algorithms",
+  description:
+    "Race three sorting algorithms on the same input. Pick any pair and watch how comparisons, swaps, and total step counts diverge.",
+};
+
+# Compare Sorting Algorithms
+
+**Difficulty:** intermediate · **Category:** sorting
+
+Big-O tells you how an algorithm _scales_, but it hides constant factors and the actual work each
+algorithm does on a specific input. Run three sorts side-by-side on the same array and you can
+_see_ where the cost lives — not just count it.
+
+<RaceViz />
+
+## Reading the race
+
+Each slot shows the same starting array. Press **Play** and every slot advances by one step per
+tick, so the slot that finishes first did the least work — that's the literal interpretation of
+"faster" when comparisons and swaps are roughly equal in cost.
+
+The three counters per slot mean:
+
+- **Step** — current position in the algorithm's full step trace.
+- **Compares** — how many element-vs-element comparisons it has done so far.
+- **Swaps** — how many array writes (swaps for in-place sorts; placements for merge / radix).
+
+Pick any pair from the dropdowns. A few experiments worth running:
+
+1. **Bubble vs. insertion at small _n_.** Both are $O(n^2)$, but insertion does fewer comparisons
+   on nearly-sorted data. Try it at size 8 a few times — insertion's swap count is usually lower.
+2. **Merge vs. quick at size 60.** Both are $O(n \log n)$ on average. Watch the step counts: quick
+   sort usually wins on random input thanks to a smaller constant factor; merge sort wins when
+   quick hits a bad pivot.
+3. **Radix vs. anything else.** Radix is non-comparison-based — its **Compares** stays at zero.
+   The "swap" counter doubles as a write counter. On uniform integers it can finish in noticeably
+   fewer steps than $O(n \log n)$ comparison sorts.
+
+## What the step count actually measures
+
+A "step" here is one significant event the algorithm emits — a comparison, a swap, a write, or a
+range/pivot annotation. It is **not** a wall-clock measurement; it is a count of decisions and
+data movements.
+
+This is intentional. Wall-clock benchmarks are noisy and cache-dependent; they tell you what your
+hardware does today, not what the algorithm fundamentally does. Counting events is what teaches
+you _why_ one algorithm beats another — the rest is engineering.
+
+## When the race lies
+
+Two caveats worth knowing:
+
+1. **Equal-cost steps.** A "compare" and a "swap" both count as one step here, but in the real
+   world a swap (three writes) costs more than a compare (one read + a branch). For pedagogical
+   purposes the simplification is fine; for production tuning, always benchmark.
+2. **Cache effects.** Merge sort allocates auxiliary memory; quick sort sorts in place. On modern
+   CPUs that often matters more than asymptotic comparisons, especially for arrays that fit (or
+   don't fit) in cache. The race can't show this — but knowing it exists is half the battle.

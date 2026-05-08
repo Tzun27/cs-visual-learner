@@ -65,6 +65,13 @@ const topics: readonly Topic[] = [
         difficulty: "intermediate",
         blurb: "Sorting without comparisons, one digit at a time.",
       },
+      {
+        status: "live",
+        slug: "compare",
+        title: "Compare Sorts",
+        difficulty: "intermediate",
+        blurb: "Race three algorithms on the same input. Pick any pair from the dropdowns.",
+      },
     ],
   },
   {
