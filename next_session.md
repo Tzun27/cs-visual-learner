@@ -7,7 +7,7 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page. Not yet deployed.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + first data-structures lesson (BST insert). Not yet deployed.
 
 Read these before writing code:
 
@@ -20,6 +20,7 @@ Read these before writing code:
 
 - **Six sorting visualizations** at `/lessons/sorting/{bubble,insertion,merge,quick,heap,radix}-sort` — step forward/back, play/pause, speed slider, array-size slider, live comparison/swap counters. (Radix sort is non-comparison-based so its Comparisons counter stays at 0; the Swaps counter doubles as a "writes" counter for it.)
 - **Side-by-side compare page** at `/lessons/sorting/compare` — three algorithm slots, each with a dropdown picker, all sharing one input and one playback toolbar. Per-slot step/compare/swap counters; finish indicator shows total step count when a slot completes. Uses `RaceViz` + `useParallelStepThrough`.
+- **Binary Search Tree lesson** at `/lessons/data-structures/binary-search-tree` — pure `insertSequence` generator, `TreeView` SVG primitive (inorder x-positioning, dynamic row height), `BSTViz` composition. Toggle between Balanced and Sorted insert order to see Max depth jump from 4 to 12.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
@@ -40,6 +41,9 @@ These are easy to miss and expensive to violate:
 6. **100% coverage threshold** on `src/lib/algorithms/**/*.ts` (`vitest.config.ts`). Adding an algorithm without tests will fail CI.
 7. **Step→view helpers live in `stepView.ts`.** `SortingViz` and `RaceViz` both import `highlightsFor` / `activeRangeFor` / `countCompares` / `countSwapsAndWrites` from `src/components/visualizations/stepView.ts`. Keep new viz consumers using these helpers rather than re-implementing the discriminated-union switch.
 8. **`useParallelStepThrough` keys totals by content, not reference.** The hook joins `totals` into a string for the effect dep array (with `eslint-disable-next-line` on capture sites). If you change its API, preserve that behavior so caller-side `useMemo` churn doesn't restart the playback timer.
+9. **BST node ids equal their array index.** `BstSnapshot.nodes` is keyed positionally — `nodes[id]` is the node with `id`. The generator assigns `id = nodes.length` at insert time. If you ever delete nodes, you'll need to either tombstone (preserve indices) or rewrite this contract; lookups assume dense ids today.
+10. **Lessons index uses `topic.pathPrefix`.** `src/app/lessons/page.tsx` builds links as `${topic.pathPrefix}/${slug}` so non-sorting topics route correctly. When adding a new topic, set `pathPrefix` (e.g. `/lessons/ml`) at the topic level, not per-lesson.
+11. **`Controls`'s array-size slider is conditional.** It renders only when both `arraySize` and `onArraySizeChange` are passed. Keep it that way — `BSTViz` and any future non-array viz needs to omit them cleanly.
 
 ## Useful commands
 
@@ -71,7 +75,8 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **Data structures track** — BSTs, hash tables, heaps. Will need a new viz primitive (graph/tree layout) but `useStepThrough` is reusable as-is.
+- **More data-structures lessons.** BST insert ships; the natural follow-ups are **BST search** (reuse the `TreeView`, add a new generator that walks the tree comparing against a target value) and **BST delete** (the meaty one — three cases: leaf, one-child, two-children-with-successor-swap). After that, **Hash Tables** (`/lessons/data-structures/hash-tables`) needs a new presentational primitive — a row of buckets with linked-list chains or open-addressing probes — but follows the same generator pattern.
+- **Heaps & Priority Queues.** The `heap-sort` lesson already animates the heap inside an array. A dedicated heap lesson would visualize it as an actual binary tree (TreeView reusable!) and walk through `siftUp`/`siftDown`.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
 
@@ -81,6 +86,7 @@ User deferred this. When you do it:
 - Property-test coverage for `quickSort` is currently length-only (in-place partition has transient duplicates). The newly added stable sorts (insertion, radix) keep this constraint at the per-step level for similar reasons (transient writes); their final-array property tests do the full multiset check.
 - The smoke test relies on heading text ("Learn computer science"). If the landing copy changes, update `e2e/smoke.spec.ts` in the same commit.
 - The package.json `name` is still `addyosmani-test` from initial scaffolding — harmless but inconsistent with the repo name. Rename if/when convenient.
+- The `vitest.config.ts` 100% coverage gate currently only covers `src/lib/algorithms/`. Extending it to `src/lib/dataStructures/` would prevent the same drift in the new track — left out of the BST PR to avoid bundling unrelated config tightening.
 
 ## Things to leave alone
 
@@ -95,8 +101,10 @@ src/app/                            App Router routes
   page.tsx                          Production landing
   layout.tsx                        Root layout, metadata, fonts
   lessons/page.tsx                  Topic-grouped index
-  lessons/sorting/*/page.mdx        Per-algorithm lesson content
+  lessons/sorting/*/page.mdx        Per-algorithm sort lesson content
   lessons/sorting/compare/page.mdx  Side-by-side comparison lesson
+  lessons/data-structures/          Data-structures track (layout + lessons)
+    binary-search-tree/page.mdx     BST insert lesson
   opengraph-image.tsx               Edge-runtime OG card (1200x630)
   sitemap.ts, robots.ts             SEO
 
@@ -104,11 +112,13 @@ src/components/
   layout/{Nav,Footer,ThemeToggle}.tsx
   providers.tsx                     next-themes wrapper
   visualizations/
-    ArrayBars.tsx                   SVG presentational
-    Controls.tsx                    Toolbar (play/pause/step/reset/speed/size)
+    ArrayBars.tsx                   SVG presentational (sort viz)
+    TreeView.tsx                    SVG presentational (tree viz)
+    Controls.tsx                    Toolbar (play/pause/step/reset/speed; size optional)
     SortingViz.tsx                  Single-algorithm composition + state
     RaceViz.tsx                     Multi-slot composition + parallel state
-    stepView.ts                     Shared step→highlight + counter helpers
+    BSTViz.tsx                      BST composition + state
+    stepView.ts                     Shared step→highlight + counter helpers (sort)
 
 src/lib/
   algorithms/
@@ -116,12 +126,16 @@ src/lib/
     index.ts                        String-keyed registry + display labels
     {bubble,heap,insertion,         Pure generators (one per algorithm)
      merge,quick,radix}Sort.ts
+  dataStructures/
+    types.ts                        BstNode / BstSnapshot / BstStep
+    binarySearchTree.ts             insertSequence generator + utilities
+    index.ts                        Operation registry + labels
   hooks/
     useStepThrough.ts               Single-list reducer state machine
     useParallelStepThrough.ts       N-list reducer with shared timer
     useReducedMotion.ts             SSR-safe matchMedia
 
 tests/                              Unit + property tests (Vitest)
-e2e/                                Playwright (smoke, lessons, compare, a11y)
+e2e/                                Playwright (smoke, lessons, compare, BST, a11y)
 docs/                               SPEC, PLAN, TASKS
 ```
