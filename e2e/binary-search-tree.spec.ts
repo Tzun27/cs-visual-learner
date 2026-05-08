@@ -13,11 +13,10 @@ test.describe("/lessons/data-structures/binary-search-tree", () => {
 
     await page.goto("/lessons/data-structures/binary-search-tree");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Binary Search Tree/);
-    await expect(
-      page.getByRole("region", { name: /Binary search tree visualization/ }),
-    ).toBeVisible();
+    const insertRegion = page.getByRole("region", { name: /Binary search tree visualization/ });
+    await expect(insertRegion).toBeVisible();
     await expect(page.getByRole("group", { name: /Insert order/ })).toBeVisible();
-    const toolbar = page.getByRole("toolbar", { name: /Playback controls/ });
+    const toolbar = insertRegion.getByRole("toolbar", { name: /Playback controls/ });
     await expect(toolbar).toBeVisible();
     await expect(toolbar.getByRole("button", { name: /Step forward/ })).toBeVisible();
 
@@ -26,9 +25,10 @@ test.describe("/lessons/data-structures/binary-search-tree", () => {
 
   test("step forward advances comparisons or placed; reset returns to zero", async ({ page }) => {
     await page.goto("/lessons/data-structures/binary-search-tree");
-    const stepForward = page.getByRole("button", { name: /Step forward/ });
-    const reset = page.getByRole("button", { name: /Reset/ });
-    const counters = page.locator("dl");
+    const insertRegion = page.getByRole("region", { name: /Binary search tree visualization/ });
+    const stepForward = insertRegion.getByRole("button", { name: /Step forward/ });
+    const reset = insertRegion.getByRole("button", { name: /Reset/ });
+    const counters = insertRegion.locator("dl");
 
     const advanced = /(Comparisons|Placed)\s*[1-9]/;
     await expect(counters).toContainText(/Placed\s*0/);
@@ -49,12 +49,31 @@ test.describe("/lessons/data-structures/binary-search-tree", () => {
     page,
   }) => {
     await page.goto("/lessons/data-structures/binary-search-tree");
-    const stepForward = page.getByRole("button", { name: /Step forward/ });
+    const insertRegion = page.getByRole("region", { name: /Binary search tree visualization/ });
+    const stepForward = insertRegion.getByRole("button", { name: /Step forward/ });
     for (let i = 0; i < 4; i++) await stepForward.click();
     const sortedBtn = page.getByRole("button", { name: /Sorted order/ });
     await expect(sortedBtn).toHaveAttribute("aria-pressed", "false");
     await sortedBtn.click();
     await expect(sortedBtn).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("dl")).toContainText(/Placed\s*0/);
+    await expect(insertRegion.locator("dl")).toContainText(/Placed\s*0/);
+  });
+
+  test("the search section renders with its own toolbar and counters", async ({ page }) => {
+    await page.goto("/lessons/data-structures/binary-search-tree");
+    const searchRegion = page.getByRole("region", { name: /Binary search tree search/ });
+    await expect(searchRegion).toBeVisible();
+    await expect(searchRegion.getByText(/Searching for/)).toBeVisible();
+    await expect(searchRegion.locator("dl")).toContainText(/Comparisons\s*0/);
+    await expect(searchRegion.locator("dl")).toContainText(/Found\s*0/);
+    await expect(searchRegion.locator("dl")).toContainText(/Misses\s*0/);
+  });
+
+  test("stepping the search viz eventually ticks the Comparisons counter", async ({ page }) => {
+    await page.goto("/lessons/data-structures/binary-search-tree");
+    const searchRegion = page.getByRole("region", { name: /Binary search tree search/ });
+    const stepForward = searchRegion.getByRole("button", { name: /Step forward/ });
+    for (let i = 0; i < 4; i++) await stepForward.click();
+    await expect(searchRegion.locator("dl")).toContainText(/Comparisons\s*[1-9]/);
   });
 });

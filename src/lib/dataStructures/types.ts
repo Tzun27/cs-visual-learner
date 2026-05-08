@@ -21,3 +21,10 @@ export type BstStep =
   | { kind: "done"; tree: BstSnapshot };
 
 export type BstSequenceOp = (values: readonly number[]) => Generator<BstStep, void, void>;
+
+export type BstSearchStep =
+  | { kind: "begin"; tree: BstSnapshot; targetValue: number }
+  | { kind: "compare"; tree: BstSnapshot; cursorId: number; targetValue: number }
+  | { kind: "found"; tree: BstSnapshot; cursorId: number; targetValue: number }
+  | { kind: "miss"; tree: BstSnapshot; lastCursorId: number | null; targetValue: number }
+  | { kind: "done"; tree: BstSnapshot };

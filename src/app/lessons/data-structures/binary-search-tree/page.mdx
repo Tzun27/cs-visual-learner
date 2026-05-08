@@ -1,9 +1,10 @@
 import { BSTViz } from "@/components/visualizations/BSTViz";
+import { BSTSearchViz } from "@/components/visualizations/BSTSearchViz";
 
 export const metadata = {
   title: "Binary Search Tree",
   description:
-    "Watch a BST grow one insert at a time and see firsthand why the order of inserts decides whether lookups stay O(log n) or collapse to O(n).",
+    "Watch a BST grow one insert at a time, then walk the search path against the same tree. See firsthand why insertion order decides whether both insert and lookup stay O(log n) or collapse to O(n).",
 };
 
 # Binary Search Tree
@@ -49,6 +50,33 @@ list wearing a tree disguise.
 The two trees hold the **same set of values**. Lookup in the balanced one takes $\log_2 12 \approx 4$
 comparisons in the worst case; lookup in the degenerate one takes 12. That's the difference between
 $O(\log n)$ and $O(n)$.
+
+## Searching the tree
+
+Search uses exactly the same downward walk as insert — the only difference is what happens at the
+end. Compare the target against the current node, go left if smaller, right if larger, and stop
+when the values match _or_ when you fall off the end of a subtree.
+
+<BSTSearchViz />
+
+The viz searches for five values against the balanced tree from the section above:
+
+- **12, 56, 50** are in the tree — each search bottoms out with a green "Found" ring.
+- **33** is _not_ in the tree, but the search still has to traverse down until it discovers a
+  null child. Watch where it stops: between the values $31$ and $38$, exactly where $33$ would
+  belong.
+- **99** also misses, falling off the right edge of the tree because every node on the rightmost
+  path is smaller than $99$.
+
+That's the most important property of search-on-BST: **a miss costs the same as a hit at the same
+depth.** Both are bounded by tree height $h$, so balance matters just as much for "is X here?" as
+it does for "put X here."
+
+The shape of the search path is also where _ordered_ operations come from for free. Take the
+inorder traversal of any BST and you get the values in sorted order — the same downward decision
+("smaller goes left, larger goes right") implicitly arranges the values that way. That's why
+ordered map types like `std::map` are tree-based: range queries, predecessors, and successors are
+all cheap walks once the structure is right.
 
 ## How real systems handle this
 

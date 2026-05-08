@@ -1,4 +1,4 @@
-import type { BstNode, BstSnapshot, BstStep } from "./types";
+import type { BstNode, BstSearchStep, BstSnapshot, BstStep } from "./types";
 
 function snapshot(nodes: readonly BstNode[], rootId: number | null): BstSnapshot {
   return { nodes: nodes.map((n) => ({ ...n })), rootId };
@@ -73,6 +73,41 @@ export function inorderValues(tree: BstSnapshot): number[] {
   };
   visit(tree.rootId);
   return out;
+}
+
+export function buildTree(values: readonly number[]): BstSnapshot {
+  let final: BstSnapshot = { nodes: [], rootId: null };
+  for (const step of insertSequence(values)) {
+    if (step.kind === "done") final = step.tree;
+  }
+  return final;
+}
+
+export function* searchSequence(
+  tree: BstSnapshot,
+  targets: readonly number[],
+): Generator<BstSearchStep> {
+  for (const targetValue of targets) {
+    yield { kind: "begin", tree, targetValue };
+    let cursorId: number | null = tree.rootId;
+    let lastCursorId: number | null = null;
+    let found = false;
+    while (cursorId !== null) {
+      yield { kind: "compare", tree, cursorId, targetValue };
+      const cursor = tree.nodes[cursorId];
+      lastCursorId = cursorId;
+      if (targetValue === cursor.value) {
+        yield { kind: "found", tree, cursorId, targetValue };
+        found = true;
+        break;
+      }
+      cursorId = targetValue < cursor.value ? cursor.leftId : cursor.rightId;
+    }
+    if (!found) {
+      yield { kind: "miss", tree, lastCursorId, targetValue };
+    }
+  }
+  yield { kind: "done", tree };
 }
 
 export function maxDepth(tree: BstSnapshot): number {
