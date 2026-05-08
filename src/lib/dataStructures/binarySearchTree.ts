@@ -1,4 +1,11 @@
-import type { BstNode, BstSearchStep, BstSnapshot, BstStep } from "./types";
+import type {
+  BstDeleteCase,
+  BstDeleteStep,
+  BstNode,
+  BstSearchStep,
+  BstSnapshot,
+  BstStep,
+} from "./types";
 
 function snapshot(nodes: readonly BstNode[], rootId: number | null): BstSnapshot {
   return { nodes: nodes.map((n) => ({ ...n })), rootId };
@@ -108,6 +115,130 @@ export function* searchSequence(
     }
   }
   yield { kind: "done", tree };
+}
+
+export function* deleteSequence(
+  initialTree: BstSnapshot,
+  targets: readonly number[],
+): Generator<BstDeleteStep> {
+  const nodes: BstNode[] = initialTree.nodes.map((n) => ({ ...n }));
+  let rootId = initialTree.rootId;
+
+  for (const targetValue of targets) {
+    yield { kind: "begin", tree: snapshot(nodes, rootId), targetValue };
+
+    let cursorId: number | null = rootId;
+    let parentId: number | null = null;
+    let goLeft = false;
+    let lastCursorId: number | null = null;
+
+    while (cursorId !== null) {
+      yield { kind: "compare", tree: snapshot(nodes, rootId), cursorId, targetValue };
+      const cursor = nodes[cursorId];
+      lastCursorId = cursorId;
+      if (cursor.value === targetValue) break;
+      parentId = cursorId;
+      goLeft = targetValue < cursor.value;
+      cursorId = goLeft ? cursor.leftId : cursor.rightId;
+    }
+
+    if (cursorId === null) {
+      yield { kind: "miss", tree: snapshot(nodes, rootId), lastCursorId, targetValue };
+      continue;
+    }
+
+    const target = nodes[cursorId];
+    const hasLeft = target.leftId !== null;
+    const hasRight = target.rightId !== null;
+    const deleteCase: BstDeleteCase =
+      !hasLeft && !hasRight ? "leaf" : hasLeft && hasRight ? "two-children" : "one-child";
+
+    yield {
+      kind: "found",
+      tree: snapshot(nodes, rootId),
+      cursorId,
+      targetValue,
+      deleteCase,
+    };
+
+    if (deleteCase !== "two-children") {
+      const replacementId = target.leftId ?? target.rightId;
+      if (parentId === null) {
+        rootId = replacementId;
+      } else {
+        const parent = nodes[parentId];
+        nodes[parentId] = goLeft
+          ? { ...parent, leftId: replacementId }
+          : { ...parent, rightId: replacementId };
+      }
+      yield {
+        kind: "unlink",
+        tree: snapshot(nodes, rootId),
+        removedNodeId: cursorId,
+        removedValue: target.value,
+        deleteCase,
+      };
+      continue;
+    }
+
+    // two-children: walk to inorder successor (leftmost of right subtree).
+    const targetCursorId = cursorId;
+    let succId = target.rightId as number;
+    let succParentId = targetCursorId;
+    let succGoLeft = false;
+    yield {
+      kind: "find-successor",
+      tree: snapshot(nodes, rootId),
+      cursorId: succId,
+      targetCursorId,
+      targetValue,
+    };
+    while (nodes[succId].leftId !== null) {
+      succParentId = succId;
+      succGoLeft = true;
+      succId = nodes[succId].leftId as number;
+      yield {
+        kind: "find-successor",
+        tree: snapshot(nodes, rootId),
+        cursorId: succId,
+        targetCursorId,
+        targetValue,
+      };
+    }
+
+    const successorValue = nodes[succId].value;
+    nodes[targetCursorId] = { ...nodes[targetCursorId], value: successorValue };
+    // Transiently invalid: duplicate value lives at both the target slot and
+    // the still-attached successor. The very next 'unlink' step restores the
+    // BST invariant.
+    yield {
+      kind: "swap-value",
+      tree: snapshot(nodes, rootId),
+      targetCursorId,
+      successorId: succId,
+      newValue: successorValue,
+    };
+
+    // The successor has no left child by construction. Splice in its right child.
+    const succRight = nodes[succId].rightId;
+    if (succParentId === targetCursorId) {
+      nodes[targetCursorId] = { ...nodes[targetCursorId], rightId: succRight };
+    } else {
+      const succParent = nodes[succParentId];
+      nodes[succParentId] = succGoLeft
+        ? { ...succParent, leftId: succRight }
+        : { ...succParent, rightId: succRight };
+    }
+    yield {
+      kind: "unlink",
+      tree: snapshot(nodes, rootId),
+      removedNodeId: succId,
+      removedValue: successorValue,
+      deleteCase: "two-children",
+    };
+  }
+
+  yield { kind: "done", tree: snapshot(nodes, rootId) };
 }
 
 export function maxDepth(tree: BstSnapshot): number {

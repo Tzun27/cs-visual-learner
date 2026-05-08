@@ -28,3 +28,43 @@ export type BstSearchStep =
   | { kind: "found"; tree: BstSnapshot; cursorId: number; targetValue: number }
   | { kind: "miss"; tree: BstSnapshot; lastCursorId: number | null; targetValue: number }
   | { kind: "done"; tree: BstSnapshot };
+
+export type BstDeleteCase = "leaf" | "one-child" | "two-children";
+
+// Delete preserves the dense-id contract by orphaning rather than reusing slots:
+// removed nodes stay in `BstSnapshot.nodes` but no parent points to them and they
+// are not reachable from `rootId`. TreeView's layout walker only visits reachable
+// nodes, so orphans render as gone while `nodes[id]` lookups remain valid.
+export type BstDeleteStep =
+  | { kind: "begin"; tree: BstSnapshot; targetValue: number }
+  | { kind: "compare"; tree: BstSnapshot; cursorId: number; targetValue: number }
+  | { kind: "miss"; tree: BstSnapshot; lastCursorId: number | null; targetValue: number }
+  | {
+      kind: "found";
+      tree: BstSnapshot;
+      cursorId: number;
+      targetValue: number;
+      deleteCase: BstDeleteCase;
+    }
+  | {
+      kind: "find-successor";
+      tree: BstSnapshot;
+      cursorId: number;
+      targetCursorId: number;
+      targetValue: number;
+    }
+  | {
+      kind: "swap-value";
+      tree: BstSnapshot;
+      targetCursorId: number;
+      successorId: number;
+      newValue: number;
+    }
+  | {
+      kind: "unlink";
+      tree: BstSnapshot;
+      removedNodeId: number;
+      removedValue: number;
+      deleteCase: BstDeleteCase;
+    }
+  | { kind: "done"; tree: BstSnapshot };

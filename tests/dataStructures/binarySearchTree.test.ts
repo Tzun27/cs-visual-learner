@@ -2,12 +2,18 @@ import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import {
   buildTree,
+  deleteSequence,
   inorderValues,
   insertSequence,
   maxDepth,
   searchSequence,
 } from "@/lib/dataStructures/binarySearchTree";
-import type { BstSearchStep, BstSnapshot, BstStep } from "@/lib/dataStructures/types";
+import type {
+  BstDeleteStep,
+  BstSearchStep,
+  BstSnapshot,
+  BstStep,
+} from "@/lib/dataStructures/types";
 
 function runToFinal(values: readonly number[]): {
   steps: BstStep[];
@@ -259,6 +265,230 @@ describe("searchSequence", () => {
           const misses = steps.filter((s) => s.kind === "miss");
           expect(finds).toHaveLength(0);
           expect(misses).toHaveLength(absent.length);
+        },
+      ),
+    );
+  });
+});
+
+describe("deleteSequence", () => {
+  // Tree shape used throughout (median-first insert):
+  //                4
+  //              /   \
+  //             2     6
+  //            / \   / \
+  //           1   3 5   7
+  const baseValues = [4, 2, 6, 1, 3, 5, 7] as const;
+
+  function finalSnapshot(steps: readonly BstDeleteStep[]): BstSnapshot {
+    const last = steps.at(-1);
+    if (!last || last.kind !== "done") throw new Error("expected 'done' as last step");
+    return last.tree;
+  }
+
+  function isBst(tree: BstSnapshot): boolean {
+    const visit = (id: number | null, lo: number, hi: number): boolean => {
+      if (id === null) return true;
+      const node = tree.nodes[id];
+      if (node.value < lo || node.value > hi) return false;
+      return visit(node.leftId, lo, node.value - 1) && visit(node.rightId, node.value + 1, hi);
+    };
+    return visit(tree.rootId, Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+  }
+
+  it("yields only a 'done' step for an empty target list", () => {
+    const tree = buildTree(baseValues);
+    expect([...deleteSequence(tree, [])]).toEqual([{ kind: "done", tree }]);
+  });
+
+  it("emits 'miss' when the target is not in the tree", () => {
+    const tree = buildTree(baseValues);
+    const steps = [...deleteSequence(tree, [42])];
+    const miss = steps.find((s) => s.kind === "miss");
+    expect(miss).toBeDefined();
+    if (miss?.kind !== "miss") throw new Error("expected miss");
+    expect(miss.lastCursorId).not.toBeNull();
+    // The walk for 42 ends at 7 (4 → 6 → 7).
+    expect(tree.nodes[miss.lastCursorId!].value).toBe(7);
+    expect(steps.some((s) => s.kind === "found")).toBe(false);
+    expect(inorderValues(finalSnapshot(steps))).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it("'miss' on an empty tree has lastCursorId=null", () => {
+    const empty: BstSnapshot = { nodes: [], rootId: null };
+    const steps = [...deleteSequence(empty, [10])];
+    expect(steps.map((s) => s.kind)).toEqual(["begin", "miss", "done"]);
+    const miss = steps.find((s) => s.kind === "miss");
+    if (miss?.kind !== "miss") throw new Error("expected miss");
+    expect(miss.lastCursorId).toBeNull();
+  });
+
+  it("leaf delete: 1 → found(leaf) → unlink, no swap", () => {
+    const tree = buildTree(baseValues);
+    const steps = [...deleteSequence(tree, [1])];
+    const found = steps.find((s) => s.kind === "found");
+    if (found?.kind !== "found") throw new Error("expected found");
+    expect(found.deleteCase).toBe("leaf");
+    expect(steps.some((s) => s.kind === "swap-value")).toBe(false);
+    expect(steps.filter((s) => s.kind === "unlink")).toHaveLength(1);
+    const final = finalSnapshot(steps);
+    expect(inorderValues(final)).toEqual([2, 3, 4, 5, 6, 7]);
+    expect(isBst(final)).toBe(true);
+  });
+
+  it("one-child delete: insert sequence that produces a single-child node, then remove it", () => {
+    // Build a tree where 6 has only a right child (no left).
+    //   5
+    //    \
+    //     6
+    //      \
+    //       7
+    const tree = buildTree([5, 6, 7]);
+    const steps = [...deleteSequence(tree, [6])];
+    const found = steps.find((s) => s.kind === "found");
+    if (found?.kind !== "found") throw new Error("expected found");
+    expect(found.deleteCase).toBe("one-child");
+    expect(steps.some((s) => s.kind === "swap-value")).toBe(false);
+    const final = finalSnapshot(steps);
+    expect(inorderValues(final)).toEqual([5, 7]);
+    expect(final.rootId).toBe(0); // 5 is still root
+    expect(final.nodes[0].rightId).toBe(2); // 5.right is now 7 (skipping 6)
+    expect(isBst(final)).toBe(true);
+  });
+
+  it("two-children delete: 4 → successor is 5 (right child has no left), copy + unlink", () => {
+    const tree = buildTree(baseValues);
+    const steps = [...deleteSequence(tree, [4])];
+    const found = steps.find((s) => s.kind === "found");
+    if (found?.kind !== "found") throw new Error("expected found");
+    expect(found.deleteCase).toBe("two-children");
+    const swap = steps.find((s) => s.kind === "swap-value");
+    if (swap?.kind !== "swap-value") throw new Error("expected swap-value");
+    expect(swap.newValue).toBe(5);
+    const final = finalSnapshot(steps);
+    expect(inorderValues(final)).toEqual([1, 2, 3, 5, 6, 7]);
+    expect(isBst(final)).toBe(true);
+  });
+
+  it("two-children delete with deeper successor walk: remove 2 → successor is 3", () => {
+    // 2's right subtree is just node 3 (no left, no right), so successor is 3.
+    // Build a tree where the successor walk is non-trivial:
+    //         10
+    //        /  \
+    //       5    15
+    //      / \
+    //     3   7
+    //          \
+    //           8
+    const tree = buildTree([10, 5, 15, 3, 7, 8]);
+    const steps = [...deleteSequence(tree, [5])];
+    // Successor of 5 is leftmost of 7's subtree = 7 itself (it has no left child).
+    const swap = steps.find((s) => s.kind === "swap-value");
+    if (swap?.kind !== "swap-value") throw new Error("expected swap-value");
+    expect(swap.newValue).toBe(7);
+    const final = finalSnapshot(steps);
+    expect(inorderValues(final)).toEqual([3, 7, 8, 10, 15]);
+    expect(isBst(final)).toBe(true);
+  });
+
+  it("two-children with successor under a left descent: remove root, successor walks left", () => {
+    //        10
+    //       /  \
+    //      5    20
+    //          /  \
+    //         15   25
+    //         /
+    //        12
+    // Removing 10 → right subtree's leftmost = 12 (walk: 20 → 15 → 12).
+    const tree = buildTree([10, 5, 20, 15, 25, 12]);
+    const steps = [...deleteSequence(tree, [10])];
+    const findSuccs = steps.filter((s) => s.kind === "find-successor");
+    expect(findSuccs.length).toBe(3);
+    const swap = steps.find((s) => s.kind === "swap-value");
+    if (swap?.kind !== "swap-value") throw new Error("expected swap-value");
+    expect(swap.newValue).toBe(12);
+    const final = finalSnapshot(steps);
+    expect(inorderValues(final)).toEqual([5, 12, 15, 20, 25]);
+    expect(isBst(final)).toBe(true);
+  });
+
+  it("removing the root of a single-node tree empties the tree", () => {
+    const tree = buildTree([42]);
+    const steps = [...deleteSequence(tree, [42])];
+    const final = finalSnapshot(steps);
+    expect(final.rootId).toBeNull();
+    expect(inorderValues(final)).toEqual([]);
+  });
+
+  it("processes multiple targets sequentially and shares the running tree", () => {
+    const tree = buildTree(baseValues);
+    const steps = [...deleteSequence(tree, [1, 4, 99])];
+    expect(steps.filter((s) => s.kind === "begin")).toHaveLength(3);
+    expect(steps.filter((s) => s.kind === "miss")).toHaveLength(1);
+    expect(steps.filter((s) => s.kind === "unlink")).toHaveLength(2);
+    const final = finalSnapshot(steps);
+    expect(inorderValues(final)).toEqual([2, 3, 5, 6, 7]);
+    expect(isBst(final)).toBe(true);
+  });
+
+  it("does not mutate the input tree's nodes array", () => {
+    const tree = buildTree(baseValues);
+    const before = tree.nodes.map((n) => ({ ...n }));
+    void [...deleteSequence(tree, [4])];
+    expect(tree.nodes).toEqual(before);
+  });
+
+  it("emits fresh tree snapshots, not aliased mutable refs", () => {
+    const tree = buildTree(baseValues);
+    const trees = [...deleteSequence(tree, [4])].map((s) => s.tree);
+    for (let i = 0; i < trees.length; i++) {
+      for (let j = i + 1; j < trees.length; j++) {
+        expect(trees[i].nodes).not.toBe(trees[j].nodes);
+      }
+    }
+  });
+
+  it("orphaned (removed) nodes remain in nodes[] so dense-id lookups stay valid", () => {
+    const tree = buildTree([5, 3, 7]);
+    const steps = [...deleteSequence(tree, [3])];
+    const final = finalSnapshot(steps);
+    expect(final.nodes).toHaveLength(3); // tombstoned, not spliced
+    // The orphan is unreachable from rootId, so inorder doesn't include it.
+    expect(inorderValues(final)).toEqual([5, 7]);
+  });
+
+  it("property: every snapshot except the transient 'swap-value' satisfies the BST invariant", () => {
+    // 'swap-value' is intentionally invalid for one tick: the target's value has
+    // been overwritten with the successor's value but the successor is still
+    // attached, creating a duplicate. The very next step ('unlink') restores it.
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(fc.integer({ min: -50, max: 50 }), { minLength: 1, maxLength: 20 }),
+        fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 10 }),
+        (insertVals, deleteVals) => {
+          const tree = buildTree(insertVals);
+          for (const step of deleteSequence(tree, deleteVals)) {
+            if (step.kind === "swap-value") continue;
+            expect(isBst(step.tree)).toBe(true);
+          }
+        },
+      ),
+    );
+  });
+
+  it("property: inorder of final tree equals sorted set difference (insert \\ delete)", () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(fc.integer({ min: -50, max: 50 }), { minLength: 1, maxLength: 20 }),
+        fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 10 }),
+        (insertVals, deleteVals) => {
+          const tree = buildTree(insertVals);
+          const steps = [...deleteSequence(tree, deleteVals)];
+          const final = finalSnapshot(steps);
+          const remaining = new Set(insertVals);
+          for (const v of deleteVals) remaining.delete(v);
+          const expected = [...remaining].sort((a, b) => a - b);
+          expect(inorderValues(final)).toEqual(expected);
         },
       ),
     );
