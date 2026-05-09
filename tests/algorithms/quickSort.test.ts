@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { quickSort } from "@/lib/algorithms/quickSort";
+import { quickSortPython } from "@/lib/algorithms/quickSort.snippet";
 
 function runToCompletion(input: readonly number[]) {
   const steps = [...quickSort(input)];
@@ -13,11 +14,28 @@ function runToCompletion(input: readonly number[]) {
 
 describe("quickSort", () => {
   it("yields only a 'done' step for an empty array", () => {
-    expect([...quickSort([])]).toEqual([{ kind: "done", array: [] }]);
+    expect([...quickSort([])]).toEqual([{ kind: "done", array: [], codeLines: [3] }]);
   });
 
   it("yields only a 'done' step for a single-element array", () => {
-    expect([...quickSort([42])]).toEqual([{ kind: "done", array: [42] }]);
+    expect([...quickSort([42])]).toEqual([{ kind: "done", array: [42], codeLines: [3] }]);
+  });
+
+  it("property: every step carries codeLines pointing inside the displayed Python source", () => {
+    const lineCount = quickSortPython.split("\n").length;
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 12 }), (input) => {
+        for (const step of quickSort(input)) {
+          expect(step.codeLines).toBeDefined();
+          expect(step.codeLines!.length).toBeGreaterThan(0);
+          for (const line of step.codeLines!) {
+            expect(line).toBeGreaterThanOrEqual(1);
+            expect(line).toBeLessThanOrEqual(lineCount);
+          }
+        }
+      }),
+      { numRuns: 100 },
+    );
   });
 
   it("does not mutate its input", () => {

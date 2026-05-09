@@ -1,3 +1,4 @@
+import { quickSortLines } from "./quickSort.snippet";
 import type { SortStep } from "./types";
 
 export function* quickSort(input: readonly number[]): Generator<SortStep, void, void> {
@@ -5,13 +6,13 @@ export function* quickSort(input: readonly number[]): Generator<SortStep, void, 
   if (arr.length > 1) {
     yield* sort(arr, 0, arr.length - 1);
   }
-  yield { kind: "done", array: [...arr] };
+  yield { kind: "done", array: [...arr], codeLines: quickSortLines.done };
 }
 
 function* sort(arr: number[], lo: number, hi: number): Generator<SortStep, void, void> {
   if (lo >= hi) return;
   const range = [lo, hi] as const;
-  yield { kind: "range", range, array: [...arr] };
+  yield { kind: "range", range, array: [...arr], codeLines: quickSortLines.range };
 
   const pivotIndex = yield* partition(arr, lo, hi);
   yield* sort(arr, lo, pivotIndex - 1);
@@ -21,15 +22,27 @@ function* sort(arr: number[], lo: number, hi: number): Generator<SortStep, void,
 function* partition(arr: number[], lo: number, hi: number): Generator<SortStep, number, void> {
   const range = [lo, hi] as const;
   const pivotValue = arr[hi];
-  yield { kind: "pivot", index: hi, array: [...arr], range };
+  yield { kind: "pivot", index: hi, array: [...arr], range, codeLines: quickSortLines.pivot };
 
   let i = lo;
   for (let j = lo; j < hi; j++) {
-    yield { kind: "compare", indices: [j, hi], array: [...arr], range };
+    yield {
+      kind: "compare",
+      indices: [j, hi],
+      array: [...arr],
+      range,
+      codeLines: quickSortLines.compare,
+    };
     if (arr[j] <= pivotValue) {
       if (i !== j) {
         [arr[i], arr[j]] = [arr[j], arr[i]];
-        yield { kind: "swap", indices: [i, j], array: [...arr], range };
+        yield {
+          kind: "swap",
+          indices: [i, j],
+          array: [...arr],
+          range,
+          codeLines: quickSortLines.swapLoop,
+        };
       }
       i++;
     }
@@ -37,7 +50,13 @@ function* partition(arr: number[], lo: number, hi: number): Generator<SortStep, 
 
   if (i !== hi) {
     [arr[i], arr[hi]] = [arr[hi], arr[i]];
-    yield { kind: "swap", indices: [i, hi], array: [...arr], range };
+    yield {
+      kind: "swap",
+      indices: [i, hi],
+      array: [...arr],
+      range,
+      codeLines: quickSortLines.swapPivot,
+    };
   }
   return i;
 }

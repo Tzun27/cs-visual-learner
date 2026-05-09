@@ -6,6 +6,7 @@ import { insertionSortPython } from "./insertionSort.snippet";
 import { mergeSort } from "./mergeSort";
 import { mergeSortPython } from "./mergeSort.snippet";
 import { quickSort } from "./quickSort";
+import { quickSortPython } from "./quickSort.snippet";
 import { radixSort } from "./radixSort";
 import type { SortAlgorithm } from "./types";
 
@@ -35,4 +36,5 @@ export const sortAlgorithmSnippets: Partial<Record<SortAlgorithmKey, string>> = 
   bubble: bubbleSortPython,
   insertion: insertionSortPython,
   merge: mergeSortPython,
+  quick: quickSortPython,
 };
