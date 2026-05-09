@@ -8,6 +8,7 @@ import {
   maxDepth,
   searchSequence,
 } from "@/lib/dataStructures/binarySearchTree";
+import { bstInsertPython } from "@/lib/dataStructures/insertSequence.snippet";
 import type {
   BstDeleteStep,
   BstSearchStep,
@@ -39,7 +40,21 @@ function isBst(tree: BstSnapshot): boolean {
 
 describe("insertSequence", () => {
   it("yields only a 'done' step for an empty input", () => {
-    expect([...insertSequence([])]).toEqual([{ kind: "done", tree: { nodes: [], rootId: null } }]);
+    expect([...insertSequence([])]).toEqual([
+      { kind: "done", tree: { nodes: [], rootId: null }, codeLines: [16] },
+    ]);
+  });
+
+  it("every emitted step carries codeLines pointing inside the displayed Python source", () => {
+    const lineCount = bstInsertPython.split("\n").length;
+    for (const step of insertSequence([5, 3, 7, 5, 1])) {
+      expect(step.codeLines).toBeDefined();
+      expect(step.codeLines!.length).toBeGreaterThan(0);
+      for (const line of step.codeLines!) {
+        expect(line).toBeGreaterThanOrEqual(1);
+        expect(line).toBeLessThanOrEqual(lineCount);
+      }
+    }
   });
 
   it("places a single value as the root with no comparisons", () => {

@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { insertSequence, maxDepth } from "@/lib/dataStructures/binarySearchTree";
+import { bstInsertPython } from "@/lib/dataStructures/insertSequence.snippet";
 import type { BstSnapshot, BstStep } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
 
@@ -134,7 +136,15 @@ export function BSTViz({ initialSource = "balanced", initialSpeedMs = 350 }: BST
         ))}
       </div>
 
-      <TreeView tree={tree} highlights={highlights} className="w-full" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
+        <TreeView tree={tree} highlights={highlights} className="w-full" />
+        <CodePanel
+          source={bstInsertPython}
+          highlightedLines={currentStep?.codeLines}
+          language="python"
+          ariaLabel="BST insert pseudocode"
+        />
+      </div>
 
       <p
         aria-live="polite"

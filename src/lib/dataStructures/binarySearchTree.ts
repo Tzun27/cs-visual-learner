@@ -1,3 +1,4 @@
+import { bstInsertLines } from "./insertSequence.snippet";
 import type {
   BstDeleteCase,
   BstDeleteStep,
@@ -16,7 +17,12 @@ export function* insertSequence(values: readonly number[]): Generator<BstStep> {
   let rootId: number | null = null;
 
   for (const value of values) {
-    yield { kind: "begin", tree: snapshot(nodes, rootId), insertingValue: value };
+    yield {
+      kind: "begin",
+      tree: snapshot(nodes, rootId),
+      insertingValue: value,
+      codeLines: bstInsertLines.begin,
+    };
 
     let cursorId: number | null = rootId;
     let parentId: number | null = null;
@@ -24,19 +30,27 @@ export function* insertSequence(values: readonly number[]): Generator<BstStep> {
     let placed = true;
 
     while (cursorId !== null) {
+      const cursor = nodes[cursorId];
+      const compareLines =
+        value < cursor.value
+          ? bstInsertLines.compareLeft
+          : value > cursor.value
+            ? bstInsertLines.compareRight
+            : [...bstInsertLines.compareLeft, ...bstInsertLines.compareRight];
       yield {
         kind: "compare",
         tree: snapshot(nodes, rootId),
         cursorId,
         insertingValue: value,
+        codeLines: compareLines,
       };
-      const cursor = nodes[cursorId];
       if (value === cursor.value) {
         yield {
           kind: "duplicate",
           tree: snapshot(nodes, rootId),
           cursorId,
           insertingValue: value,
+          codeLines: bstInsertLines.duplicate,
         };
         placed = false;
         break;
@@ -62,11 +76,12 @@ export function* insertSequence(values: readonly number[]): Generator<BstStep> {
         tree: snapshot(nodes, rootId),
         newId,
         parentId,
+        codeLines: bstInsertLines.place,
       };
     }
   }
 
-  yield { kind: "done", tree: snapshot(nodes, rootId) };
+  yield { kind: "done", tree: snapshot(nodes, rootId), codeLines: bstInsertLines.done };
 }
 
 export function inorderValues(tree: BstSnapshot): number[] {

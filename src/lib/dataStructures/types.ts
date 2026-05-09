@@ -13,21 +13,53 @@ export type BstSnapshot = {
   readonly rootId: number | null;
 };
 
+type StepBase = { readonly codeLines?: readonly number[] };
+
 export type BstStep =
-  | { kind: "begin"; tree: BstSnapshot; insertingValue: number }
-  | { kind: "compare"; tree: BstSnapshot; cursorId: number; insertingValue: number }
-  | { kind: "place"; tree: BstSnapshot; newId: number; parentId: number | null }
-  | { kind: "duplicate"; tree: BstSnapshot; cursorId: number; insertingValue: number }
-  | { kind: "done"; tree: BstSnapshot };
+  | (StepBase & { kind: "begin"; tree: BstSnapshot; insertingValue: number })
+  | (StepBase & {
+      kind: "compare";
+      tree: BstSnapshot;
+      cursorId: number;
+      insertingValue: number;
+    })
+  | (StepBase & {
+      kind: "place";
+      tree: BstSnapshot;
+      newId: number;
+      parentId: number | null;
+    })
+  | (StepBase & {
+      kind: "duplicate";
+      tree: BstSnapshot;
+      cursorId: number;
+      insertingValue: number;
+    })
+  | (StepBase & { kind: "done"; tree: BstSnapshot });
 
 export type BstSequenceOp = (values: readonly number[]) => Generator<BstStep, void, void>;
 
 export type BstSearchStep =
-  | { kind: "begin"; tree: BstSnapshot; targetValue: number }
-  | { kind: "compare"; tree: BstSnapshot; cursorId: number; targetValue: number }
-  | { kind: "found"; tree: BstSnapshot; cursorId: number; targetValue: number }
-  | { kind: "miss"; tree: BstSnapshot; lastCursorId: number | null; targetValue: number }
-  | { kind: "done"; tree: BstSnapshot };
+  | (StepBase & { kind: "begin"; tree: BstSnapshot; targetValue: number })
+  | (StepBase & {
+      kind: "compare";
+      tree: BstSnapshot;
+      cursorId: number;
+      targetValue: number;
+    })
+  | (StepBase & {
+      kind: "found";
+      tree: BstSnapshot;
+      cursorId: number;
+      targetValue: number;
+    })
+  | (StepBase & {
+      kind: "miss";
+      tree: BstSnapshot;
+      lastCursorId: number | null;
+      targetValue: number;
+    })
+  | (StepBase & { kind: "done"; tree: BstSnapshot });
 
 export type BstDeleteCase = "leaf" | "one-child" | "two-children";
 
@@ -36,35 +68,45 @@ export type BstDeleteCase = "leaf" | "one-child" | "two-children";
 // are not reachable from `rootId`. TreeView's layout walker only visits reachable
 // nodes, so orphans render as gone while `nodes[id]` lookups remain valid.
 export type BstDeleteStep =
-  | { kind: "begin"; tree: BstSnapshot; targetValue: number }
-  | { kind: "compare"; tree: BstSnapshot; cursorId: number; targetValue: number }
-  | { kind: "miss"; tree: BstSnapshot; lastCursorId: number | null; targetValue: number }
-  | {
+  | (StepBase & { kind: "begin"; tree: BstSnapshot; targetValue: number })
+  | (StepBase & {
+      kind: "compare";
+      tree: BstSnapshot;
+      cursorId: number;
+      targetValue: number;
+    })
+  | (StepBase & {
+      kind: "miss";
+      tree: BstSnapshot;
+      lastCursorId: number | null;
+      targetValue: number;
+    })
+  | (StepBase & {
       kind: "found";
       tree: BstSnapshot;
       cursorId: number;
       targetValue: number;
       deleteCase: BstDeleteCase;
-    }
-  | {
+    })
+  | (StepBase & {
       kind: "find-successor";
       tree: BstSnapshot;
       cursorId: number;
       targetCursorId: number;
       targetValue: number;
-    }
-  | {
+    })
+  | (StepBase & {
       kind: "swap-value";
       tree: BstSnapshot;
       targetCursorId: number;
       successorId: number;
       newValue: number;
-    }
-  | {
+    })
+  | (StepBase & {
       kind: "unlink";
       tree: BstSnapshot;
       removedNodeId: number;
       removedValue: number;
       deleteCase: BstDeleteCase;
-    }
-  | { kind: "done"; tree: BstSnapshot };
+    })
+  | (StepBase & { kind: "done"; tree: BstSnapshot });
