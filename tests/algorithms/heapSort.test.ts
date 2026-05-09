@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { heapSort } from "@/lib/algorithms/heapSort";
+import { heapSortPython } from "@/lib/algorithms/heapSort.snippet";
 
 function runToCompletion(input: readonly number[]) {
   const steps = [...heapSort(input)];
@@ -13,11 +14,28 @@ function runToCompletion(input: readonly number[]) {
 
 describe("heapSort", () => {
   it("yields only a 'done' step for an empty array", () => {
-    expect([...heapSort([])]).toEqual([{ kind: "done", array: [] }]);
+    expect([...heapSort([])]).toEqual([{ kind: "done", array: [], codeLines: [10] }]);
   });
 
   it("yields only a 'done' step for a single-element array", () => {
-    expect([...heapSort([42])]).toEqual([{ kind: "done", array: [42] }]);
+    expect([...heapSort([42])]).toEqual([{ kind: "done", array: [42], codeLines: [10] }]);
+  });
+
+  it("property: every step carries codeLines pointing inside the displayed Python source", () => {
+    const lineCount = heapSortPython.split("\n").length;
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 12 }), (input) => {
+        for (const step of heapSort(input)) {
+          expect(step.codeLines).toBeDefined();
+          expect(step.codeLines!.length).toBeGreaterThan(0);
+          for (const line of step.codeLines!) {
+            expect(line).toBeGreaterThanOrEqual(1);
+            expect(line).toBeLessThanOrEqual(lineCount);
+          }
+        }
+      }),
+      { numRuns: 100 },
+    );
   });
 
   it("does not mutate its input", () => {
@@ -29,20 +47,25 @@ describe("heapSort", () => {
 
   it("opens with a 'range' step covering the whole array (the initial heap region)", () => {
     const steps = [...heapSort([3, 1, 2])];
-    expect(steps[0]).toEqual({ kind: "range", range: [0, 2], array: [3, 1, 2] });
+    expect(steps[0]).toEqual({
+      kind: "range",
+      range: [0, 2],
+      array: [3, 1, 2],
+      codeLines: [4, 5],
+    });
   });
 
   it("returns the exact step sequence for [3, 1, 2]", () => {
     const steps = [...heapSort([3, 1, 2])];
     expect(steps).toEqual([
-      { kind: "range", range: [0, 2], array: [3, 1, 2] },
-      { kind: "compare", indices: [0, 1], array: [3, 1, 2], range: [0, 2] },
-      { kind: "compare", indices: [0, 2], array: [3, 1, 2], range: [0, 2] },
-      { kind: "swap", indices: [0, 2], array: [2, 1, 3], range: [0, 1] },
-      { kind: "range", range: [0, 1], array: [2, 1, 3] },
-      { kind: "compare", indices: [0, 1], array: [2, 1, 3], range: [0, 1] },
-      { kind: "swap", indices: [0, 1], array: [1, 2, 3], range: [0, 0] },
-      { kind: "done", array: [1, 2, 3] },
+      { kind: "range", range: [0, 2], array: [3, 1, 2], codeLines: [4, 5] },
+      { kind: "compare", indices: [0, 1], array: [3, 1, 2], range: [0, 2], codeLines: [19, 20] },
+      { kind: "compare", indices: [0, 2], array: [3, 1, 2], range: [0, 2], codeLines: [21, 22] },
+      { kind: "swap", indices: [0, 2], array: [2, 1, 3], range: [0, 1], codeLines: [8] },
+      { kind: "range", range: [0, 1], array: [2, 1, 3], codeLines: [9] },
+      { kind: "compare", indices: [0, 1], array: [2, 1, 3], range: [0, 1], codeLines: [19, 20] },
+      { kind: "swap", indices: [0, 1], array: [1, 2, 3], range: [0, 0], codeLines: [8] },
+      { kind: "done", array: [1, 2, 3], codeLines: [10] },
     ]);
   });
 
