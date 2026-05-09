@@ -9,6 +9,7 @@ import { mergeSortPython } from "./mergeSort.snippet";
 import { quickSort } from "./quickSort";
 import { quickSortPython } from "./quickSort.snippet";
 import { radixSort } from "./radixSort";
+import { radixSortPython } from "./radixSort.snippet";
 import type { SortAlgorithm } from "./types";
 
 export const sortAlgorithms = {
@@ -39,4 +40,5 @@ export const sortAlgorithmSnippets: Partial<Record<SortAlgorithmKey, string>> = 
   insertion: insertionSortPython,
   merge: mergeSortPython,
   quick: quickSortPython,
+  radix: radixSortPython,
 };

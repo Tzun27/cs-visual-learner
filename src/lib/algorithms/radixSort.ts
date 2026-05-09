@@ -1,3 +1,4 @@
+import { radixSortLines } from "./radixSort.snippet";
 import type { SortStep } from "./types";
 
 export function* radixSort(input: readonly number[]): Generator<SortStep, void, void> {
@@ -18,7 +19,12 @@ export function* radixSort(input: readonly number[]): Generator<SortStep, void, 
 
     let exp = 1;
     while (Math.floor(maxBiased / exp) > 0) {
-      yield { kind: "range", range: [0, n - 1], array: [...arr] };
+      yield {
+        kind: "range",
+        range: [0, n - 1],
+        array: [...arr],
+        codeLines: radixSortLines.range,
+      };
 
       const buckets: number[][] = Array.from({ length: 10 }, () => []);
       for (const v of arr) {
@@ -31,7 +37,12 @@ export function* radixSort(input: readonly number[]): Generator<SortStep, void, 
         for (const v of bucket) {
           if (arr[pos] !== v) {
             arr[pos] = v;
-            yield { kind: "write", index: pos, array: [...arr] };
+            yield {
+              kind: "write",
+              index: pos,
+              array: [...arr],
+              codeLines: radixSortLines.write,
+            };
           }
           pos++;
         }
@@ -40,5 +51,5 @@ export function* radixSort(input: readonly number[]): Generator<SortStep, void, 
       exp *= 10;
     }
   }
-  yield { kind: "done", array: [...arr] };
+  yield { kind: "done", array: [...arr], codeLines: radixSortLines.done };
 }

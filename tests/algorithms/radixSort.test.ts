@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { radixSort } from "@/lib/algorithms/radixSort";
+import { radixSortPython } from "@/lib/algorithms/radixSort.snippet";
 
 function runToCompletion(input: readonly number[]) {
   const steps = [...radixSort(input)];
@@ -13,15 +14,34 @@ function runToCompletion(input: readonly number[]) {
 
 describe("radixSort", () => {
   it("yields only a 'done' step for an empty array", () => {
-    expect([...radixSort([])]).toEqual([{ kind: "done", array: [] }]);
+    expect([...radixSort([])]).toEqual([{ kind: "done", array: [], codeLines: [19] }]);
   });
 
   it("yields only a 'done' step for a single-element array", () => {
-    expect([...radixSort([42])]).toEqual([{ kind: "done", array: [42] }]);
+    expect([...radixSort([42])]).toEqual([{ kind: "done", array: [42], codeLines: [19] }]);
   });
 
   it("yields only a 'done' step for an array of all zeros (no digit passes needed)", () => {
-    expect([...radixSort([0, 0, 0])]).toEqual([{ kind: "done", array: [0, 0, 0] }]);
+    expect([...radixSort([0, 0, 0])]).toEqual([
+      { kind: "done", array: [0, 0, 0], codeLines: [19] },
+    ]);
+  });
+
+  it("property: every step carries codeLines pointing inside the displayed Python source", () => {
+    const lineCount = radixSortPython.split("\n").length;
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: 0, max: 1000 }), { maxLength: 12 }), (input) => {
+        for (const step of radixSort(input)) {
+          expect(step.codeLines).toBeDefined();
+          expect(step.codeLines!.length).toBeGreaterThan(0);
+          for (const line of step.codeLines!) {
+            expect(line).toBeGreaterThanOrEqual(1);
+            expect(line).toBeLessThanOrEqual(lineCount);
+          }
+        }
+      }),
+      { numRuns: 100 },
+    );
   });
 
   it("does not mutate its input", () => {
@@ -33,7 +53,12 @@ describe("radixSort", () => {
 
   it("opens with a 'range' step covering the whole array", () => {
     const steps = [...radixSort([3, 1, 2])];
-    expect(steps[0]).toEqual({ kind: "range", range: [0, 2], array: [3, 1, 2] });
+    expect(steps[0]).toEqual({
+      kind: "range",
+      range: [0, 2],
+      array: [3, 1, 2],
+      codeLines: [9, 10, 11],
+    });
   });
 
   it("emits exactly one 'range' step per digit pass", () => {
