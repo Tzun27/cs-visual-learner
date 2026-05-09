@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { sortAlgorithms, type SortAlgorithmKey } from "@/lib/algorithms";
+import {
+  sortAlgorithms,
+  sortAlgorithmLabels,
+  sortAlgorithmSnippets,
+  type SortAlgorithmKey,
+} from "@/lib/algorithms";
 import type { SortStep } from "@/lib/algorithms/types";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { ArrayBars } from "./ArrayBars";
+import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { activeRangeFor, countCompares, countSwapsAndWrites, highlightsFor } from "./stepView";
 
@@ -67,6 +73,8 @@ export function SortingViz({
   const max = useMemo(() => Math.max(...input, 1), [input]);
   const highlights = highlightsFor(playback.currentStep);
   const activeRange = activeRangeFor(playback.currentStep);
+  const codeSnippet = sortAlgorithmSnippets[algorithm];
+  const codeLines = playback.currentStep?.codeLines ?? [];
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
   const compares = countCompares(visibleSteps);
@@ -83,13 +91,28 @@ export function SortingViz({
       aria-label="Sorting visualization"
       className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
     >
-      <ArrayBars
-        array={displayArray}
-        highlights={highlights}
-        activeRange={activeRange}
-        max={max}
-        className="h-48 w-full"
-      />
+      <div
+        className={
+          codeSnippet
+            ? "grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch"
+            : "flex flex-col gap-4"
+        }
+      >
+        <ArrayBars
+          array={displayArray}
+          highlights={highlights}
+          activeRange={activeRange}
+          max={max}
+          className="h-48 w-full"
+        />
+        {codeSnippet && (
+          <CodePanel
+            source={codeSnippet}
+            highlightedLines={codeLines}
+            ariaLabel={`${sortAlgorithmLabels[algorithm]} pseudocode`}
+          />
+        )}
+      </div>
 
       <dl className="grid grid-cols-3 gap-3 text-sm">
         <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">

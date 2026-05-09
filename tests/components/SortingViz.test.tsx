@@ -31,4 +31,24 @@ describe("SortingViz", () => {
     render(<SortingViz algorithm="merge" initialSize={8} />);
     expect(screen.getByRole("toolbar", { name: /Playback/ })).toBeInTheDocument();
   });
+
+  it("renders the Python code panel for merge sort", () => {
+    render(<SortingViz algorithm="merge" initialSize={8} />);
+    expect(screen.getByRole("region", { name: /Merge Sort pseudocode/ })).toBeInTheDocument();
+  });
+
+  it("does not render a code panel for algorithms without a snippet", () => {
+    render(<SortingViz algorithm="bubble" initialSize={8} />);
+    expect(screen.queryByRole("region", { name: /pseudocode/ })).toBeNull();
+  });
+
+  it("highlights the merge entry lines after stepping into the first merge", async () => {
+    const { container } = render(<SortingViz algorithm="merge" initialSize={4} />);
+    // Two recursive sort() calls produce no yields for length-1 ranges, so the
+    // very first emitted step is the 'range' marker for the inner-most merge.
+    await userEvent.click(screen.getByRole("button", { name: /Step forward/ }));
+    const highlighted = container.querySelectorAll("[data-highlighted='true']");
+    const lines = Array.from(highlighted).map((el) => el.getAttribute("data-line"));
+    expect(lines).toEqual(["17", "18", "19"]);
+  });
 });
