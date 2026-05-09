@@ -1,4 +1,5 @@
 import { bstInsertLines } from "./insertSequence.snippet";
+import { bstSearchLines } from "./searchSequence.snippet";
 import type {
   BstDeleteCase,
   BstDeleteStep,
@@ -110,26 +111,44 @@ export function* searchSequence(
   targets: readonly number[],
 ): Generator<BstSearchStep> {
   for (const targetValue of targets) {
-    yield { kind: "begin", tree, targetValue };
+    yield { kind: "begin", tree, targetValue, codeLines: bstSearchLines.begin };
     let cursorId: number | null = tree.rootId;
     let lastCursorId: number | null = null;
     let found = false;
     while (cursorId !== null) {
-      yield { kind: "compare", tree, cursorId, targetValue };
       const cursor = tree.nodes[cursorId];
+      const compareLines =
+        targetValue === cursor.value
+          ? bstSearchLines.compareEqual
+          : targetValue < cursor.value
+            ? bstSearchLines.compareLeft
+            : bstSearchLines.compareRight;
+      yield { kind: "compare", tree, cursorId, targetValue, codeLines: compareLines };
       lastCursorId = cursorId;
       if (targetValue === cursor.value) {
-        yield { kind: "found", tree, cursorId, targetValue };
+        yield {
+          kind: "found",
+          tree,
+          cursorId,
+          targetValue,
+          codeLines: bstSearchLines.found,
+        };
         found = true;
         break;
       }
       cursorId = targetValue < cursor.value ? cursor.leftId : cursor.rightId;
     }
     if (!found) {
-      yield { kind: "miss", tree, lastCursorId, targetValue };
+      yield {
+        kind: "miss",
+        tree,
+        lastCursorId,
+        targetValue,
+        codeLines: bstSearchLines.miss,
+      };
     }
   }
-  yield { kind: "done", tree };
+  yield { kind: "done", tree, codeLines: bstSearchLines.done };
 }
 
 export function* deleteSequence(

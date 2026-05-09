@@ -2,9 +2,11 @@
 
 import { useMemo } from "react";
 import { buildTree, searchSequence } from "@/lib/dataStructures/binarySearchTree";
+import { bstSearchPython } from "@/lib/dataStructures/searchSequence.snippet";
 import type { BstSearchStep } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
 
@@ -105,7 +107,15 @@ export function BSTSearchViz({ initialSpeedMs = 350 }: BSTSearchVizProps) {
         Searching for {SEARCH_TARGETS.join(", ")}
       </p>
 
-      <TreeView tree={displayTree} highlights={highlights} className="w-full" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
+        <TreeView tree={displayTree} highlights={highlights} className="w-full" />
+        <CodePanel
+          source={bstSearchPython}
+          highlightedLines={currentStep?.codeLines}
+          language="python"
+          ariaLabel="BST search pseudocode"
+        />
+      </div>
 
       <p
         aria-live="polite"

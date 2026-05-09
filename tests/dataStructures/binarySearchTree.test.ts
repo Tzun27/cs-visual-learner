@@ -9,6 +9,7 @@ import {
   searchSequence,
 } from "@/lib/dataStructures/binarySearchTree";
 import { bstInsertPython } from "@/lib/dataStructures/insertSequence.snippet";
+import { bstSearchPython } from "@/lib/dataStructures/searchSequence.snippet";
 import type {
   BstDeleteStep,
   BstSearchStep,
@@ -188,7 +189,19 @@ describe("searchSequence", () => {
   const tree = buildTree([4, 2, 6, 1, 3, 5, 7]);
 
   it("yields only a 'done' step for an empty target list", () => {
-    expect([...searchSequence(tree, [])]).toEqual([{ kind: "done", tree }]);
+    expect([...searchSequence(tree, [])]).toEqual([{ kind: "done", tree, codeLines: [1] }]);
+  });
+
+  it("every emitted search step carries codeLines pointing inside the displayed Python source", () => {
+    const lineCount = bstSearchPython.split("\n").length;
+    for (const step of searchSequence(tree, [1, 4, 7, 99, 0])) {
+      expect(step.codeLines).toBeDefined();
+      expect(step.codeLines!.length).toBeGreaterThan(0);
+      for (const line of step.codeLines!) {
+        expect(line).toBeGreaterThanOrEqual(1);
+        expect(line).toBeLessThanOrEqual(lineCount);
+      }
+    }
   });
 
   it("yields begin → compare → found for a hit at the root", () => {
