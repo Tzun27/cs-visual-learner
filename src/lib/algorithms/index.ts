@@ -1,4 +1,5 @@
 import { bubbleSort } from "./bubbleSort";
+import { bubbleSortPython } from "./bubbleSort.snippet";
 import { heapSort } from "./heapSort";
 import { insertionSort } from "./insertionSort";
 import { mergeSort } from "./mergeSort";
@@ -30,5 +31,6 @@ export const sortAlgorithmLabels: Record<SortAlgorithmKey, string> = {
 };
 
 export const sortAlgorithmSnippets: Partial<Record<SortAlgorithmKey, string>> = {
+  bubble: bubbleSortPython,
   merge: mergeSortPython,
 };
