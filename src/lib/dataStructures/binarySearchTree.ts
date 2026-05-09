@@ -1,3 +1,4 @@
+import { bstDeleteLines } from "./deleteSequence.snippet";
 import { bstInsertLines } from "./insertSequence.snippet";
 import { bstSearchLines } from "./searchSequence.snippet";
 import type {
@@ -159,7 +160,12 @@ export function* deleteSequence(
   let rootId = initialTree.rootId;
 
   for (const targetValue of targets) {
-    yield { kind: "begin", tree: snapshot(nodes, rootId), targetValue };
+    yield {
+      kind: "begin",
+      tree: snapshot(nodes, rootId),
+      targetValue,
+      codeLines: bstDeleteLines.begin,
+    };
 
     let cursorId: number | null = rootId;
     let parentId: number | null = null;
@@ -167,8 +173,20 @@ export function* deleteSequence(
     let lastCursorId: number | null = null;
 
     while (cursorId !== null) {
-      yield { kind: "compare", tree: snapshot(nodes, rootId), cursorId, targetValue };
       const cursor = nodes[cursorId];
+      const compareLines =
+        cursor.value === targetValue
+          ? bstDeleteLines.compareEqual
+          : targetValue < cursor.value
+            ? bstDeleteLines.compareLeft
+            : bstDeleteLines.compareRight;
+      yield {
+        kind: "compare",
+        tree: snapshot(nodes, rootId),
+        cursorId,
+        targetValue,
+        codeLines: compareLines,
+      };
       lastCursorId = cursorId;
       if (cursor.value === targetValue) break;
       parentId = cursorId;
@@ -177,7 +195,13 @@ export function* deleteSequence(
     }
 
     if (cursorId === null) {
-      yield { kind: "miss", tree: snapshot(nodes, rootId), lastCursorId, targetValue };
+      yield {
+        kind: "miss",
+        tree: snapshot(nodes, rootId),
+        lastCursorId,
+        targetValue,
+        codeLines: bstDeleteLines.miss,
+      };
       continue;
     }
 
@@ -193,6 +217,12 @@ export function* deleteSequence(
       cursorId,
       targetValue,
       deleteCase,
+      codeLines:
+        deleteCase === "leaf"
+          ? bstDeleteLines.foundLeaf
+          : deleteCase === "one-child"
+            ? bstDeleteLines.foundOneChild
+            : bstDeleteLines.foundTwoChildren,
     };
 
     if (deleteCase !== "two-children") {
@@ -211,6 +241,7 @@ export function* deleteSequence(
         removedNodeId: cursorId,
         removedValue: target.value,
         deleteCase,
+        codeLines: bstDeleteLines.unlinkSimple,
       };
       continue;
     }
@@ -226,6 +257,7 @@ export function* deleteSequence(
       cursorId: succId,
       targetCursorId,
       targetValue,
+      codeLines: bstDeleteLines.findSuccessor,
     };
     while (nodes[succId].leftId !== null) {
       succParentId = succId;
@@ -237,6 +269,7 @@ export function* deleteSequence(
         cursorId: succId,
         targetCursorId,
         targetValue,
+        codeLines: bstDeleteLines.findSuccessor,
       };
     }
 
@@ -251,6 +284,7 @@ export function* deleteSequence(
       targetCursorId,
       successorId: succId,
       newValue: successorValue,
+      codeLines: bstDeleteLines.swapValue,
     };
 
     // The successor has no left child by construction. Splice in its right child.
@@ -269,10 +303,11 @@ export function* deleteSequence(
       removedNodeId: succId,
       removedValue: successorValue,
       deleteCase: "two-children",
+      codeLines: bstDeleteLines.unlinkRecursive,
     };
   }
 
-  yield { kind: "done", tree: snapshot(nodes, rootId) };
+  yield { kind: "done", tree: snapshot(nodes, rootId), codeLines: bstDeleteLines.done };
 }
 
 export function maxDepth(tree: BstSnapshot): number {

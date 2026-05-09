@@ -8,6 +8,7 @@ import {
   maxDepth,
   searchSequence,
 } from "@/lib/dataStructures/binarySearchTree";
+import { bstDeletePython } from "@/lib/dataStructures/deleteSequence.snippet";
 import { bstInsertPython } from "@/lib/dataStructures/insertSequence.snippet";
 import { bstSearchPython } from "@/lib/dataStructures/searchSequence.snippet";
 import type {
@@ -326,7 +327,21 @@ describe("deleteSequence", () => {
 
   it("yields only a 'done' step for an empty target list", () => {
     const tree = buildTree(baseValues);
-    expect([...deleteSequence(tree, [])]).toEqual([{ kind: "done", tree }]);
+    expect([...deleteSequence(tree, [])]).toEqual([{ kind: "done", tree, codeLines: [20] }]);
+  });
+
+  it("every emitted delete step carries codeLines pointing inside the displayed Python source", () => {
+    const tree = buildTree(baseValues);
+    const lineCount = bstDeletePython.split("\n").length;
+    // 6 = leaf, 38 = one-child, 50 = two-children (full demo); 999 forces a miss.
+    for (const step of deleteSequence(tree, [6, 38, 50, 999])) {
+      expect(step.codeLines).toBeDefined();
+      expect(step.codeLines!.length).toBeGreaterThan(0);
+      for (const line of step.codeLines!) {
+        expect(line).toBeGreaterThanOrEqual(1);
+        expect(line).toBeLessThanOrEqual(lineCount);
+      }
+    }
   });
 
   it("emits 'miss' when the target is not in the tree", () => {

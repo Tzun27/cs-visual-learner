@@ -2,9 +2,11 @@
 
 import { useMemo } from "react";
 import { buildTree, deleteSequence } from "@/lib/dataStructures/binarySearchTree";
+import { bstDeletePython } from "@/lib/dataStructures/deleteSequence.snippet";
 import type { BstDeleteStep } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
 
@@ -132,7 +134,15 @@ export function BSTDeleteViz({ initialSpeedMs = 450 }: BSTDeleteVizProps) {
         Deleting {DELETE_TARGETS.join(", ")} from a balanced tree
       </p>
 
-      <TreeView tree={displayTree} highlights={highlights} className="w-full" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
+        <TreeView tree={displayTree} highlights={highlights} className="w-full" />
+        <CodePanel
+          source={bstDeletePython}
+          highlightedLines={currentStep?.codeLines}
+          language="python"
+          ariaLabel="BST delete pseudocode"
+        />
+      </div>
 
       <p
         aria-live="polite"

@@ -87,7 +87,11 @@ export function CodePanel({
       <span className="sr-only" aria-live="polite">
         {announcement}
       </span>
-      <div ref={scrollRootRef} className="max-h-72 overflow-auto p-3 md:max-h-[28rem]">
+      <div
+        ref={scrollRootRef}
+        tabIndex={0}
+        className="max-h-72 overflow-auto rounded p-3 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none md:max-h-[28rem]"
+      >
         <pre className="m-0 font-mono text-xs leading-relaxed sm:text-sm">
           {lines.map((line, i) => {
             const lineNumber = i + 1;
@@ -108,7 +112,7 @@ export function CodePanel({
               >
                 <span
                   aria-hidden
-                  className="mr-3 inline-block w-6 text-right text-zinc-400 tabular-nums select-none dark:text-zinc-600"
+                  className="mr-3 inline-block w-6 text-right text-zinc-500 tabular-nums select-none dark:text-zinc-400"
                 >
                   {lineNumber}
                 </span>
