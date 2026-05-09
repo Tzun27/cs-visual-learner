@@ -109,6 +109,7 @@ export function SortingViz({
           <CodePanel
             source={codeSnippet}
             highlightedLines={codeLines}
+            language="python"
             ariaLabel={`${sortAlgorithmLabels[algorithm]} pseudocode`}
           />
         )}

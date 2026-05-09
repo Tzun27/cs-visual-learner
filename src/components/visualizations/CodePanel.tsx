@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { BundledLanguage, ThemedTokenWithVariants } from "shiki";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 
 export type CodePanelProps = {
   source: string;
   highlightedLines?: readonly number[];
+  language?: string;
   ariaLabel?: string;
   className?: string;
 };
 
+type LineTokens = ThemedTokenWithVariants[];
+
 export function CodePanel({
   source,
   highlightedLines,
+  language,
   ariaLabel = "Algorithm pseudocode",
   className,
 }: CodePanelProps) {
@@ -24,6 +29,32 @@ export function CodePanel({
 
   const reducedMotion = useReducedMotion();
   const scrollRootRef = useRef<HTMLDivElement>(null);
+
+  const [tokenLines, setTokenLines] = useState<readonly LineTokens[] | null>(null);
+
+  useEffect(() => {
+    if (!language) return;
+    let cancelled = false;
+    const lang = language as BundledLanguage;
+    (async () => {
+      const { getSingletonHighlighter } = await import("shiki");
+      const hl = await getSingletonHighlighter({
+        langs: [lang],
+        themes: ["github-light", "github-dark"],
+      });
+      if (cancelled) return;
+      const result = hl.codeToTokensWithThemes(source, {
+        lang,
+        themes: { light: "github-light", dark: "github-dark" },
+      });
+      if (!cancelled) setTokenLines(result);
+    })().catch(() => {
+      // Silently fall back to plain text on any tokenizer failure.
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [source, language]);
 
   useEffect(() => {
     if (firstHighlight === undefined) return;
@@ -61,6 +92,7 @@ export function CodePanel({
           {lines.map((line, i) => {
             const lineNumber = i + 1;
             const highlighted = highlightSet.has(lineNumber);
+            const tokens = tokenLines?.[i];
             return (
               <span
                 key={lineNumber}
@@ -80,12 +112,34 @@ export function CodePanel({
                 >
                   {lineNumber}
                 </span>
-                <span>{line.length === 0 ? " " : line}</span>
+                {tokens ? (
+                  <span>{tokens.map((token, j) => renderToken(token, j))}</span>
+                ) : (
+                  <span>{line.length === 0 ? " " : line}</span>
+                )}
               </span>
             );
           })}
         </pre>
       </div>
     </section>
+  );
+}
+
+function renderToken(token: ThemedTokenWithVariants, key: number) {
+  const lightColor = token.variants.light?.color;
+  const darkColor = token.variants.dark?.color;
+  const style = {
+    "--shiki-light": lightColor,
+    "--shiki-dark": darkColor,
+  } as React.CSSProperties;
+  return (
+    <span
+      key={key}
+      style={style}
+      className="text-[color:var(--shiki-light)] dark:text-[color:var(--shiki-dark)]"
+    >
+      {token.content}
+    </span>
   );
 }
