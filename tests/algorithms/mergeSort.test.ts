@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { mergeSort } from "@/lib/algorithms/mergeSort";
+import { mergeSortPython } from "@/lib/algorithms/mergeSort.snippet";
 
 function runToCompletion(input: readonly number[]) {
   const steps = [...mergeSort(input)];
@@ -13,11 +14,11 @@ function runToCompletion(input: readonly number[]) {
 
 describe("mergeSort", () => {
   it("yields only a 'done' step for an empty array", () => {
-    expect([...mergeSort([])]).toEqual([{ kind: "done", array: [] }]);
+    expect([...mergeSort([])]).toEqual([{ kind: "done", array: [], codeLines: [5] }]);
   });
 
   it("yields only a 'done' step for a single-element array", () => {
-    expect([...mergeSort([42])]).toEqual([{ kind: "done", array: [42] }]);
+    expect([...mergeSort([42])]).toEqual([{ kind: "done", array: [42], codeLines: [5] }]);
   });
 
   it("does not mutate its input", () => {
@@ -70,6 +71,23 @@ describe("mergeSort", () => {
       fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 30 }), (input) => {
         for (const step of mergeSort(input)) {
           expect(step.array).toHaveLength(input.length);
+        }
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it("property: every step carries codeLines that point inside the displayed Python source", () => {
+    const snippetLineCount = mergeSortPython.split("\n").length;
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 30 }), (input) => {
+        for (const step of mergeSort(input)) {
+          expect(step.codeLines).toBeDefined();
+          expect(step.codeLines!.length).toBeGreaterThan(0);
+          for (const line of step.codeLines!) {
+            expect(line).toBeGreaterThanOrEqual(1);
+            expect(line).toBeLessThanOrEqual(snippetLineCount);
+          }
         }
       }),
       { numRuns: 200 },

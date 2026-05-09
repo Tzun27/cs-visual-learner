@@ -1,11 +1,12 @@
 import type { SortStep } from "./types";
+import { mergeSortLines } from "./mergeSort.snippet";
 
 export function* mergeSort(input: readonly number[]): Generator<SortStep, void, void> {
   const arr = [...input];
   if (arr.length > 1) {
     yield* sort(arr, 0, arr.length - 1);
   }
-  yield { kind: "done", array: [...arr] };
+  yield { kind: "done", array: [...arr], codeLines: mergeSortLines.done };
 }
 
 function* sort(arr: number[], lo: number, hi: number): Generator<SortStep, void, void> {
@@ -23,7 +24,7 @@ function* merge(
   hi: number,
 ): Generator<SortStep, void, void> {
   const range = [lo, hi] as const;
-  yield { kind: "range", range, array: [...arr] };
+  yield { kind: "range", range, array: [...arr], codeLines: mergeSortLines.mergeEntry };
 
   const aux = arr.slice(lo, hi + 1);
   let i = 0;
@@ -36,28 +37,48 @@ function* merge(
       indices: [lo + i, lo + j],
       array: [...arr],
       range,
+      codeLines: mergeSortLines.compare,
     };
-    if (aux[i] <= aux[j]) {
+    const tookI = aux[i] <= aux[j];
+    if (tookI) {
       arr[k] = aux[i];
       i++;
     } else {
       arr[k] = aux[j];
       j++;
     }
-    yield { kind: "write", index: k, array: [...arr], range };
+    yield {
+      kind: "write",
+      index: k,
+      array: [...arr],
+      range,
+      codeLines: tookI ? mergeSortLines.writeI : mergeSortLines.writeJ,
+    };
     k++;
   }
 
   while (i <= mid - lo) {
     arr[k] = aux[i];
-    yield { kind: "write", index: k, array: [...arr], range };
+    yield {
+      kind: "write",
+      index: k,
+      array: [...arr],
+      range,
+      codeLines: mergeSortLines.drainI,
+    };
     i++;
     k++;
   }
 
   while (j <= hi - lo) {
     arr[k] = aux[j];
-    yield { kind: "write", index: k, array: [...arr], range };
+    yield {
+      kind: "write",
+      index: k,
+      array: [...arr],
+      range,
+      codeLines: mergeSortLines.drainJ,
+    };
     j++;
     k++;
   }
