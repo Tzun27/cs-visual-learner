@@ -29,7 +29,11 @@ Read these before writing code:
   - Insert section: curated input `[5, 13, 21, 4, 12, 5, 7]` makes bucket 5 collide three times, bucket 4 collide once, and the second `5` get dropped as a duplicate. `HashTableInsertViz` also feeds the view a `ghostBucketIndex` during `hash` / `probe` steps to preview where the key would land.
   - Search section: pre-built table where bucket 1 = `[1, 9, 17]` and bucket 2 = `[2, 50]`. Targets `[1, 17, 50, 25, 3]` cover head-of-chain hit, end-of-chain hit, hit in a shorter chain, miss-after-probing-non-empty-bucket, and miss-on-empty-bucket (zero probes).
   - Delete section: pre-built table with bucket 1 = `[1, 9, 17, 25]` and bucket 2 = `[2]`. Targets `[9, 25, 1, 99]` cover middle / new-tail / head / empty-bucket-miss.
-- **Tree Traversal lesson** at `/lessons/data-structures/tree-traversal` — single viz with a four-button mode toggle (preorder / inorder / postorder / level-order) over the same balanced demo tree from the BST lesson. Each visit step appends one value to an "Output sequence" strip below the tree, and the CodePanel swaps Python source per mode so the position of `visit(node)` is visibly different across the three DFS orders. One parameterized `traversalSequence(tree, mode)` generator covers all four orderings; DFS uses inner recursion, level-order uses an explicit queue, matching the displayed snippets.
+- **Tree Traversal lesson** at `/lessons/data-structures/tree-traversal` — single viz with a four-button mode toggle (preorder / inorder / postorder / level-order) over the same balanced demo tree from the BST lesson (`buildTree([4, 2, 6, 1, 3, 5, 7])` — 7 nodes, depth 3). Each visit step appends one value to an "Output sequence" strip below the tree, and the CodePanel swaps Python source per mode so the position of `visit(node)` is visibly different across the three DFS orders. One parameterized `traversalSequence(tree, mode)` generator covers all four orderings; DFS uses inner recursion, level-order uses an explicit queue, matching the displayed snippets. Expected outputs on the demo tree:
+  - **Preorder:** `[4, 2, 1, 3, 6, 5, 7]` (root → left subtree → right subtree)
+  - **Inorder:** `[1, 2, 3, 4, 5, 6, 7]` (left → root → right — sorted, because this is a BST)
+  - **Postorder:** `[1, 3, 2, 5, 7, 6, 4]` (left → right → root — root last)
+  - **Level-order:** `[4, 2, 6, 1, 3, 5, 7]` (depth 0, depth 1, depth 2 — same first 3 values as preorder by coincidence)
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
@@ -73,7 +77,7 @@ These are easy to miss and expensive to violate:
 ## Useful commands
 
 ```
-npm run dev              # turbopack dev server
+npm run dev              # turbopack dev server (binds :3000)
 npm run build            # production build
 npm run start            # serve production build (used by playwright)
 npm test                 # unit + property tests
@@ -87,6 +91,12 @@ npm run format:check
 ```
 
 Pre-commit (`simple-git-hooks` + `lint-staged`) auto-runs Prettier and ESLint on staged files. Don't bypass with `--no-verify` — fix the underlying issue.
+
+**Workflow notes the last sessions learned the hard way:**
+
+- A `npm run dev` server is typically already running on `:3000` while the user is iterating. Playwright's `webServer` config has `reuseExistingServer: !process.env.CI`, so e2e runs against the dev server locally — meaning you can iterate on viz code, hot-reload, and then re-run `npx playwright test` without restarting anything. In CI, Playwright builds + serves production.
+- When stepping a viz programmatically via `mcp__chrome-devtools__evaluate_script`, React state batching means multiple `.click()` calls in a single synchronous script all see the same stale state. Insert `await new Promise(r => requestAnimationFrame(r))` between clicks to let the reducer flush. Without that, the viz appears frozen even though tests pass.
+- Direct pushes to `main` in auto mode trip the safety classifier roughly every 1–3 cycles and require fresh user authorization. Plan your commits so you can show the user a summary and ask once, rather than asking for permission after every commit. The hash-tables + tree-traversal sessions both ended with five-commit stacks waiting on a single push approval — works fine.
 
 ## Open work
 
@@ -185,13 +195,38 @@ e2e/                                Playwright (smoke, lessons, compare, BST, ha
 docs/                               SPEC, PLAN, TASKS
 ```
 
+## Reading the code by topic
+
+If you need to make a focused change, these are the files that matter for each subsystem. Read them in this order to come up to speed quickly.
+
+- **Add a new sorting algorithm:** `src/lib/algorithms/types.ts` (step union, add a variant if needed) → write `src/lib/algorithms/foo.snippet.ts` → write `src/lib/algorithms/foo.ts` (the generator) → register in `src/lib/algorithms/index.ts` → write `tests/algorithms/foo.test.ts` (100% coverage required) → create `src/app/lessons/sorting/foo-sort/page.mdx` → add to `src/app/lessons/page.tsx` lessons array → add e2e to `e2e/lessons.spec.ts`'s array.
+- **Add a new BST or hash-table operation:** `src/lib/dataStructures/types.ts` (step union) → write `*.snippet.ts` → extend `binarySearchTree.ts` or `hashTable.ts` with a generator → write tests in `tests/dataStructures/*.test.ts` → wire up a new `*Viz.tsx` composition next to the existing ones → render it on the lesson MDX.
+- **Add a new data-structure lesson from scratch:** Mirror Hash Tables. New `*.snippet.ts` per operation + new generator file + new `*View.tsx` presentational primitive (if existing primitives don't fit) + per-operation `*Viz.tsx` compositions + lesson MDX + lessons-index entry (`status: "live"`, set `slug`) + e2e spec + add the route to `e2e/a11y.spec.ts` route list.
+- **Touch the CodePanel:** `src/components/visualizations/CodePanel.tsx` + `tests/components/CodePanel.test.tsx`. Decisions 17–21 cover the load-bearing constraints (lazy Shiki, focusable scroll region, line-number contrast, `not-prose`, scroll math, soft-wrap hanging indent).
+- **Touch the TreeView SVG:** `src/components/visualizations/TreeView.tsx`. Highlight palette uses `--bar-compare / swap / pivot` CSS vars defined in `src/app/globals.css` (light + dark variants). Reused by BST insert/search/delete vizes and TreeTraversalViz — exercise all five before merging.
+
 ## What changed in the most recent session
 
-For context if the next agent wonders why certain things look like they do, here's the full sequence of work from this session in commit order:
+For context if the next agent wonders why certain things look like they do, here's the full sequence of work from this session in commit order. All landed on `main`:
 
-1. **CodePanel cutoff fix** (`fix(code-panel)`). Long Python lines (notably bubble sort's tuple swap on line 6) were overflowing the panel's clientWidth and getting clipped without a visible scroll affordance. Row spans now use `whitespace-pre-wrap pr-2 pl-11 -indent-9` — see decision 21.
-2. **Hash Tables lesson** across four commits — generators + tests, `HashTableView` primitive + tests, three composition vizes + MDX + lessons-index promotion, e2e + axe sweep. Decisions 22–25 capture hash-table specifics.
-3. **Tree Traversal lesson** across three commits — `traversalSequence` generator + 4 snippets + tests (14 unit/property tests, including BFS depth-monotonicity), `TreeTraversalViz` composition with 4-mode toggle + output sequence strip + MDX page + lessons-index promotion, e2e + axe sweep. Decisions 26–27 capture traversal specifics.
-4. **Doc refreshes** — two distinct `docs:` commits, one after hash tables and one (this) after tree traversal.
+| #   | hash      | subject                                                               |
+| --- | --------- | --------------------------------------------------------------------- |
+| 1   | `0949724` | `fix(code-panel)`: soft-wrap long lines with hanging indent           |
+| 2   | `8e07e0b` | `feat(ds)`: add hash table generators + snippets + tests              |
+| 3   | `c0ea5b1` | `feat(viz)`: add HashTableView presentational primitive               |
+| 4   | `1664e0a` | `feat(lessons)`: add hash tables lesson with insert/search/delete viz |
+| 5   | `5eda5fc` | `test(e2e)`: cover hash tables lesson + add it to axe sweep           |
+| 6   | `e39bb2f` | `docs`: refresh next_session.md after hash tables rollout             |
+| 7   | `29dccb4` | `feat(ds)`: add tree traversal generator + 4 snippets + tests         |
+| 8   | `c5c98b4` | `feat(lessons)`: add tree traversal lesson with 4-mode toggle         |
+| 9   | `0fd70c9` | `test(e2e)`: cover tree traversal lesson + fix empty-state list a11y  |
+| 10  | `a12001e` | `docs`: refresh next_session.md after tree traversal rollout          |
 
-All three new lessons were modeled deliberately on the BST module's contract so existing decisions (dense-id snapshots, tombstoning, codeLines-per-branch, snippet co-location, exact-match aria-label rule) carry over verbatim. New decisions 21–27 capture only the deltas. Test counts grew from ~200 unit / ~25 e2e at the start of the session to 251 unit / 42 e2e at HEAD.
+Narrative summary:
+
+1. **CodePanel cutoff fix** (commit 1). Long Python lines (notably bubble sort's tuple swap on line 6) were overflowing the panel's clientWidth and getting clipped without a visible scroll affordance. Row spans now use `whitespace-pre-wrap pr-2 pl-11 -indent-9` — see decision 21. Verified visually with Chrome DevTools MCP on the landing page and via `npm run e2e`.
+2. **Hash Tables lesson** (commits 2–5). Five commits: generators + snippets + 39 unit/property tests, `HashTableView` primitive + 7 component tests, three composition vizes + MDX + lessons-index promotion, 7 e2e specs + axe route. Decisions 22–25 capture hash-table specifics.
+3. **Tree Traversal lesson** (commits 7–9). Three commits: `traversalSequence` generator + 4 snippets + 14 unit/property tests (including BFS depth-monotonicity), `TreeTraversalViz` composition with 4-mode toggle + output-sequence strip + MDX + lessons-index promotion, 5 e2e specs + axe route. Decisions 26–27 capture traversal specifics. Caught one real a11y bug on the way in (placeholder `<span>` as a direct `<ol>` child) — see decision 26.
+4. **Doc refreshes** (commits 6, 10). One after each lesson shipped — staged + committed locally, pushed in batches after user authorization.
+
+All three new lessons were modeled deliberately on the BST module's contract so existing decisions (dense-id snapshots, tombstoning, codeLines-per-branch, snippet co-location, exact-match aria-label rule) carry over verbatim. New decisions 21–27 capture only the deltas. Test counts grew from **~200 unit / ~25 e2e** at the start of the session to **251 unit / 42 e2e (incl. 7 axe routes)** at HEAD.
