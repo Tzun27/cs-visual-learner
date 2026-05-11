@@ -67,6 +67,34 @@ export type BstDeleteCase = "leaf" | "one-child" | "two-children";
 // removed nodes stay in `BstSnapshot.nodes` but no parent points to them and they
 // are not reachable from `rootId`. TreeView's layout walker only visits reachable
 // nodes, so orphans render as gone while `nodes[id]` lookups remain valid.
+// Traversal modes shared by all four classic orderings. Inorder is the
+// signature BST traversal (gives sorted output); pre- and postorder differ
+// only in when the root is emitted relative to its subtrees. Level-order is
+// BFS (queue-based, not stack-based) and is the only one that doesn't fit a
+// recursive descent.
+export type TraversalMode = "preorder" | "inorder" | "postorder" | "level-order";
+
+export type BstTraversalStep =
+  | (StepBase & {
+      kind: "begin";
+      tree: BstSnapshot;
+      mode: TraversalMode;
+      sequence: readonly number[];
+    })
+  | (StepBase & {
+      kind: "visit";
+      tree: BstSnapshot;
+      cursorId: number;
+      mode: TraversalMode;
+      sequence: readonly number[];
+    })
+  | (StepBase & {
+      kind: "done";
+      tree: BstSnapshot;
+      mode: TraversalMode;
+      sequence: readonly number[];
+    });
+
 // Hash table (separate chaining hash set). Entries are dense-id like BST nodes
 // — `entries[id]` always returns the original entry, even after deletes — so
 // step snapshots can refer back to historical entries by id. Buckets are
