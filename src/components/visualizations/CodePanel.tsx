@@ -104,7 +104,7 @@ export function CodePanel({
                 data-highlighted={highlighted ? "true" : undefined}
                 aria-current={highlighted ? "step" : undefined}
                 className={[
-                  "block rounded px-2 motion-safe:transition-colors",
+                  "block rounded pr-2 pl-11 -indent-9 whitespace-pre-wrap motion-safe:transition-colors",
                   highlighted
                     ? "bg-amber-200/70 text-zinc-900 dark:bg-amber-400/25 dark:text-amber-50"
                     : "",
