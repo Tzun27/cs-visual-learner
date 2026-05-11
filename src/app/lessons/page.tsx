@@ -90,7 +90,8 @@ const topics: readonly Topic[] = [
         blurb: "Watch insertion order decide whether lookups stay O(log n) or collapse to O(n).",
       },
       {
-        status: "coming-soon",
+        status: "live",
+        slug: "hash-tables",
         title: "Hash Tables",
         difficulty: "intermediate",
         blurb: "Collision strategies, load factor, and when O(1) is a lie.",

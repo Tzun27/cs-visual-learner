@@ -1,0 +1,107 @@
+import { HashTableInsertViz } from "@/components/visualizations/HashTableInsertViz";
+import { HashTableSearchViz } from "@/components/visualizations/HashTableSearchViz";
+import { HashTableDeleteViz } from "@/components/visualizations/HashTableDeleteViz";
+
+export const metadata = {
+  title: "Hash Tables",
+  description:
+    "Watch a hash table fill bucket-by-bucket — see how the hash function decides where a key lands, how collisions chain, and why the average case is O(1) while the worst case isn't.",
+};
+
+# Hash Tables
+
+**Difficulty:** intermediate · **Category:** data structures
+
+A hash table trades a key into a small integer — a _bucket index_ — by running the key through a
+**hash function**. If two keys land in the same bucket (a _collision_), the table needs a
+strategy for storing both. The version shown here uses **separate chaining**: each bucket holds a
+list, and colliding keys append to that list.
+
+The eight buckets across the top are indexed $0$ through $7$. The hash function is the simplest one
+that still demonstrates the structure: $\text{bucket}(k) = k \bmod 8$.
+
+## Inserting keys
+
+<HashTableInsertViz />
+
+Press **Play** and watch each key flow through the same three-step routine: hash to find the
+bucket, walk the existing chain looking for a duplicate, then either append or skip.
+
+- **Yellow** rings mark keys _being probed_ during the chain walk.
+- **Blue** rings (with a dashed halo) just got _placed_ at the end of a bucket.
+- **Orange** rings indicate a _duplicate_ — the key is already there, so nothing is added.
+
+The first three keys — $5$, $13$, $21$ — all hash to bucket $5$ and pile up in a chain. The chain
+walk before each insert is what makes the table _set-like_: a second copy of $5$ is detected on
+the third probe and dropped on the floor.
+
+The insert cost is $O(1 + \text{chain length})$. With a good hash function and a sensible load
+factor, chains stay short and inserts are constant-time on average. Bad hash functions, or
+oversubscribed tables, are how the $O(1)$ promise turns into $O(n)$.
+
+## Searching the table
+
+<HashTableSearchViz />
+
+Search is the same three-step routine without the writeback: hash, walk the bucket's chain, and
+return either the entry or a miss. The viz runs five lookups against a pre-built table where
+bucket $1$ holds $[1, 9, 17]$ and bucket $2$ holds $[2, 50]$:
+
+- $1$ — head-of-chain hit; only one probe needed.
+- $17$ — end-of-chain hit; the walk has to pass $1$ and $9$ first.
+- $50$ — hit in a shorter chain.
+- $25$ — _miss_, but only after probing every entry in bucket $1$. The chain is short, but a long
+  chain with a non-matching key is exactly where hash table performance degrades.
+- $3$ — _miss_ against an empty bucket. Zero probes — the bucket itself is the answer.
+
+That last case is the lookup story at its best: hash, see an empty bucket, return. It's the
+reason hash tables outperform balanced trees for unordered membership: a tree always needs at
+least $\log_2 n$ comparisons to decide a miss, but a hash table can decide one in a single bucket
+read.
+
+## The load factor
+
+The number of stored keys divided by the bucket count is called the **load factor** $\alpha$. The
+viz uses a fixed capacity of $8$, so adding a 9th key pushes $\alpha$ above $1$ and at least one
+bucket must hold a chain of length $\geq 2$ by the pigeonhole principle.
+
+In practice, hash tables resize themselves once $\alpha$ crosses a threshold (often $0.75$). The
+table allocates a larger bucket array and **rehashes** every existing key into a new bucket. This
+amortizes to $O(1)$ per insert despite occasional $O(n)$ resize events.
+
+The viz omits resizing to keep the model honest: every collision in the picture is collision the
+hash function actually caused, not collision a too-small table forced.
+
+## Removing keys
+
+<HashTableDeleteViz />
+
+Delete is structurally the same as search, with an extra writeback step at the end. The viz
+removes four keys from a pre-built table with bucket $1$ = $[1, 9, 17, 25]$ and bucket $2$ = $[2]$:
+
+- $9$ — middle of the chain. Two probes to find it, then the chain shrinks to $[1, 17, 25]$.
+- $25$ — _now the tail_ after $9$ left. Three probes (the chain has $1$, $17$, $25$ in that order).
+- $1$ — head of the chain. One probe.
+- $99$ — miss in an empty bucket. Zero probes.
+
+In separate chaining, delete is straightforward: find the entry, splice it out of the bucket
+list. Other strategies (open addressing with probing) need _tombstones_ to keep subsequent
+lookups working, because a hole in the probe sequence would otherwise terminate a search early.
+
+## When the abstraction leaks
+
+The hash table is a marvel when it works — and a quiet $O(n)$ trap when it doesn't. Three things
+to keep an eye on:
+
+- **Bad hash functions.** If every key maps to the same bucket, the table degenerates into a
+  linked list. Adversarial inputs that force collisions are a real DOS vector — randomized
+  hashing (used by Python, Rust, and modern Java) is the standard mitigation.
+- **High load factor.** As $\alpha$ approaches $1$, expected chain length grows linearly with the
+  number of keys. Resize aggressively or accept the slowdown.
+- **Iteration order.** Hash tables make _no_ promise about iteration order. Python 3.7+ does
+  preserve insertion order, but that's a property of its specific implementation, not of hash
+  tables in general.
+
+A balanced BST guarantees $O(\log n)$ no matter what. A hash table _averages_ $O(1)$. The
+right tool depends on whether you can tolerate the worst case — and whether you need the
+ordered iteration that a tree provides for free.
