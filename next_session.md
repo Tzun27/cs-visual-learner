@@ -7,7 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + first data-structures lesson (BST insert + search + delete) + Python code panel synchronized with every visualization (six sorts and three BST ops). Not yet deployed.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + two data-structures lessons (BST insert/search/delete and Hash Tables add/contains/remove) + Python code panel synchronized with every visualization (six sorts, three BST ops, three hash-table ops). Not yet deployed.
+- **Test counts at HEAD:** 237 unit + 36 Playwright e2e + 6 axe-core a11y routes — all green.
 
 Read these before writing code:
 
@@ -24,13 +25,17 @@ Read these before writing code:
   - Insert section: `insertSequence` generator + `BSTViz`. Toggle between Balanced and Sorted insert order to see Max depth jump from 4 to 12.
   - Search section: `searchSequence` generator + `BSTSearchViz`, walking a curated mix of hits and misses against the balanced tree.
   - Delete section: `deleteSequence` generator + `BSTDeleteViz`. Curated demo deletes 6 (leaf), 38 (one child), and 50 (two children, successor walk 75 → 63 → 56) against the same balanced tree, exercising all three textbook cases. `TreeView` SVG primitive (inorder x-positioning, dynamic row height) is shared by all three vizes.
+- **Hash Tables lesson** at `/lessons/data-structures/hash-tables` — covers add (insert), contains (search), and remove (delete) on a separate-chaining hash _set_ of capacity 8. Each section pairs a `HashTableView` SVG (8 bucket headers across the top, linked-chain ellipses dropping below) with a per-op Python snippet. The hash function is `hash(key) % capacity`, which equals `key % capacity` in Python for non-negative ints — so the displayed Python is faithful to what the generator computes.
+  - Insert section: curated input `[5, 13, 21, 4, 12, 5, 7]` makes bucket 5 collide three times, bucket 4 collide once, and the second `5` get dropped as a duplicate. `HashTableInsertViz` also feeds the view a `ghostBucketIndex` during `hash` / `probe` steps to preview where the key would land.
+  - Search section: pre-built table where bucket 1 = `[1, 9, 17]` and bucket 2 = `[2, 50]`. Targets `[1, 17, 50, 25, 3]` cover head-of-chain hit, end-of-chain hit, hit in a shorter chain, miss-after-probing-non-empty-bucket, and miss-on-empty-bucket (zero probes).
+  - Delete section: pre-built table with bucket 1 = `[1, 9, 17, 25]` and bucket 2 = `[2]`. Targets `[9, 25, 1, 99]` cover middle / new-tail / head / empty-bucket-miss.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + axe).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table add/contains/remove + axe).
 
 ## Architectural load-bearing decisions
 
@@ -56,6 +61,11 @@ These are easy to miss and expensive to violate:
 18. **CodePanel's scrollable region must be keyboard-focusable and the line-number contrast must be ≥4.5.** Two axe rules surfaced when CodePanel landed on the BST page: `scrollable-region-focusable` (the inner `<div ref={scrollRootRef}>` needs `tabIndex={0}`) and `color-contrast` on the line-number color. Light-mode line numbers are `text-zinc-500` and dark-mode is `text-zinc-400`; lighter values fail axe on `bg-zinc-50/50` / `bg-zinc-900/40`. Don't downgrade either to `zinc-400` (light) or `zinc-600` (dark) without verifying contrast.
 19. **CodePanel needs `not-prose`.** The MDX layouts wrap children in `prose`, which restyles every `<pre>` with a dark background and inverts colors. CodePanel's outer `<section>` carries `not-prose` to opt out — without it, the syntax highlighting collides with prose's pre styles. Any new MDX-embedded viz that renders a `<pre>` needs the same.
 20. **Highlight scrolls inside the panel only — do NOT use `Element.scrollIntoView` on a child line.** `scrollIntoView` propagates up the document and scrolls the page when the line is below viewport, which yanks the bars out of view. CodePanel uses `root.scrollTo({ top: ... })` on the inner ref instead, computing offsets via `target.offsetTop - root.offsetTop`. If you ever change this back to `scrollIntoView`, scope it with `scrollIntoViewOptions` and verify the browser doesn't bubble. The Shiki dual-theme outer wrapper is also why the line-highlight colors (amber background) sit on top: Shiki sets text color via inline-styled spans, the highlight CSS sets background on the line wrapper, so the two compose without conflict.
+21. **CodePanel soft-wraps long lines with a hanging indent.** The row span carries `whitespace-pre-wrap pr-2 pl-11 -indent-9` so each row is `display: block`, wraps on spaces, and continues wrapped text under the code column (not under the line-number gutter). Math: line-number gutter = `w-6 mr-3` = 2.25rem; row `pl-11` = 2.75rem; row `-indent-9` = -2.25rem → first line places the number at the gutter, wrapped lines start at 2.75rem (under the code). Don't restore `whitespace-pre` or drop the indent without checking the bubble-sort line 6 (`arr[j], arr[j + 1] = arr[j + 1], arr[j]`) — it overflows the half-column at md+ viewports.
+22. **Hash table entries are dense-id and tombstoned on delete, mirroring the BST contract.** `HashTableSnapshot.entries` is keyed positionally — `entries[id]` returns the original entry forever. `buckets[i]` is `readonly number[]` (entry ids, in insertion order); delete splices the id out of the bucket list but leaves the entry in `entries[]` (unreachable from any bucket). `liveKeys(table)` walks buckets, not entries, so orphans are correctly invisible to "what's currently stored?" queries. Property tests check `new Set(liveKeys(final))` against the insert-minus-delete set — don't try to compact entry ids on remove, you'd invalidate every prior step's snapshot.
+23. **`bucketIndexFor` uses `((k % cap) + cap) % cap` for `-0` safety.** Plain `k % cap` in JS returns `-0` when `k` is a negative multiple of `cap` (e.g. `-8 % 8 === -0`), which fails `Object.is` equality with `+0` and breaks Vitest's `.toBe(0)`. The double-mod is the standard "always positive modulo" trick and matches Python's `hash(k) % cap` for both negative and positive ints. Don't simplify back to single-mod.
+24. **`HashTableView` highlights live on three dimensions: per-entry, the active bucket, and an optional ghost slot.** `highlights: HashCellHighlight[]` colors specific entries (cursor / placed / duplicate, same palette as `TreeView`). `activeBucketIndex` glows the bucket header in compare-orange — applied for any step whose type carries a `bucketIndex` field. `ghostBucketIndex` (only the insert viz uses it) renders a dashed line + dashed ellipse at the end of a chain to preview where a not-yet-placed key will land. Search/delete vizes leave `ghostBucketIndex` null.
+25. **Hash-table viz `aria-label`s collide with their CodePanel siblings under loose regex.** Each section is `<section aria-label="Hash table insert" />` and its `<CodePanel ariaLabel="Hash table insert pseudocode" />`. A Playwright locator like `getByRole("region", { name: /Hash table insert/ })` matches both and errors with `strict mode violation`. Use exact-string matching: `getByRole("region", { name: "Hash table insert", exact: true })`. Same rule applies to any future viz that pairs a section with a CodePanel where both labels share a prefix.
 
 ## Useful commands
 
@@ -87,8 +97,9 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **More data-structures lessons.** BST insert, search, and delete all ship now. **Hash Tables** (`/lessons/data-structures/hash-tables`) is the next natural one — needs a new presentational primitive (a row of buckets with linked-list chains or open-addressing probes) but follows the same generator pattern. **Tree traversal** (preorder / inorder / postorder / level-order) is also a great fit since `TreeView` is already a reusable primitive — could even live on the BST page or a sibling page. New ops should also ship with a `*.snippet.ts` and `codeLines` annotations from day one — the pattern is established (decisions 14–20).
+- **Tree Traversal** (preorder / inorder / postorder / level-order) is the next natural data-structures lesson — `TreeView` is already a reusable primitive, the BST page already has a curated balanced tree to walk, and a single generator can emit "visit" steps with branch-aware `codeLines`. Smallest scope of the remaining ideas; would slot in as either a fourth section on the BST page or a sibling page (`/lessons/data-structures/tree-traversal`).
 - **Heaps & Priority Queues.** The `heap-sort` lesson already animates the heap inside an array. A dedicated heap lesson would visualize it as an actual binary tree (TreeView reusable!) and walk through `siftUp`/`siftDown`. The Python snippet would mirror what already exists in `heapSort.snippet.ts` — could share the source or split it.
+- **Open-addressing hash table.** The current hash-tables lesson uses separate chaining. A companion lesson (or an additional section) that swaps in **linear probing** would showcase tombstones (`deleted` markers vs. `empty`), primary-vs-secondary clustering, and why probe sequences can't terminate early on miss. Most of the scaffolding — `HashTableView`, snippet pattern, exact-match aria-label rule — generalizes; the data model swaps from `buckets: number[][]` to `slots: (entryId | null | "tombstone")[]`.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
 - **Language toggle on the code panel.** All snippets are Python today. Adding TypeScript (the actual generator source) or another teaching language would re-tokenize on toggle and roughly double the snippet-authoring work per algorithm. The pieces are in place: `CodePanel` already accepts a `language` prop and Shiki supports many languages — what's missing is a per-algorithm registry of `{ python: source, typescript: source }` and matching line-number maps.
@@ -99,8 +110,9 @@ User deferred this. When you do it:
 - Property-test coverage for `quickSort` is currently length-only (in-place partition has transient duplicates). The newly added stable sorts (insertion, radix) keep this constraint at the per-step level for similar reasons (transient writes); their final-array property tests do the full multiset check.
 - The smoke test relies on heading text ("Learn computer science"). If the landing copy changes, update `e2e/smoke.spec.ts` in the same commit.
 - The package.json `name` is still `addyosmani-test` from initial scaffolding — harmless but inconsistent with the repo name. Rename if/when convenient.
-- The `vitest.config.ts` 100% coverage gate currently only covers `src/lib/algorithms/`. Extending it to `src/lib/dataStructures/` would prevent the same drift in the new track — left out of the BST PR to avoid bundling unrelated config tightening.
-- Axe-core only runs on a subset of routes (`/`, `/lessons`, `/lessons/sorting/bubble-sort`, `/lessons/sorting/compare`, `/lessons/data-structures/binary-search-tree`). The merge-sort page (and the four other sorts that now ship with `CodePanel`) aren't in the sweep. Adding `/lessons/sorting/merge-sort` to `e2e/a11y.spec.ts:routes` would catch any future panel-related regressions earlier — the BST page already covered the main shape.
+- The `vitest.config.ts` 100% coverage gate currently only covers `src/lib/algorithms/`. Extending it to `src/lib/dataStructures/` would prevent the same drift in the new track — left out of the BST and hash-tables PRs to avoid bundling unrelated config tightening. With BST + hash tables both now substantial modules, this is overdue.
+- Axe-core now runs on six routes (`/`, `/lessons`, `/lessons/sorting/bubble-sort`, `/lessons/sorting/compare`, `/lessons/data-structures/binary-search-tree`, `/lessons/data-structures/hash-tables`). The other four sort pages (`insertion-sort`, `merge-sort`, `quick-sort`, `heap-sort`, `radix-sort`) ship with `CodePanel` but aren't in the sweep. Adding them would catch any future panel-related regressions earlier — the existing routes cover the structural shape, but each algorithm has its own snippet length and could surface unique contrast/wrapping edge cases.
+- The hash-tables viz uses keys-only ("hash set") semantics. If you ever want it to behave as a hash _map_, extend `HashTableEntry` with a `value` field, update the snippets (`bucket = [(k, v), ...]`), and update `HashTableView` to render `k: v` cells. Most of the rest of the pipeline is value-agnostic.
 
 ## Things to leave alone
 
@@ -118,7 +130,8 @@ src/app/                            App Router routes
   lessons/sorting/*/page.mdx        Per-algorithm sort lesson content
   lessons/sorting/compare/page.mdx  Side-by-side comparison lesson
   lessons/data-structures/          Data-structures track (layout + lessons)
-    binary-search-tree/page.mdx     BST insert + search lesson
+    binary-search-tree/page.mdx     BST insert + search + delete lesson
+    hash-tables/page.mdx            Hash table add + contains + remove lesson
   opengraph-image.tsx               Edge-runtime OG card (1200x630)
   sitemap.ts, robots.ts             SEO
 
@@ -128,6 +141,7 @@ src/components/
   visualizations/
     ArrayBars.tsx                   SVG presentational (sort viz)
     TreeView.tsx                    SVG presentational (tree viz)
+    HashTableView.tsx               SVG presentational (hash table viz; buckets + chains)
     CodePanel.tsx                   Client component: source + line highlights + lazy Shiki
     Controls.tsx                    Toolbar (play/pause/step/reset/speed; size optional)
     SortingViz.tsx                  Single-algorithm composition + state (renders CodePanel when snippet exists)
@@ -135,6 +149,9 @@ src/components/
     BSTViz.tsx                      BST insert composition + state (renders CodePanel)
     BSTSearchViz.tsx                BST search composition + state (renders CodePanel)
     BSTDeleteViz.tsx                BST delete composition + state, 3-case demo (renders CodePanel)
+    HashTableInsertViz.tsx          Hash table insert composition (renders CodePanel + ghost slot)
+    HashTableSearchViz.tsx          Hash table search composition (head/end/empty-bucket targets)
+    HashTableDeleteViz.tsx          Hash table delete composition (middle/tail/head/miss targets)
     stepView.ts                     Shared step→highlight + counter helpers (sort)
 
 src/lib/
@@ -146,16 +163,32 @@ src/lib/
     {bubble,heap,insertion,         Python source + named line-number constants
      merge,quick,radix}Sort.snippet.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / Bst*Step (all carry optional codeLines)
-    binarySearchTree.ts             insertSequence + searchSequence + deleteSequence + buildTree
-    index.ts                        Operation registry + labels (insert only — search/delete have a different signature)
-    {insert,search,delete}Sequence.snippet.ts  Python source + named line-number constants
+    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step
+    binarySearchTree.ts             BST insertSequence + searchSequence + deleteSequence + buildTree
+    hashTable.ts                    Hash table insertSequence + searchSequence + deleteSequence + buildHashTable + bucketIndexFor + liveKeys + loadFactor
+    index.ts                        BST operation registry + labels (insert only — search/delete have a different signature)
+    {insert,search,delete}Sequence.snippet.ts        Python source + named line-number constants (BST)
+    hashTable{Insert,Search,Delete}.snippet.ts        Python source + named line-number constants (hash table)
   hooks/
     useStepThrough.ts               Single-list reducer state machine
     useParallelStepThrough.ts       N-list reducer with shared timer
     useReducedMotion.ts             SSR-safe matchMedia
 
 tests/                              Unit + property tests (Vitest)
-e2e/                                Playwright (smoke, lessons, compare, BST insert/search/delete, a11y)
+e2e/                                Playwright (smoke, lessons, compare, BST, hash-tables, a11y)
 docs/                               SPEC, PLAN, TASKS
 ```
+
+## What changed in the most recent session
+
+For context if the next agent wonders why certain things look like they do:
+
+- **CodePanel cutoff fix** (`fix(code-panel): soft-wrap long lines with hanging indent`). Long Python lines (notably bubble sort's tuple swap on line 6) were overflowing the panel's clientWidth and getting clipped without a visible scroll affordance. Row spans now use `whitespace-pre-wrap pr-2 pl-11 -indent-9` — see decision 21. Verified across all six sorts and now both data-structures lessons.
+- **Hash Tables lesson shipped** end-to-end in this session, across five commits:
+  1. Generators + snippets + 39 unit/property tests (`src/lib/dataStructures/hashTable.ts`, three `*.snippet.ts`, type additions).
+  2. `HashTableView` presentational primitive + 7 component tests.
+  3. Three composition vizes + MDX page + lessons-index promotion (from coming-soon to live).
+  4. E2e specs (7) + axe sweep extension.
+  5. (This commit) doc refresh.
+
+The hash-tables generators were modeled deliberately on the BST module's contract so that the existing decisions (dense-id snapshots, tombstoning, codeLines-per-branch, snippet co-location) carry over verbatim. Decisions 22–25 capture the deltas that are specific to hash tables.
