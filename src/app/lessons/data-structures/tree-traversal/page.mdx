@@ -1,0 +1,78 @@
+import { TreeTraversalViz } from "@/components/visualizations/TreeTraversalViz";
+
+export const metadata = {
+  title: "Tree Traversal",
+  description:
+    "Four classic ways to walk a binary tree — preorder, inorder, postorder, and level-order — visualized side-by-side against the same balanced tree.",
+};
+
+# Tree Traversal
+
+**Difficulty:** beginner · **Category:** data structures
+
+There are infinitely many ways to enumerate the nodes of a tree, but four orderings come up over
+and over: **preorder**, **inorder**, **postorder**, and **level-order**. The first three are
+depth-first — they recurse into one subtree before touching the other. The fourth is breadth-first
+— it works one whole level at a time, using a queue.
+
+Toggle between the four modes below and watch the output sequence rebuild. The picture stays the
+same; only the order of emission changes.
+
+<TreeTraversalViz />
+
+## Reading the visualization
+
+The tree is the same balanced shape from the BST lesson — values $1$ through $7$, with $4$ at the
+root. Each press of **Step forward** finalizes one node: the cursor lights up, that node's value
+gets appended to the **Output sequence** strip below the tree, and the code panel highlights
+exactly where in the function `visit(node)` sits.
+
+The cursor visibly skips between subtrees during inorder and postorder — the recursion goes deep
+before it ever emits anything.
+
+## What the four orders are good for
+
+- **Preorder** ($\text{root} \to \text{left} \to \text{right}$) — visits the root first, then
+  walks each subtree the same way. It's the natural order for **serializing a tree**: the first
+  value you see is always the root, and the structure can be reconstructed if you also know which
+  subtrees are empty. Compiler ASTs are typically printed in preorder.
+
+- **Inorder** ($\text{left} \to \text{root} \to \text{right}$) — the signature traversal for
+  BSTs. Because the invariant says every left descendant is smaller and every right descendant is
+  larger, emitting the values in left-root-right order produces **sorted output**. That's why
+  ordered map types (Python's `SortedDict`, C++'s `std::map`) get sorted iteration for free.
+
+- **Postorder** ($\text{left} \to \text{right} \to \text{root}$) — the root is emitted _last_.
+  Useful when each node's work depends on its children being done first: **freeing memory**
+  (free the children before the parent so you don't leak references), evaluating an expression
+  tree (compute the operands before applying the operator), computing subtree sizes/sums.
+
+- **Level-order** (depth $0 \to 1 \to 2 \to \ldots$) — different shape entirely: not a recursion,
+  but a **queue-driven loop**. Dequeue a node, visit it, enqueue its children. The result is the
+  tree laid out level by level — the natural order for problems like "find the deepest leaf",
+  "rightmost node in each level", or "any breadth-first search on a graph".
+
+## Why three DFS orders and not just one?
+
+Look at the Python panel as you toggle between preorder, inorder, and postorder. The function
+body is _almost_ identical across all three — the only thing that moves is the line `visit(node)`.
+The two recursive calls stay in the same order. That single line slides between three positions,
+and the entire output changes.
+
+That symmetry isn't a coincidence: a tree traversal is fully determined by **when** each node
+decides to emit itself relative to the recursive descent. Preorder commits before recursing,
+inorder commits between the two recursions, postorder commits after both. The same call stack,
+three different snapshots of the output.
+
+Level-order can't be expressed this way — there's no recursion ordering that yields breadth-first.
+That's the structural reason it needs a queue: depth-first uses an _implicit_ stack (the call
+stack), so to switch to breadth-first you need to swap the stack for a queue and unroll the
+recursion into a loop.
+
+## Cost
+
+Every traversal visits each node exactly once and does $O(1)$ work per visit, so all four run in
+$O(n)$. The space cost differs, though: DFS uses $O(h)$ stack frames where $h$ is the height; BFS
+uses up to $O(w)$ queue entries where $w$ is the maximum width of a level. On a balanced tree
+that's $O(\log n)$ vs $O(n/2)$ in the worst case — recursion is _cheaper_ in space than BFS
+in that regime, which is the opposite of the usual "iterative beats recursive" instinct.

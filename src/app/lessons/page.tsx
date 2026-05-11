@@ -97,6 +97,14 @@ const topics: readonly Topic[] = [
         blurb: "Collision strategies, load factor, and when O(1) is a lie.",
       },
       {
+        status: "live",
+        slug: "tree-traversal",
+        title: "Tree Traversal",
+        difficulty: "beginner",
+        blurb:
+          "Four ways to walk a tree — preorder, inorder, postorder, level-order — side by side.",
+      },
+      {
         status: "coming-soon",
         title: "Heaps & Priority Queues",
         difficulty: "intermediate",
