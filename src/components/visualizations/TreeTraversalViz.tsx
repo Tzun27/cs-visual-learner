@@ -133,23 +133,28 @@ export function TreeTraversalViz({
         className="rounded border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950"
       >
         <div className="text-[11px] tracking-wider text-zinc-500 uppercase">Output sequence</div>
-        <ol
-          aria-live="polite"
-          className="mt-2 flex min-h-[1.75rem] flex-wrap gap-2 font-mono text-sm"
-        >
-          {sequence.length === 0 ? (
-            <span className="text-zinc-500">(empty)</span>
-          ) : (
-            sequence.map((v, i) => (
+        {sequence.length === 0 ? (
+          <p
+            aria-live="polite"
+            className="mt-2 flex min-h-[1.75rem] items-center font-mono text-sm text-zinc-500"
+          >
+            (empty)
+          </p>
+        ) : (
+          <ol
+            aria-live="polite"
+            className="mt-2 flex min-h-[1.75rem] flex-wrap gap-2 font-mono text-sm"
+          >
+            {sequence.map((v, i) => (
               <li
                 key={`${i}-${v}`}
                 className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 px-2 dark:border-zinc-800 dark:bg-zinc-900"
               >
                 {v}
               </li>
-            ))
-          )}
-        </ol>
+            ))}
+          </ol>
+        )}
       </div>
 
       <p
