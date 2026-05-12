@@ -1,0 +1,114 @@
+import { HeapInsertViz } from "@/components/visualizations/HeapInsertViz";
+import { HeapExtractMinViz } from "@/components/visualizations/HeapExtractMinViz";
+
+export const metadata = {
+  title: "Heaps & Priority Queues",
+  description:
+    "Build a min-heap one insert at a time, then extract the minimum repeatedly. See how the heap-shape invariant keeps the tree balanced even when every new value is the smallest so far.",
+};
+
+# Heaps & Priority Queues
+
+**Difficulty:** intermediate · **Category:** data structures
+
+A binary heap is a complete binary tree that satisfies one rule: every node's value is less than or
+equal to both of its children (for a min-heap) — or greater than or equal (for a max-heap). It is
+the data structure underneath `heapq` in Python, `std::priority_queue` in C++, and the open-set
+ordering inside Dijkstra's shortest-path algorithm.
+
+The lesson is about a **min-heap** specifically: the smallest value is always at the root, and the
+two operations that matter — `insert` and `extract_min` — both run in $O(\log n)$ because the tree
+is guaranteed to stay balanced.
+
+## Inserting into a min-heap
+
+<HeapInsertViz />
+
+Press **Play** and watch the heap fill in. Each insert has two phases:
+
+1. **Append** the new value at the next free slot — the leftmost empty spot on the bottom row.
+   The heap is stored as a flat array, so "next free slot" is just the end of that array.
+2. **Sift up** until the heap invariant holds again. Compare the new value against its parent at
+   index $\lfloor (i - 1) / 2 \rfloor$; if it's smaller, swap, and repeat. Stop as soon as the
+   parent is smaller-or-equal — or you've reached the root.
+
+The highlights tell the story:
+
+- **Yellow** rings (with dashed halo) are nodes that just _moved_ — either a fresh append or a
+  swap.
+- **Orange** rings are nodes being _compared_ — the child against its parent.
+
+Toggle to **"New minimum each time"** and watch what happens. Each insert is smaller than every
+existing value, so it bubbles all the way to the root. Look at the **Swaps** counter: each insert
+costs $\log_2 n$ swaps in the worst case.
+
+But — and this is the punchline — _the tree shape never degenerates_. Compare against the
+[Binary Search Tree](/lessons/data-structures/binary-search-tree) lesson, where inserting in sorted
+order produced a depth-$n$ right-only chain. Heaps don't have that problem. The shape is decided
+purely by _how many_ values are in the heap, not by what those values are or in what order they
+arrived. That's the trade-off: heaps give up the BST's ordering between siblings (you can't ask
+"what's the third-smallest value" without doing real work) in exchange for guaranteed balance.
+
+## Extracting the minimum
+
+The other half of the priority-queue interface is "give me the smallest value, and remove it." The
+minimum is always at index 0 — the root — but you can't just delete it, because then the tree has
+no root. The fix is a clever rearrangement:
+
+1. **Read** the value at the root (this is your return value).
+2. **Move** the last element of the array into the root slot. This keeps the tree shape balanced —
+   you're just dropping the trailing leaf — but the heap invariant is now broken, because that
+   last leaf is almost certainly not the smallest value.
+3. **Sift down**. Compare the root against its two children, swap with the _smaller_ one if it's
+   smaller than the root, and repeat at the new position. Stop when both children are larger
+   (or you've fallen off the bottom).
+
+<HeapExtractMinViz />
+
+The viz extracts the four smallest values from the heap built by the "Mixed order" sequence above.
+
+- **Red** ring marks the root that's _about_ to leave.
+- **Yellow** rings mark nodes that just _moved_ (the last element jumping to the root, or a
+  sift-down swap).
+- **Orange** rings mark the three nodes being _compared_ at each level — current cursor plus
+  both children.
+
+Each extract takes $O(\log n)$ — the sift-down can traverse at most the height of the tree, which
+is $\lceil \log_2 n \rceil$. The list of extracted values comes out in ascending order, so a
+sequence of $n$ extractions sorts $n$ values in $O(n \log n)$ time. That's exactly what
+[heap sort](/lessons/sorting/heap-sort) is doing — except it does the sift-down in place to avoid
+an auxiliary array, and uses a _max-heap_ to extract the largest each time.
+
+## Priority queues in the wild
+
+A min-heap is the natural implementation of a priority queue when "highest priority" means
+"smallest key." Three places it shows up everywhere:
+
+- **Dijkstra's shortest path.** The frontier of nodes-to-relax is a min-heap keyed by their
+  current best-known distance. Extracting the minimum is "pick the next node to expand;" inserting
+  is "discovered a new node with this distance." This is what makes Dijkstra's runtime
+  $O((V + E) \log V)$ instead of $O(V^2)$.
+- **Event scheduling.** Discrete-event simulators (and OS timer wheels, and game-tick processors)
+  store pending events in a min-heap keyed by scheduled time. The next event to fire is always
+  `extract_min`.
+- **Top-$k$ queries.** Keep a min-heap of size $k$. For every new element, push it; if the heap
+  exceeds size $k$, extract the minimum. At the end, the heap contains the $k$ largest values
+  seen. The work is $O(n \log k)$ — much cheaper than sorting all $n$ values when $k \ll n$.
+
+## What you didn't see
+
+A few things this lesson skipped for clarity:
+
+- **`heapify`** — building a heap from an already-populated array in $O(n)$ rather than
+  $n$ inserts each costing $O(\log n)$. The trick is to sift-down from the bottom up; the
+  amortized argument is delicate. The `heap-sort` lesson uses this version because it's the
+  in-place build.
+- **`decrease_key`** — Dijkstra needs to lower the priority of a node already in the heap when
+  it discovers a shorter path. The textbook fix is to maintain an index map alongside the array
+  so you can find the node in $O(1)$; without that, you have to do a linear scan or just
+  re-insert and accept duplicates. Real implementations (and most production priority queues)
+  pick one of these strategies.
+- **$d$-ary and Fibonacci heaps.** Increasing the branching factor beyond 2 trades sift-down cost
+  for sift-up cost — useful when inserts vastly outnumber extractions. Fibonacci heaps reduce
+  `decrease_key` to amortized $O(1)$, which makes them theoretically appealing for Dijkstra but
+  rarely worth it in practice due to large constants.

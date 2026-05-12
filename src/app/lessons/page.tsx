@@ -105,7 +105,8 @@ const topics: readonly Topic[] = [
           "Four ways to walk a tree — preorder, inorder, postorder, level-order — side by side.",
       },
       {
-        status: "coming-soon",
+        status: "live",
+        slug: "heap",
         title: "Heaps & Priority Queues",
         difficulty: "intermediate",
         blurb: "The data structure behind heap sort and Dijkstra.",
