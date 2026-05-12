@@ -2,6 +2,7 @@ import { LinearProbeInsertViz } from "@/components/visualizations/LinearProbeIns
 import { LinearProbeSearchViz } from "@/components/visualizations/LinearProbeSearchViz";
 import { LinearProbeDeleteViz } from "@/components/visualizations/LinearProbeDeleteViz";
 import { RobinHoodInsertViz } from "@/components/visualizations/RobinHoodInsertViz";
+import { RobinHoodDeleteViz } from "@/components/visualizations/RobinHoodDeleteViz";
 
 export const metadata = {
   title: "Hash Tables: Linear Probing",
@@ -178,16 +179,66 @@ would have stayed at slot 6 (displacement 0) and $13$ would have gone to slot 7 
 a less even distribution. The end-state max-displacement is _smaller_ with Robin Hood, even
 though the total probe count is similar.
 
-The catch is that delete and search get more complex. Production Robin Hood implementations use
-**backshift deletion** (rather than tombstones) — when removing a key, walk forward and pull each
-subsequent key one slot to the left until you hit an empty slot or a key already at its home.
-That keeps the displacement invariants tight, but it's more bookkeeping per delete. This section
-focuses on insert because that's where the variance-reduction story lives.
+## Backshift deletion: removing a key without tombstones
+
+So far the only delete we've seen is the tombstone trick from earlier in this lesson. Robin Hood
+has a cleaner option that actively maintains the displacement invariants insert worked to set up.
+
+<RobinHoodDeleteViz />
+
+The starting table is the end state of the Robin Hood insert demo above: $5$ at slot 5 (+0), $13$
+at slot 6 (+1), $14$ at slot 7 (+1), $22$ at slot 0 (+2). The deletes target three different
+branches of the algorithm.
+
+**Delete 13.** Hash to slot 5 — it holds $5$, not $13$, so probe to slot 6. Found. Now the
+backshift walk kicks in:
+
+1. The slot _after_ $13$ holds $14$. Its home is slot 6, so it's currently sitting at
+   displacement 1 (not at home). Pull $14$ back into slot 6.
+2. The next slot holds $22$. Its home is slot 6, so it's at displacement 2 (still not at home).
+   Pull $22$ back into slot 7.
+3. The next slot (wrapping to slot 1) is empty. Stop. Clear slot 0 (where $22$ used to live).
+
+After this delete, $14$ and $22$ both moved closer to home: $14$ went from +1 to +0, $22$ went
+from +2 to +1. Every displacement strictly decreased — exactly the invariant we wanted.
+
+**Delete 5.** Hash to slot 5, found directly. Backshift starts looking at slot 6, which now holds
+$14$ — and $14$'s home is slot 6, so it's already at displacement 0. We can't pull it back
+without making its displacement negative. Stop immediately. Clear slot 5.
+
+This is the other backshift termination condition: meeting a key already at home means the chain
+is over. Whatever lives past this point arrived via its own probe sequence and doesn't depend on
+the slot we just emptied being occupied.
+
+**Delete 99.** $99 \bmod 8 = 3$, and slot 3 is empty. The search half of delete reports a miss
+immediately, and no backshift runs.
+
+### Why backshift is "Robin Hood's" delete
+
+Notice that the table never contains a tombstone in any of these steps. Backshift replaces the
+tombstone mechanism entirely:
+
+- Search no longer needs the "tombstone keeps you walking" rule, because deletes pull subsequent
+  keys back rather than leaving holes in the probe path.
+- The variance-reducing property the insert section worked to maintain — keys clustered close to
+  their homes — survives deletions instead of degrading over time.
+
+The trade-off is cost per delete. Backshift's worst case touches every key in the cluster the
+deleted key belonged to. Tombstoning is $O(1)$ amortized; backshift is $O(\text{cluster size})$.
+But because Robin Hood keeps clusters tight, that cluster size stays small in practice.
+
+The other catch: backshift doesn't compose with the "tombstone fast-path" Robin Hood _insert_
+uses (the line in the previous section's note where a tombstone gets reused with displacement 0).
+A production Robin Hood implementation picks _one_ deletion strategy and stays consistent —
+either backshift everywhere (and the insert never sees tombstones because there aren't any), or
+tombstones everywhere with a periodic rehash. This lesson uses backshift to show the cleaner
+half of the story; in practice, the choice depends on how the table is being used.
 
 ## What's next
 
-This lesson covered the simplest open-addressing scheme and Robin Hood as a variance-reducing
-refinement. Other natural follow-ups:
+This lesson covered the simplest open-addressing scheme and Robin Hood — insert as a
+variance-reducing refinement and backshift as the matching deletion strategy. Other natural
+follow-ups:
 
 - **Quadratic probing** changes the probe sequence from $i + 1, i + 2, i + 3, \ldots$ to
   $i + 1, i + 4, i + 9, \ldots$ — same wrap-around, but the gaps spread out, which breaks up
@@ -195,6 +246,6 @@ refinement. Other natural follow-ups:
 - **Double hashing** uses a second hash function to determine the step size, so different keys
   with the same home slot probe along different paths. Cleanest clustering avoidance, at the cost
   of a second hash computation per probe.
-- **Backshift deletion** is the natural companion to Robin Hood probing: deleting a key by
-  pulling subsequent keys one slot toward their homes, restoring the displacement invariants
-  Robin Hood maintains on insert.
+- **Hopscotch hashing** bounds the maximum probe distance by a small constant (e.g. 32 slots) and
+  uses bit-masks per slot to track which neighbors hold keys from this home — even faster lookups,
+  but more involved bookkeeping than Robin Hood.
