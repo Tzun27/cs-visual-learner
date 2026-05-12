@@ -7,8 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + five data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Tree Traversal in four orders, Min-heap insert/heapify/extract-min) + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 340 unit + 57 Playwright e2e (incl. 9 axe-core a11y routes) — all green.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + five data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key) + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 350 unit + 58 Playwright e2e (incl. 9 axe-core a11y routes) — all green.
 
 Read these before writing code:
 
@@ -44,6 +44,7 @@ Read these before writing code:
   - Insert section: `HeapInsertViz` with two toggleable sequences. **"Mixed order"** = `[4, 9, 1, 7, 2, 8, 3]` exercises a variety of bubble lengths; **"New minimum each time"** = `[7, 6, 5, 4, 3, 2, 1]` makes every value bubble to the root, demonstrating that heap shape stays balanced even with adversarial input (the BST analogue of this input produces a depth-7 chain). Counters: Comparisons / Swaps / Heap size.
   - Heapify section: `HeapifyViz` runs the bottom-up sift-down construction over `[9, 4, 7, 1, 8, 3, 5, 2, 6]`. Exactly `floor(n/2) = 4` sift-down passes (one per internal node, indices 3 → 2 → 1 → 0). Counters: Sift-down passes / Comparisons / Swaps. The MDX section explains the $O(n)$ amortized bound (geometric decay of subtree sizes beats linear sift-down cost) and contrasts with $n$ successive inserts at $O(n \log n)$.
   - Extract section: `HeapExtractMinViz` runs four `extract_min` calls against the result of the "Mixed order" inserts above, drawing the extracted values out into an ordered list strip below the tree. Counters: Extracted / Comparisons / Sift-down swaps. The extracted list comes out `[1, 2, 3, 4]` confirming the priority-queue property.
+  - decrease_key section: `HeapDecreaseKeyViz` runs two ops against a fixed demo heap `[4, 9, 7, 13, 11, 8, 12]`. The first (`decrease_key(6, 2)`) replaces leaf 12 with 2 and bubbles it all the way to the root via two swap-ups; the second (`decrease_key(4, 10)`) replaces 11 with 10 but since the parent (9) is already smaller, the loop settles after a single compare with no swap. Counters: Comparisons / Swaps / Operations. The lesson MDX includes a "find the index" subsection contrasting the side-index-map and lazy-duplicate strategies for production priority queues.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
@@ -95,6 +96,7 @@ These are easy to miss and expensive to violate:
 37. **`robinHoodInsertSequence`'s tombstone branch fast-paths placement instead of swapping.** Encountering a tombstone with `probe > existingProbe` (where tombstone's existing displacement is modeled as 0) just places the key directly — there's nothing to evict. This is intentional: it gives Robin Hood the tombstone-reuse property that plain linear probing's insert lacks (decision 34). The trade-off is that Robin Hood's correctness arguments around backshift deletion don't quite hold when tombstones get reused this way; production implementations typically pair Robin Hood with _backshift deletion_, not tombstones, and the lesson MDX flags this explicitly.
 38. **`robinHoodDeleteSequence` never emits a tombstone — backshift is the deletion contract.** The generator stops the pull loop on either an empty slot or an occupied slot whose key is already at its home (displacement 0). The `clear` step carries both the cleared index and the blocker index plus a `blockerReason: "empty" | "at-home"` field, so the viz can highlight what stopped the chain. There is no `tombstone` step variant on `RobinHoodDeleteStep` — if you find yourself adding one, you're mixing strategies and should re-read decision 37; a real Robin Hood table commits to one of "backshift everywhere" or "tombstones everywhere," not both. The property test "after full deletion every slot is `empty`" pins this invariant.
 39. **Robin Hood viz highlights use both `placed` and `cursor` simultaneously on `pull` and `clear` steps.** Where the linear-probing vizes only ever color one slot per step, `RobinHoodDeleteViz` paints two: on `pull`, the destination is `placed` (yellow) and the source is `cursor` (orange), so the user reads "key X arrived here, came from there"; on `clear`, the just-emptied slot is `placed` and the blocker slot is `cursor`, so the user can immediately see what stopped backshift. The `LinearProbeHighlight[]` API already supports multi-cell highlights — if you mirror this pattern for any new multi-slot operation (e.g., Hopscotch swaps), preserve the convention that `placed` is "where the active key now lives" and `cursor` is "auxiliary slot to look at."
+40. **`heapDecreaseKeySequence` throws on misuse — never silently no-ops.** The two preconditions (index in range, newValue ≤ current value) are enforced by throwing `Error` rather than yielding an empty step set. This keeps the algorithm contract honest: silent no-op would let upstream bugs hide indefinitely. The viz never triggers either throw with its curated input, and property tests funnel `newValue = Math.min(candidate, heap[i])` to stay legal. If you ever add an `increase_key` opposite, branch _by precondition_ rather than ambiguity-merging the two operations into one generator.
 
 ## Useful commands
 
@@ -132,9 +134,10 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **`decrease_key` on the heap page.** Heapify shipped earlier; `decrease_key` is the remaining textbook operation called out in the heap lesson's "What you didn't see" list. The hard part is bookkeeping — you need an index map from value-or-handle → heap-index so you can locate the node in $O(1)$ before sifting up — or you accept duplicate-entry semantics where stale priorities just get pulled and discarded. Either approach is interesting and ties directly to Dijkstra. Conventional viz would show the user clicking a node to lower its key, then watching it bubble up.
 - **Quadratic probing or double hashing** as a third open-addressing variant. The lesson explicitly names these in "What's next." Quadratic probing changes the probe sequence to $i+1, i+4, i+9, \ldots$ (or any sequence with non-constant gaps); double hashing uses a second hash function as the step size.
-- **Hopscotch hashing** is now also named in the linear-probing lesson's "What's next." It bounds the maximum probe distance by a small constant (e.g. 32 slots) by maintaining a hop bit-mask per slot showing which neighbors hold keys from that home. Inserts that overflow the neighborhood trigger a swap chain to make room. More involved bookkeeping than Robin Hood, but lookups become very fast.
+- **Hopscotch hashing** is named in the linear-probing lesson's "What's next." It bounds the maximum probe distance by a small constant (e.g. 32 slots) by maintaining a hop bit-mask per slot showing which neighbors hold keys from that home. Inserts that overflow the neighborhood trigger a swap chain to make room. More involved bookkeeping than Robin Hood, but lookups become very fast.
+- **Interactive `decrease_key`.** The just-shipped section uses two curated ops to demonstrate the algorithm; a follow-up could let the user click any node, set a new value via slider/input, and watch the sift-up — turning the viz from "watch a trace" into "play with the data structure." Same generator, new wrapper component. Bigger lift on the UX side than on the algorithm side.
+- **Pairing or leftist heap** as a third heap variant focused on $O(\log n)$ merge. Either is small enough to fit a single new lesson rather than a section.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
 - **Language toggle on the code panel.** All snippets are Python today. Adding TypeScript (the actual generator source) or another teaching language would re-tokenize on toggle and roughly double the snippet-authoring work per algorithm. The pieces are in place: `CodePanel` already accepts a `language` prop and Shiki supports many languages — what's missing is a per-algorithm registry of `{ python: source, typescript: source }` and matching line-number maps.
@@ -200,6 +203,7 @@ src/components/
     HeapInsertViz.tsx               Min-heap insert composition (siftUp; 2-sequence toggle)
     HeapifyViz.tsx                  Min-heap heapify composition (bottom-up siftDown; single curated input)
     HeapExtractMinViz.tsx           Min-heap extract-min composition (siftDown; extracted-list strip)
+    HeapDecreaseKeyViz.tsx          Min-heap decrease-key composition (siftUp from arbitrary index; 2-op demo)
     stepView.ts                     Shared step→highlight + counter helpers (sort)
 
 src/lib/
@@ -211,18 +215,18 @@ src/lib/
     {bubble,heap,insertion,         Python source + named line-number constants
      merge,quick,radix}Sort.snippet.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step + RobinHoodInsertStep + RobinHoodDeleteStep
+    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep / HeapDecreaseKeyStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step + RobinHoodInsertStep + RobinHoodDeleteStep
     binarySearchTree.ts             BST insertSequence + searchSequence + deleteSequence + buildTree
     hashTable.ts                    Hash table insertSequence + searchSequence + deleteSequence + buildHashTable + bucketIndexFor + liveKeys + loadFactor
     traversal.ts                    Parameterized traversalSequence(tree, mode) + TRAVERSAL_MODES + labels
-    heap.ts                         Min-heap heapInsertSequence + heapifySequence + heapExtractMinSequence + buildHeap + isMinHeap + heapToTree
+    heap.ts                         Min-heap heapInsertSequence + heapifySequence + heapExtractMinSequence + heapDecreaseKeySequence + buildHeap + isMinHeap + heapToTree
     linearProbe.ts                  Linear-probing insertSequence + searchSequence + deleteSequence + buildLinearProbeTable + emptyTable + slotIndexFor + liveKeys + loadFactor
     robinHood.ts                    Robin Hood robinHoodInsertSequence + robinHoodDeleteSequence + buildRobinHoodTable + displacementOf + maxDisplacement
     index.ts                        BST operation registry + labels (insert only — search/delete have a different signature)
     {insert,search,delete}Sequence.snippet.ts        Python source + named line-number constants (BST)
     hashTable{Insert,Search,Delete}.snippet.ts        Python source + named line-number constants (hash table)
     {preorder,inorder,postorder,levelOrder}Traversal.snippet.ts  Python source + named line-number constants (traversal)
-    heap{Insert,ExtractMin}.snippet.ts               Python source + named line-number constants (heap)
+    heap{Insert,ExtractMin,DecreaseKey}.snippet.ts   Python source + named line-number constants (heap)
     heapify.snippet.ts                               Python source + named line-number constants (heapify)
     linearProbe{Insert,Search,Delete}.snippet.ts     Python source + named line-number constants (linear probing)
     robinHood{Insert,Delete}.snippet.ts              Python source + named line-number constants (Robin Hood)
@@ -249,6 +253,37 @@ If you need to make a focused change, these are the files that matter for each s
 
 ## What changed in the most recent session
 
+This session shipped **`decrease_key` on the heap lesson** — the remaining textbook heap operation called out in the prior session's "What you didn't see" list. The heap lesson now contains four viz sections (insert, heapify, extract-min, decrease-key); the "What you didn't see" copy rotates `decrease_key` out and adds heap-merge in its place. After all changes were committed and tests went green, I verified the new viz interactively in Chrome DevTools MCP — stepped through both ops, confirmed the tree mutations and highlight colors matched the algorithm trace, and confirmed zero console errors on the heap and linear-probing pages.
+
+Five commits landed:
+
+| #   | subject                                                           |
+| --- | ----------------------------------------------------------------- |
+| 1   | `feat(ds)`: add min-heap decrease_key generator + snippet + tests |
+| 2   | `feat(viz)`: add HeapDecreaseKeyViz composition                   |
+| 3   | `feat(lessons)`: add decrease_key section to heap lesson          |
+| 4   | `test(e2e)`: cover decrease_key viz on heap page                  |
+| 5   | `docs`: refresh next_session.md after decrease_key rollout        |
+
+Narrative summary:
+
+1. **decrease_key generator** (commit 1). New `HeapDecreaseKeyStep` union in `types.ts` plus `heapDecreaseKeySequence` in `heap.ts` and `heapDecreaseKey.snippet.ts` (11-line Python). Step kinds: begin → set → (compare-parent → swap-up)\* → settle → done. The generator reuses `parentIndex` from the existing module and structurally mirrors the second half of `heapInsertSequence` (the siftUp loop), but the cursor starts at a caller-supplied index rather than the new last slot — so the union has an explicit `set` step (in-place mutation) where insert has `append`. Defensive throws on (index out of range) and (newValue > heap[index]) keep the algorithm contract honest. 10 unit + property tests including "final heap is a valid min-heap with the input multiset minus old + new" and "decrease_key never increases the root above min(old root, new value)."
+2. **decrease_key viz** (commit 2). `HeapDecreaseKeyViz` reuses `heapToTree` to render the packed heap via `TreeView`; highlight semantics mirror `HeapInsertViz` (cursor/orange on compare-parent for both child + parent, placed/yellow on set and on both endpoints of a swap-up). Curated demo `[4, 9, 7, 13, 11, 8, 12]` with two ops: `decrease_key(6, 2)` bubbles 2 to the root in two swaps, `decrease_key(4, 10)` settles after a single compare with no swap. Counters: Comparisons / Swaps / Operations (the third counter tracks distinct begin steps so users see the boundary between the two demo ops).
+3. **Lesson MDX section** (commit 3). New `## Decreasing a key` slotted between extract-min and "Priority queues in the wild." Walks through both ops concretely, then a `### The "find the index" problem` subsection explains the production trade-off: side index map (Dijkstra textbook) vs. lazy duplicate-entry stale-mark (Python `heapq` pattern). "What you didn't see" loses `decrease_key` (just shipped), keeps $d$-ary/Fibonacci heaps, and gains heap-merge as a new named follow-up.
+4. **E2E + a11y** (commit 4). New region added to the four-region presence check and a counter spec that pins per-op outcomes (3 comparisons + 2 swaps + 2 operations after full playback). The heap route is already in the axe-core sweep so the new viz inherits WCAG 2.1 AA coverage without changing `e2e/a11y.spec.ts`.
+5. **Doc refresh** (commit 5). This file. New decision 40 captures the "throws on misuse, never silent no-op" contract.
+
+Interactive verification (Chrome DevTools MCP):
+
+- Loaded `/lessons/data-structures/heap`, scrolled to the new section, stepped through all 12 of decrease_key's steps with `requestAnimationFrame` flushes between clicks (per the prior session's React-state-batching note). Every step's tree mutation, code-line highlight, annotation text, and counter tick matched the property-test trace. Zero console errors.
+- Re-loaded `/lessons/data-structures/linear-probing`, ran the Robin Hood delete viz to completion, confirmed counters end at Probes 1 / Pulls 2 / Removed 2 and the final slot layout is `[14(+0), 22(+1)]` matching the prior session's expected end state. Zero console errors. Prior session's work is intact.
+
+Test counts grew from **340 unit / 57 e2e (incl. 9 axe routes)** at session start to **350 unit / 58 e2e (incl. 9 axe routes)** at HEAD (+10 unit, +1 e2e; the new viz route was already in the axe sweep so no axe routes grew).
+
+---
+
+### Previous session
+
 This session shipped **Robin Hood backshift deletion** as the natural counterpart to the Robin Hood insert section landed in the prior session. The linear-probing lesson now contains five viz sections (insert, search, delete, Robin Hood insert, Robin Hood delete) and the "What's next" list has rotated backshift deletion out (just shipped) and Hopscotch hashing in. Five commits landed:
 
 | #   | subject                                                                  |
@@ -271,7 +306,7 @@ Test counts grew from **330 unit / 56 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Previous session
+### Two sessions ago
 
 The prior session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), a fourth viz section in the linear-probing lesson for **Robin Hood probing**, and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in four phases — heap (insert + extract-min), heapify as an in-place extension, linear probing as a brand-new lesson, and Robin Hood as an in-place extension to it:
 
