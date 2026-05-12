@@ -1,6 +1,7 @@
 import { LinearProbeInsertViz } from "@/components/visualizations/LinearProbeInsertViz";
 import { LinearProbeSearchViz } from "@/components/visualizations/LinearProbeSearchViz";
 import { LinearProbeDeleteViz } from "@/components/visualizations/LinearProbeDeleteViz";
+import { RobinHoodInsertViz } from "@/components/visualizations/RobinHoodInsertViz";
 
 export const metadata = {
   title: "Hash Tables: Linear Probing",
@@ -146,9 +147,47 @@ why so many production hash tables use a variant of open addressing. But primary
 real failure mode, and the data structure has to compensate (Robin Hood probing, double hashing,
 or fancier schemes like Hopscotch) when the trade-off bites.
 
+## Robin Hood probing: equalizing displacement
+
+Plain linear probing has a problem you can see in the insert section above: some keys end up
+with displacement 0 (lucky home placement), others get pushed 2 or 3 slots away. The variance is
+high. And under a random hash function, that variance grows roughly as $O(\log n)$ — the worst
+probe length is much higher than the average.
+
+**Robin Hood probing** is a small change to insert that flattens this distribution. The rule:
+each key tracks how far it has probed from its home; when probing into an occupied slot, compare
+displacements. If the inserting key has probed _further_ than the slot's current resident, swap —
+the inserting key takes the slot, and the (now-evicted) resident continues probing forward with
+its own displacement counter. "Rob from the rich, give to the poor."
+
+<RobinHoodInsertViz />
+
+The viz uses a slightly different curated input: $[5, 14, 13, 22]$. The interesting step is the
+third insert. Trace it:
+
+1. $13$ hashes to slot 5. Slot 5 holds $5$ (displacement 0). $13$'s probe count is 0 too;
+   0 > 0 is false, so no swap. Advance to slot 6, probe count becomes 1.
+2. Slot 6 holds $14$ with displacement 0 (its home is slot 6). Now $13$'s probe count is 1 and
+   $14$'s is 0; **1 > 0 is true → swap**.
+3. $13$ takes slot 6 (with displacement 1). $14$ becomes the active key, continuing forward with
+   its updated probe count of 1.
+4. Advance to slot 7 (empty) and place $14$ there with displacement 1.
+
+After all four inserts, both $13$ and $14$ sit at displacement 1. Without Robin Hood, $14$
+would have stayed at slot 6 (displacement 0) and $13$ would have gone to slot 7 (displacement 2) —
+a less even distribution. The end-state max-displacement is _smaller_ with Robin Hood, even
+though the total probe count is similar.
+
+The catch is that delete and search get more complex. Production Robin Hood implementations use
+**backshift deletion** (rather than tombstones) — when removing a key, walk forward and pull each
+subsequent key one slot to the left until you hit an empty slot or a key already at its home.
+That keeps the displacement invariants tight, but it's more bookkeeping per delete. This section
+focuses on insert because that's where the variance-reduction story lives.
+
 ## What's next
 
-This lesson covered the simplest open-addressing scheme. The natural follow-ups:
+This lesson covered the simplest open-addressing scheme and Robin Hood as a variance-reducing
+refinement. Other natural follow-ups:
 
 - **Quadratic probing** changes the probe sequence from $i + 1, i + 2, i + 3, \ldots$ to
   $i + 1, i + 4, i + 9, \ldots$ — same wrap-around, but the gaps spread out, which breaks up
@@ -156,6 +195,6 @@ This lesson covered the simplest open-addressing scheme. The natural follow-ups:
 - **Double hashing** uses a second hash function to determine the step size, so different keys
   with the same home slot probe along different paths. Cleanest clustering avoidance, at the cost
   of a second hash computation per probe.
-- **Robin Hood hashing** rebalances probe distances on every insert: if the key being inserted
-  has walked further from its home than the key already in the slot, they swap. The variance of
-  probe length shrinks dramatically, which is a huge win for cache-line bounded loads.
+- **Backshift deletion** is the natural companion to Robin Hood probing: deleting a key by
+  pulling subsequent keys one slot toward their homes, restoring the displacement invariants
+  Robin Hood maintains on insert.
