@@ -99,3 +99,52 @@ export type BackpropStep =
   | (StepBase & { kind: "backward-hidden"; hiddenIndex: 0 | 1; snapshot: BackpropSnapshot })
   | (StepBase & { kind: "apply-update"; snapshot: BackpropSnapshot })
   | (StepBase & { kind: "done"; snapshot: BackpropSnapshot });
+
+/* ------------------------------------------------------------------ *
+ * Attention                                                           *
+ * ------------------------------------------------------------------ */
+
+/** Generic 2D matrix as a readonly array-of-readonly-rows. */
+export type Matrix = ReadonlyArray<ReadonlyArray<number>>;
+
+export type AttentionPhase =
+  | "begin"
+  | "project-q"
+  | "project-k"
+  | "project-v"
+  | "scores"
+  | "scaled"
+  | "softmax"
+  | "output"
+  | "done";
+
+export type AttentionSnapshot = {
+  /** Token embeddings (tokens × d_embed). Always present. */
+  readonly embeddings: Matrix;
+  /** Token labels for display. */
+  readonly tokenLabels: ReadonlyArray<string>;
+  /** Projection matrices, always present (they're the model parameters). */
+  readonly wQ: Matrix;
+  readonly wK: Matrix;
+  readonly wV: Matrix;
+  /** Filled in as the forward pass progresses. */
+  readonly q?: Matrix;
+  readonly k?: Matrix;
+  readonly v?: Matrix;
+  readonly scores?: Matrix;
+  readonly scaled?: Matrix;
+  readonly attention?: Matrix;
+  readonly output?: Matrix;
+  readonly phase: AttentionPhase;
+};
+
+export type AttentionStep =
+  | (StepBase & { kind: "begin"; snapshot: AttentionSnapshot })
+  | (StepBase & { kind: "project-q"; snapshot: AttentionSnapshot })
+  | (StepBase & { kind: "project-k"; snapshot: AttentionSnapshot })
+  | (StepBase & { kind: "project-v"; snapshot: AttentionSnapshot })
+  | (StepBase & { kind: "compute-scores"; snapshot: AttentionSnapshot })
+  | (StepBase & { kind: "scale-scores"; snapshot: AttentionSnapshot })
+  | (StepBase & { kind: "softmax"; snapshot: AttentionSnapshot })
+  | (StepBase & { kind: "weighted-sum"; snapshot: AttentionSnapshot })
+  | (StepBase & { kind: "done"; snapshot: AttentionSnapshot });
