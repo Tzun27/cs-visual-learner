@@ -398,6 +398,64 @@ export type LinearProbeSearchStep =
     })
   | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
 
+// Robin Hood probing reuses LinearProbeSnapshot's slot layout, but the
+// insert algorithm carries a per-key "probe count" (= current distance
+// from home slot) and swaps with any cursor whose probe count is strictly
+// smaller — "rob from the rich, give to the poor." That keeps the
+// distribution of probe distances tight, at the cost of more work per
+// insert. The lesson uses this only for insert; for the data layer to
+// stay symmetric with the rest of the file we model just the steps the
+// insert generator needs.
+export type RobinHoodInsertStep =
+  | (StepBase & { kind: "begin"; table: LinearProbeSnapshot; insertingKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "compare-displacement";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+      insertingProbe: number;
+      existingProbe: number;
+    })
+  | (StepBase & {
+      kind: "swap";
+      table: LinearProbeSnapshot;
+      // After the swap, the *inserting* key sat at slotIndex; the
+      // displaced cursor key now becomes the active "key to insert" and
+      // continues from this slot. evictedKey is the key that just got
+      // kicked out (now active).
+      slotIndex: number;
+      placedKey: number;
+      evictedKey: number;
+      probe: number;
+    })
+  | (StepBase & {
+      kind: "probe";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+      probe: number;
+    })
+  | (StepBase & {
+      kind: "duplicate";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "place";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+      probe: number;
+    })
+  | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
+
 export type LinearProbeDeleteStep =
   | (StepBase & { kind: "begin"; table: LinearProbeSnapshot; targetKey: number })
   | (StepBase & {
