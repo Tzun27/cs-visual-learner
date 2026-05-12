@@ -26,6 +26,17 @@ test.describe("/lessons/data-structures/heap", () => {
       }),
     ).toBeVisible();
 
+    const heapifyRegion = page.getByRole("region", {
+      name: "Min-heap heapify visualization",
+      exact: true,
+    });
+    await expect(heapifyRegion).toBeVisible();
+    await expect(
+      heapifyRegion.getByRole("toolbar", { name: /Playback controls/ }).getByRole("button", {
+        name: /Step forward/,
+      }),
+    ).toBeVisible();
+
     const extractRegion = page.getByRole("region", {
       name: "Min-heap extract-min visualization",
       exact: true,
@@ -39,6 +50,46 @@ test.describe("/lessons/data-structures/heap", () => {
     ).toBeVisible();
 
     expect(consoleErrors).toEqual([]);
+  });
+
+  test("stepping the heapify viz eventually ticks Sift-down passes and Swaps", async ({ page }) => {
+    await page.goto("/lessons/data-structures/heap");
+    const region = page.getByRole("region", {
+      name: "Min-heap heapify visualization",
+      exact: true,
+    });
+    const stepForward = region.getByRole("button", { name: /Step forward/ });
+    const counters = region.locator("dl");
+
+    await expect(counters).toContainText(/Sift-down passes\s*0/);
+    await expect(counters).toContainText(/Swaps\s*0/);
+
+    // n=9 input → 4 sift-down passes max; click enough to reach the first pass.
+    for (let i = 0; i < 30; i++) {
+      await stepForward.click();
+      const text = (await counters.textContent()) ?? "";
+      if (/Sift-down passes\s*[1-9]/.test(text)) break;
+    }
+    await expect(counters).toContainText(/Sift-down passes\s*[1-9]/);
+  });
+
+  test("running the heapify viz to completion produces the expected counts (4 passes)", async ({
+    page,
+  }) => {
+    await page.goto("/lessons/data-structures/heap");
+    const region = page.getByRole("region", {
+      name: "Min-heap heapify visualization",
+      exact: true,
+    });
+    const stepForward = region.getByRole("button", { name: /Step forward/ });
+    const counters = region.locator("dl");
+
+    for (let i = 0; i < 80; i++) {
+      if (!(await stepForward.isEnabled())) break;
+      await stepForward.click();
+    }
+    // n=9 input → floor(9/2) = 4 sift-down passes (one per internal node).
+    await expect(counters).toContainText(/Sift-down passes\s*4/);
   });
 
   test("stepping the insert viz eventually ticks Comparisons or Swaps; Reset returns to zero", async ({
