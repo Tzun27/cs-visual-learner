@@ -1,0 +1,130 @@
+import { PairingHeapMergeViz } from "@/components/visualizations/PairingHeapMergeViz";
+import { PairingHeapDeleteMinViz } from "@/components/visualizations/PairingHeapDeleteMinViz";
+
+export const metadata = {
+  title: "Pairing Heap",
+  description:
+    "A heap where merge is the headline operation — link two trees in O(1) by making the larger root a child of the smaller. Delete-min runs a two-pass merge of the orphaned children.",
+};
+
+# Pairing Heap
+
+**Difficulty:** intermediate · **Category:** data structures
+
+The [binary min-heap](/lessons/data-structures/heap) is the workhorse priority queue: insert and
+extract-min in $O(\log n)$, stored compactly as a packed array. But it has one notable weakness:
+**merging two heaps is $O(n)$**. The standard way to merge a heap into another is to insert every
+element one at a time. For algorithms that build big heaps from small ones — graph
+algorithms with mergeable priority queues, parallel sort-of-sorts, etc. — that overhead matters.
+
+A **pairing heap** is a heap variant designed around making merge fast. The data structure isn't
+a packed array anymore — it's a multi-way tree, where each node has a value, a first child, and
+a next sibling. Merge becomes one comparison plus one pointer update: $O(1)$.
+
+The trade-off, as always: the win on merge has to come from somewhere. Pairing heaps amortize
+the cost into **delete-min**, which becomes $O(\log n)$ amortized rather than worst-case.
+Insert is still $O(1)$ (it's a merge with a singleton).
+
+## Merging two heaps
+
+<PairingHeapMergeViz />
+
+The viz holds two small pairing heaps side by side. Heap A is rooted at $3$ with children $7$
+and $5$ (the result of inserting $3, 5, 7$ — newer values become the first child, so $7$ ends
+up leftmost). Heap B is rooted at $2$ with one child, $8$.
+
+Merge runs in three steps:
+
+1. **Compare the roots.** $2 < 3$, so heap B's root will become the parent of the merged heap.
+2. **Link heap A's root as B's new first child.** $3$ becomes the head of B's child list,
+   pushing the old first-child $8$ into the next-sibling position. Now $2$ has two children: $3$
+   (which keeps its own subtree intact) and $8$.
+3. **Done.** One root remains. The whole operation is one comparison and a few pointer writes.
+
+If you swap which heap's root is smaller, the link goes the other way — the larger-rooted heap
+becomes a child of the smaller one. Either way, the cost is constant. That's the whole pitch.
+
+## Insert is just merge
+
+Insert isn't a new algorithm — it's `merge(heap, singleton(new_value))`. The viz above
+demonstrates the pattern: build up a heap by repeatedly merging in single-node heaps, and you'll
+see the standard insert behavior. Heap A in the viz was built that way: insert $3$, then merge
+with singleton $5$, then merge with singleton $7$.
+
+Because insert is just merge, it's also $O(1)$ worst case — you don't bubble up a packed array,
+you don't compare against $\log n$ parents. You make one node and link it.
+
+This is one reason pairing heaps are appealing for Dijkstra-style algorithms: the inner loop
+hammers insert and decrease-key, and amortized $O(1)$ for both beats the binary heap's
+$O(\log n)$ per insert.
+
+## Delete-min: the two-pass merge
+
+<PairingHeapDeleteMinViz />
+
+Delete-min is where the cost shows up. After you remove the root, you have a forest of
+orphaned children — potentially many. The pairing heap reduces them back to one tree using a
+specific two-pass merge schedule (this exact schedule is the reason the analysis works out to
+amortized $O(\log n)$).
+
+The viz uses a heap that's been built with four direct children of the root (values $5, 7, 6,
+8$ left-to-right, root $1$). When we remove $1$:
+
+- **Pass 1 (forward, pair-merge):** Walk the children left to right, taking them two at a time
+  and merging each pair. $(5, 7)$ merges into a tree rooted at $5$ with $7$ as a child;
+  $(6, 8)$ merges into a tree rooted at $6$ with $8$ as a child. Two pair-links.
+- **Pass 2 (backward, fold):** Walk the resulting list right to left, repeatedly merging into a
+  growing accumulator. With only two pairs, this is a single merge: the accumulator starts as
+  the rightmost pair ($\{6, 8\}$), and we merge it with the leftmost pair ($\{5, 7\}$). $5 < 6$,
+  so $6$'s subtree becomes a child of $5$. One fold-link. Final root: $5$.
+
+Why two passes instead of one? The first pass _alone_ would give a much weaker amortized bound.
+The Fredman-Sedgewick-Sleator-Tarjan analysis (1986) showed that the specific "pair forward,
+fold backward" schedule is what produces the amortized $O(\log n)$ bound. Other heap variants
+(skew heaps, leftist heaps) use different schedules with different amortized costs.
+
+## Decrease-key (the part the viz can't easily show)
+
+Decrease-key on a pairing heap is conceptually simple but tricky to draw, because it requires
+detaching a subtree mid-tree and re-merging it with the root:
+
+1. Find the node $x$ to decrease (the priority queue maintains the index map — same "find the
+   index" problem as the [binary heap's decrease-key](/lessons/data-structures/heap#the-find-the-index-problem)).
+2. Update $x$'s value to the new (smaller) value.
+3. If $x$ is the root, done — the new value is the new min.
+4. Otherwise, detach $x$'s subtree from its parent's child list. Then call `merge(root, x)` —
+   the same primitive operation we used above.
+
+The analysis is subtle. The textbook claim is "amortized $O(\log n)$," but the precise bound
+is actually $O(\log \log n) \leq T(n) \leq O(\log n)$ depending on the exact sequence of
+operations, and tightening this is an active area of theoretical work. For practical purposes,
+$O(\log n)$ amortized is what you cite.
+
+## Pairing heap vs. binary heap
+
+|                 | Binary heap (packed array)       | Pairing heap (multi-way tree)                |
+| --------------- | -------------------------------- | -------------------------------------------- |
+| Storage         | One contiguous array             | One node per element, with pointers          |
+| Memory overhead | Just the values                  | 2 pointers per node                          |
+| Insert          | $O(\log n)$ worst case           | $O(1)$ worst case                            |
+| Find-min        | $O(1)$ — root is min             | $O(1)$ — root is min                         |
+| Delete-min      | $O(\log n)$ worst case           | $O(\log n)$ amortized                        |
+| Decrease-key    | $O(\log n)$ worst case           | $O(\log n)$ amortized                        |
+| **Merge**       | $O(n)$                           | $O(1)$ worst case                            |
+| Cache behavior  | Excellent (sequential array)     | Worse (pointer-chasing through tree)         |
+| Practical speed | Faster constants on small inputs | Often faster on large, merge-heavy workloads |
+
+The lesson: pairing heaps win when merge dominates. Binary heaps win when you mostly insert and
+extract from one big heap. For Dijkstra's algorithm specifically — heavy decrease-key, occasional
+extract-min — pairing heaps consistently outperform binary heaps in practice despite the
+theoretical $O(\log n)$ amortized vs. $O(\log n)$ worst-case being the same on paper.
+
+## What's next
+
+- **Fibonacci heap.** Same idea (lazy merge), more bookkeeping, gives $O(1)$ amortized
+  decrease-key. Often quoted in Dijkstra/MST analysis but rarely faster than a pairing heap in
+  practice because the constants are larger.
+- **Leftist heap.** A different "merge is fast" tree where the right spine is kept short.
+  Worst-case $O(\log n)$ merge instead of $O(1)$, but no amortization.
+- **Skew heap.** Even simpler than leftist: just always swap children during merge. No invariant
+  to maintain, amortized $O(\log n)$.

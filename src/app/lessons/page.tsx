@@ -134,6 +134,14 @@ const topics: readonly Topic[] = [
         difficulty: "intermediate",
         blurb: "The data structure behind heap sort and Dijkstra.",
       },
+      {
+        status: "live",
+        slug: "pairing-heap",
+        title: "Pairing Heap",
+        difficulty: "intermediate",
+        blurb:
+          "A heap built around fast merge. Insert is O(1), merge is O(1), delete-min is amortized O(log n).",
+      },
     ],
   },
   {
