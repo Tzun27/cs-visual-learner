@@ -3,10 +3,12 @@ import fc from "fast-check";
 import {
   buildHeap,
   heapExtractMinSequence,
+  heapifySequence,
   heapInsertSequence,
   isMinHeap,
 } from "@/lib/dataStructures/heap";
 import { heapExtractMinPython } from "@/lib/dataStructures/heapExtractMin.snippet";
+import { heapifyPython } from "@/lib/dataStructures/heapify.snippet";
 import { heapInsertPython } from "@/lib/dataStructures/heapInsert.snippet";
 import type { HeapExtractStep, HeapSnapshot } from "@/lib/dataStructures/types";
 
@@ -294,6 +296,118 @@ describe("buildHeap", () => {
         const heap = buildHeap(vals);
         expect(isMinHeap(heap)).toBe(true);
         expect(heap.size).toBe(vals.length);
+      }),
+    );
+  });
+});
+
+describe("heapifySequence", () => {
+  it("yields only begin → done for an empty input", () => {
+    const steps = [...heapifySequence([])];
+    expect(steps.map((s) => s.kind)).toEqual(["begin", "done"]);
+  });
+
+  it("yields only begin → done for a single-element input (already trivially heaped)", () => {
+    const steps = [...heapifySequence([42])];
+    // n=1, so (n // 2) - 1 = -1, no sift-down loop entered.
+    expect(steps.map((s) => s.kind)).toEqual(["begin", "done"]);
+    const last = steps.at(-1);
+    if (last?.kind !== "done") throw new Error("expected done");
+    expect(last.heap.heap).toEqual([42]);
+  });
+
+  it("sifts down a 3-element array with a single start-sift pass at index 0", () => {
+    // [5, 3, 8] → after sift-down at 0: [3, 5, 8].
+    const steps = [...heapifySequence([5, 3, 8])];
+    const kinds = steps.map((s) => s.kind);
+    // begin → start-sift(0) → compare-children → swap-down → settle → done
+    expect(kinds).toEqual([
+      "begin",
+      "start-sift",
+      "compare-children",
+      "swap-down",
+      "settle",
+      "done",
+    ]);
+    const last = steps.at(-1);
+    if (last?.kind !== "done") throw new Error("expected done");
+    expect(last.heap.heap).toEqual([3, 5, 8]);
+    expect(isMinHeap(last.heap)).toBe(true);
+  });
+
+  it("never produces more than n/2 start-sift steps", () => {
+    const vals = [9, 4, 7, 1, 8, 3, 5];
+    const steps = [...heapifySequence(vals)];
+    const starts = steps.filter((s) => s.kind === "start-sift");
+    expect(starts.length).toBe(Math.floor(vals.length / 2));
+  });
+
+  it("matches the result of n successive inserts (same multiset, valid heap)", () => {
+    // Different paths, same invariant: the multiset of values is preserved
+    // and the result satisfies the min-heap property. The exact array
+    // contents can differ — heapify and successive-insert pick different
+    // valid orderings — so we compare multisets, not arrays.
+    const vals = [9, 4, 7, 1, 8, 3, 5, 2, 6];
+    const heapifyResult = [...heapifySequence(vals)].at(-1)!.heap;
+    const insertResult = buildHeap(vals);
+    expect(heapifyResult.size).toBe(insertResult.size);
+    expect([...heapifyResult.heap].sort((a, b) => a - b)).toEqual(
+      [...insertResult.heap].sort((a, b) => a - b),
+    );
+    expect(isMinHeap(heapifyResult)).toBe(true);
+  });
+
+  it("every emitted heapify step carries codeLines pointing inside the displayed Python source", () => {
+    const lineCount = heapifyPython.split("\n").length;
+    for (const step of heapifySequence([9, 4, 7, 1, 8, 3, 5, 2, 6])) {
+      expect(step.codeLines).toBeDefined();
+      expect(step.codeLines!.length).toBeGreaterThan(0);
+      for (const line of step.codeLines!) {
+        expect(line).toBeGreaterThanOrEqual(1);
+        expect(line).toBeLessThanOrEqual(lineCount);
+      }
+    }
+  });
+
+  it("does not mutate its input array", () => {
+    const input = [9, 4, 7, 1, 8, 3, 5];
+    const before = [...input];
+    void [...heapifySequence(input)];
+    expect(input).toEqual(before);
+  });
+
+  it("emits fresh heap arrays per step", () => {
+    const steps = [...heapifySequence([9, 4, 7, 1, 8, 3, 5])];
+    const heaps = steps.map((s) => s.heap.heap);
+    for (let i = 0; i < heaps.length; i++) {
+      for (let j = i + 1; j < heaps.length; j++) {
+        expect(heaps[i]).not.toBe(heaps[j]);
+      }
+    }
+  });
+
+  it("property: final array is a valid min-heap with the same multiset as input", () => {
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 25 }), (vals) => {
+        const steps = [...heapifySequence(vals)];
+        const last = steps.at(-1);
+        if (last?.kind !== "done") throw new Error("expected done");
+        expect(isMinHeap(last.heap)).toBe(true);
+        expect([...last.heap.heap].sort((a, b) => a - b)).toEqual([...vals].sort((a, b) => a - b));
+      }),
+    );
+  });
+
+  it("property: heapify + extract-all yields sorted order", () => {
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 20 }), (vals) => {
+        const heapified = [...heapifySequence(vals)].at(-1)!.heap;
+        const extractSteps = [...heapExtractMinSequence(heapified.heap, vals.length)];
+        const extracted: number[] = [];
+        for (const s of extractSteps) {
+          if (s.kind === "take-root") extracted.push(s.extractedValue);
+        }
+        expect(extracted).toEqual([...vals].sort((a, b) => a - b));
       }),
     );
   });

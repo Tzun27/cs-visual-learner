@@ -251,6 +251,39 @@ export type HeapInsertStep =
     })
   | (StepBase & { kind: "done"; heap: HeapSnapshot });
 
+// Heapify is a one-shot operation that turns an arbitrary array into a
+// valid min-heap by sift-down from `(n // 2) - 1` down to 0 — internal nodes
+// processed in reverse order. Each sift-down is its own mini-traversal so we
+// emit `start-sift` to mark a new pass over a sub-root, plus compare /
+// swap / settle to show what happens within that pass.
+export type HeapifyStep =
+  | (StepBase & { kind: "begin"; heap: HeapSnapshot })
+  | (StepBase & {
+      kind: "start-sift";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+    })
+  | (StepBase & {
+      kind: "compare-children";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      leftIndex: number;
+      rightIndex: number | null;
+      smallerIndex: number;
+    })
+  | (StepBase & {
+      kind: "swap-down";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      fromIndex: number;
+    })
+  | (StepBase & {
+      kind: "settle";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+    })
+  | (StepBase & { kind: "done"; heap: HeapSnapshot });
+
 export type HeapExtractStep =
   | (StepBase & { kind: "begin"; heap: HeapSnapshot })
   | (StepBase & {

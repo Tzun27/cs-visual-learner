@@ -1,6 +1,13 @@
 import { heapExtractMinLines } from "./heapExtractMin.snippet";
+import { heapifyLines } from "./heapify.snippet";
 import { heapInsertLines } from "./heapInsert.snippet";
-import type { BstSnapshot, HeapExtractStep, HeapInsertStep, HeapSnapshot } from "./types";
+import type {
+  BstSnapshot,
+  HeapExtractStep,
+  HeapifyStep,
+  HeapInsertStep,
+  HeapSnapshot,
+} from "./types";
 
 function snapshot(heap: readonly number[], size: number): HeapSnapshot {
   return { heap: heap.slice(0, size), size };
@@ -185,6 +192,80 @@ export function* heapExtractMinSequence(
     kind: "done",
     heap: snapshot(heap, heap.length),
     codeLines: heapExtractMinLines.done,
+  };
+}
+
+export function* heapifySequence(initial: readonly number[]): Generator<HeapifyStep> {
+  const heap: number[] = [...initial];
+  const n = heap.length;
+
+  yield {
+    kind: "begin",
+    heap: snapshot(heap, n),
+    codeLines: heapifyLines.begin,
+  };
+
+  // Sift-down from the last internal node down to the root. Leaves
+  // (indices >= n//2) are trivially heap-valid, so we skip them.
+  for (let i = (n >> 1) - 1; i >= 0; i--) {
+    yield {
+      kind: "start-sift",
+      heap: snapshot(heap, n),
+      cursorIndex: i,
+      codeLines: heapifyLines.startSift,
+    };
+
+    let cursor = i;
+    while (true) {
+      const left = 2 * cursor + 1;
+      const right = 2 * cursor + 2;
+      if (left >= n) {
+        yield {
+          kind: "settle",
+          heap: snapshot(heap, n),
+          cursorIndex: cursor,
+          codeLines: heapifyLines.settle,
+        };
+        break;
+      }
+      let smallest = cursor;
+      if (heap[left] < heap[smallest]) smallest = left;
+      const hasRight = right < n;
+      if (hasRight && heap[right] < heap[smallest]) smallest = right;
+      yield {
+        kind: "compare-children",
+        heap: snapshot(heap, n),
+        cursorIndex: cursor,
+        leftIndex: left,
+        rightIndex: hasRight ? right : null,
+        smallerIndex: smallest,
+        codeLines: heapifyLines.compareChildren,
+      };
+      if (smallest === cursor) {
+        yield {
+          kind: "settle",
+          heap: snapshot(heap, n),
+          cursorIndex: cursor,
+          codeLines: heapifyLines.settle,
+        };
+        break;
+      }
+      [heap[cursor], heap[smallest]] = [heap[smallest], heap[cursor]];
+      yield {
+        kind: "swap-down",
+        heap: snapshot(heap, n),
+        cursorIndex: smallest,
+        fromIndex: cursor,
+        codeLines: heapifyLines.swapDown,
+      };
+      cursor = smallest;
+    }
+  }
+
+  yield {
+    kind: "done",
+    heap: snapshot(heap, n),
+    codeLines: heapifyLines.done,
   };
 }
 
