@@ -199,6 +199,12 @@ describe("loadFactor", () => {
     const t = buildHashTable([1, 9, 17]); // 3 distinct, capacity 8
     expect(loadFactor(t)).toBeCloseTo(3 / 8);
   });
+
+  it("returns 0 (not NaN) for a zero-capacity table", () => {
+    // Defensive guard: division by 0 would yield NaN otherwise.
+    const zeroCap = { capacity: 0, entries: [], buckets: [] } as const;
+    expect(loadFactor(zeroCap)).toBe(0);
+  });
 });
 
 describe("searchSequence", () => {

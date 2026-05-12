@@ -44,21 +44,31 @@ export function* traversalSequence(
     };
   }
 
-  function* dfs(id: number | null): Generator<BstTraversalStep> {
+  // dfs handles only the three DFS modes — the outer code routes
+  // "level-order" through a separate queue-based path below. A switch
+  // over a narrowed type lets V8 see the three branches symmetrically;
+  // an `if/else if` chain would leave the final condition's
+  // false-branch unreachable (only the last case ever evaluates it).
+  type DfsMode = Exclude<TraversalMode, "level-order">;
+  function* dfs(id: number | null, dfsMode: DfsMode): Generator<BstTraversalStep> {
     if (id === null) return;
     const node = tree.nodes[id];
-    if (mode === "preorder") {
-      yield* visitNode(id);
-      yield* dfs(node.leftId);
-      yield* dfs(node.rightId);
-    } else if (mode === "inorder") {
-      yield* dfs(node.leftId);
-      yield* visitNode(id);
-      yield* dfs(node.rightId);
-    } else if (mode === "postorder") {
-      yield* dfs(node.leftId);
-      yield* dfs(node.rightId);
-      yield* visitNode(id);
+    switch (dfsMode) {
+      case "preorder":
+        yield* visitNode(id);
+        yield* dfs(node.leftId, dfsMode);
+        yield* dfs(node.rightId, dfsMode);
+        return;
+      case "inorder":
+        yield* dfs(node.leftId, dfsMode);
+        yield* visitNode(id);
+        yield* dfs(node.rightId, dfsMode);
+        return;
+      case "postorder":
+        yield* dfs(node.leftId, dfsMode);
+        yield* dfs(node.rightId, dfsMode);
+        yield* visitNode(id);
+        return;
     }
   }
 
@@ -74,7 +84,7 @@ export function* traversalSequence(
       }
     }
   } else {
-    yield* dfs(tree.rootId);
+    yield* dfs(tree.rootId, mode);
   }
 
   yield {

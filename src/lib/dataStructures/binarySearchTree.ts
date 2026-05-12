@@ -250,7 +250,6 @@ export function* deleteSequence(
     const targetCursorId = cursorId;
     let succId = target.rightId as number;
     let succParentId = targetCursorId;
-    let succGoLeft = false;
     yield {
       kind: "find-successor",
       tree: snapshot(nodes, rootId),
@@ -261,7 +260,6 @@ export function* deleteSequence(
     };
     while (nodes[succId].leftId !== null) {
       succParentId = succId;
-      succGoLeft = true;
       succId = nodes[succId].leftId as number;
       yield {
         kind: "find-successor",
@@ -288,14 +286,16 @@ export function* deleteSequence(
     };
 
     // The successor has no left child by construction. Splice in its right child.
+    // succGoLeft is only false when the loop never executed — i.e. the right
+    // child IS the successor — and that case is handled by the
+    // `succParentId === targetCursorId` branch above. So inside this `else`
+    // branch we always reached the successor by walking left.
     const succRight = nodes[succId].rightId;
     if (succParentId === targetCursorId) {
       nodes[targetCursorId] = { ...nodes[targetCursorId], rightId: succRight };
     } else {
       const succParent = nodes[succParentId];
-      nodes[succParentId] = succGoLeft
-        ? { ...succParent, leftId: succRight }
-        : { ...succParent, rightId: succRight };
+      nodes[succParentId] = { ...succParent, leftId: succRight };
     }
     yield {
       kind: "unlink",

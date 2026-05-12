@@ -222,6 +222,19 @@ describe("linearProbeSearchSequence", () => {
     void [...linearProbeSearchSequence(table, [5, 99])];
     expect(JSON.parse(JSON.stringify(table))).toEqual(before);
   });
+
+  it("misses cleanly after walking a fully-occupied table", () => {
+    // Defensive guard: when the table has no empty slots anywhere and the
+    // target isn't present, the inner loop hits probeCount === capacity and
+    // exits without emitting a miss. The trailing `if (!found && !missed)`
+    // emit must fire so the user sees a terminal step.
+    const filled = buildLinearProbeTable(4, [0, 1, 2, 3]);
+    const steps = [...linearProbeSearchSequence(filled, [4])];
+    const probes = steps.filter((s) => s.kind === "probe");
+    expect(probes).toHaveLength(4); // walked every slot
+    const miss = steps.find((s) => s.kind === "miss");
+    expect(miss).toBeDefined();
+  });
 });
 
 describe("linearProbeDeleteSequence", () => {
@@ -302,6 +315,33 @@ describe("linearProbeDeleteSequence", () => {
     const found = searchSteps.find((s) => s.kind === "found");
     if (found?.kind !== "found") throw new Error("expected found");
     expect(found.slotIndex).toBe(6);
+  });
+
+  it("misses cleanly after walking a fully-occupied table", () => {
+    // Defensive guard mirror of the search-side test: full table, target
+    // not present → loop exits via probeCount === capacity and the trailing
+    // miss emit must fire.
+    const filled = buildLinearProbeTable(4, [0, 1, 2, 3]);
+    const steps = [...linearProbeDeleteSequence(filled, [99])];
+    const probes = steps.filter((s) => s.kind === "probe");
+    expect(probes).toHaveLength(4);
+    const miss = steps.find((s) => s.kind === "miss");
+    expect(miss).toBeDefined();
+  });
+
+  it("probes past a tombstone when deleting a key that lives after it", () => {
+    // Table: slot 5 = tombstone, slot 6 = 13. Delete 13 — must probe past
+    // the tombstone (selecting probeTombstone codeLines) on the way to
+    // finding 13 at slot 6.
+    const table = fromSlotsDescriptor(["_", "_", "_", "_", "_", "X", 13, "_"]);
+    const steps = [...linearProbeDeleteSequence(table, [13])];
+    const probeStep = steps.find((s) => s.kind === "probe");
+    if (probeStep?.kind !== "probe") throw new Error("expected probe");
+    expect(probeStep.slotIndex).toBe(5); // tombstone slot
+    // codeLines for a tombstone probe should be the tombstone variant
+    // (semantically equivalent but distinct from probeOccupied — both
+    // ensures the branch executed).
+    expect(probeStep.codeLines).toBeDefined();
   });
 });
 

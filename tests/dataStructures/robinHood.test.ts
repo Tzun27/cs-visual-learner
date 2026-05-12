@@ -85,6 +85,40 @@ describe("robinHoodInsertSequence", () => {
     expect(places).toHaveLength(1);
   });
 
+  it("fast-paths placement onto a tombstone reached after probing", () => {
+    // Build a 4-slot starting table:
+    //   slot 0: occupied 0 (home 0, displacement 0)
+    //   slot 1: tombstone (modeled as displacement 0 — any probing key may rob it)
+    //   slots 2, 3: empty
+    // Insert 4 (home 0): probe=0 at slot 0 (5 displacement 0, 0>0 false), advance.
+    // probe=1 at slot 1 (tombstone, existingProbe=0, 1>0 TRUE) → fast-path
+    // placement: 4 lands at slot 1, no swap step needed.
+    const initial = {
+      capacity: 4,
+      slots: [
+        { state: "occupied" as const, key: 0 },
+        { state: "tombstone" as const },
+        { state: "empty" as const },
+        { state: "empty" as const },
+      ],
+    };
+    const steps = [...robinHoodInsertSequence(initial, [4])];
+    const swaps = steps.filter((s) => s.kind === "swap");
+    expect(swaps).toHaveLength(0);
+    const place = steps.find((s) => s.kind === "place");
+    if (place?.kind !== "place") throw new Error("expected place");
+    expect(place.slotIndex).toBe(1);
+  });
+
+  it("throws if the table is full and no duplicate path is taken", () => {
+    // Fill all 4 slots distinctly, then try to insert a key that doesn't
+    // match any existing one. The robin-hood loop walks the full capacity
+    // without finding either an empty slot or a duplicate, so the defensive
+    // throw fires.
+    const filled = buildRobinHoodTable(4, [0, 1, 2, 3]);
+    expect(() => [...robinHoodInsertSequence(filled, [4])]).toThrow(/full/);
+  });
+
   it("every emitted step carries codeLines pointing inside the displayed Python source", () => {
     const lineCount = robinHoodInsertPython.split("\n").length;
     for (const step of robinHoodInsertSequence(EMPTY_TABLE, [5, 14, 13, 6, 21])) {
@@ -228,6 +262,19 @@ describe("robinHoodDeleteSequence", () => {
         expect(slot.state).not.toBe("tombstone");
       }
     }
+  });
+
+  it("misses cleanly after walking a fully-occupied table", () => {
+    // Defensive guard: Robin Hood delete on a table with no empty slots
+    // and a target that's not present. The inner loop hits
+    // probeCount === capacity, exits, and the trailing `if (!found && !missed)`
+    // emit must fire.
+    const filled = buildRobinHoodTable(4, [0, 1, 2, 3]);
+    const steps = [...robinHoodDeleteSequence(filled, [99])];
+    const probes = steps.filter((s) => s.kind === "probe");
+    expect(probes).toHaveLength(4);
+    const miss = steps.find((s) => s.kind === "miss");
+    expect(miss).toBeDefined();
   });
 
   it("emits a miss when probing past unrelated keys lands on an empty slot", () => {

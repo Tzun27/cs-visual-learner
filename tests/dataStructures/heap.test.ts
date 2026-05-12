@@ -6,6 +6,7 @@ import {
   heapExtractMinSequence,
   heapifySequence,
   heapInsertSequence,
+  heapToTree,
   isMinHeap,
 } from "@/lib/dataStructures/heap";
 import { heapDecreaseKeyPython } from "@/lib/dataStructures/heapDecreaseKey.snippet";
@@ -412,6 +413,48 @@ describe("heapifySequence", () => {
         expect(extracted).toEqual([...vals].sort((a, b) => a - b));
       }),
     );
+  });
+});
+
+describe("isMinHeap", () => {
+  it("returns true for an empty heap", () => {
+    expect(isMinHeap({ heap: [], size: 0 })).toBe(true);
+  });
+
+  it("returns true for a valid min-heap", () => {
+    expect(isMinHeap({ heap: [1, 2, 3, 4, 5], size: 5 })).toBe(true);
+  });
+
+  it("returns false when the left child is smaller than its parent", () => {
+    expect(isMinHeap({ heap: [5, 1, 9], size: 3 })).toBe(false);
+  });
+
+  it("returns false when the right child is smaller than its parent", () => {
+    // [5, 9, 1]: index 0 has children at 1 (=9, ok) and 2 (=1, violation).
+    expect(isMinHeap({ heap: [5, 9, 1], size: 3 })).toBe(false);
+  });
+});
+
+describe("heapToTree", () => {
+  it("returns an empty tree (no root) for an empty heap", () => {
+    expect(heapToTree({ heap: [], size: 0 })).toEqual({ nodes: [], rootId: null });
+  });
+
+  it("maps the packed heap onto a BstSnapshot-shaped tree with index-as-id", () => {
+    const tree = heapToTree({ heap: [1, 2, 3], size: 3 });
+    expect(tree.rootId).toBe(0);
+    expect(tree.nodes).toHaveLength(3);
+    expect(tree.nodes[0]).toMatchObject({ id: 0, value: 1, leftId: 1, rightId: 2 });
+    expect(tree.nodes[1]).toMatchObject({ id: 1, value: 2, leftId: null, rightId: null });
+    expect(tree.nodes[2]).toMatchObject({ id: 2, value: 3, leftId: null, rightId: null });
+  });
+
+  it("respects size when it's smaller than heap.length (trailing entries are unreachable)", () => {
+    const tree = heapToTree({ heap: [1, 2, 3, 99, 99], size: 3 });
+    // Children at 2i+1 / 2i+2 only register if < size — 99s sit beyond size and are ignored.
+    expect(tree.nodes).toHaveLength(3);
+    expect(tree.nodes[1].leftId).toBeNull();
+    expect(tree.nodes[1].rightId).toBeNull();
   });
 });
 
