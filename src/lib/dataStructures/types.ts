@@ -612,6 +612,108 @@ export type LinearProbeDeleteStep =
     })
   | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
 
+// Hopscotch hashing: open addressing with a bounded probe distance H
+// (the "neighborhood"). Each slot owns a hopInfo bitmask of H bits; bit j
+// of slot i set means slot (i+j) mod capacity holds a key whose home is i.
+// Lookups become bounded: scan at most H slots indicated by hopInfo[home].
+// Inserts may run a swap chain: when the nearest empty slot is too far
+// from home, walk backwards looking for a slot whose resident can be
+// "moved up" to free a closer position. Slots carry their home explicitly
+// so a swap can update both hopInfo masks correctly.
+export type HopscotchSlot =
+  | { readonly state: "empty" }
+  | { readonly state: "occupied"; readonly key: number; readonly home: number };
+
+export type HopscotchSnapshot = {
+  readonly capacity: number;
+  readonly neighborhood: number;
+  readonly slots: readonly HopscotchSlot[];
+  // One bitmask per slot. `hopInfo[i] & (1 << j)` is set when slot
+  // `(i + j) mod capacity` holds a key whose home is `i`.
+  readonly hopInfo: readonly number[];
+};
+
+export type HopscotchInsertStep =
+  | (StepBase & { kind: "begin"; table: HopscotchSnapshot; insertingKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: HopscotchSnapshot;
+      insertingKey: number;
+      home: number;
+    })
+  | (StepBase & {
+      kind: "scan";
+      table: HopscotchSnapshot;
+      insertingKey: number;
+      home: number;
+      // Slot being inspected during the linear scan for the nearest
+      // empty slot. `distance` = (slotIndex - home) mod capacity.
+      slotIndex: number;
+      distance: number;
+    })
+  | (StepBase & {
+      kind: "duplicate";
+      table: HopscotchSnapshot;
+      insertingKey: number;
+      home: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "swap";
+      table: HopscotchSnapshot;
+      insertingKey: number;
+      home: number;
+      // The key at `fromIndex` moved to `toIndex` (the previously-empty
+      // slot). After this step, the new empty slot lives at `fromIndex`.
+      fromIndex: number;
+      toIndex: number;
+      pulledKey: number;
+      pulledHome: number;
+    })
+  | (StepBase & {
+      kind: "place";
+      table: HopscotchSnapshot;
+      insertingKey: number;
+      home: number;
+      slotIndex: number;
+      distance: number;
+    })
+  | (StepBase & { kind: "done"; table: HopscotchSnapshot });
+
+export type HopscotchSearchStep =
+  | (StepBase & { kind: "begin"; table: HopscotchSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: HopscotchSnapshot;
+      targetKey: number;
+      home: number;
+      hopMask: number;
+    })
+  | (StepBase & {
+      kind: "check-bit";
+      table: HopscotchSnapshot;
+      targetKey: number;
+      home: number;
+      // bitIndex j in [0, H). slotIndex = (home + j) mod capacity.
+      bitIndex: number;
+      slotIndex: number;
+      isSet: boolean;
+    })
+  | (StepBase & {
+      kind: "found";
+      table: HopscotchSnapshot;
+      targetKey: number;
+      home: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: HopscotchSnapshot;
+      targetKey: number;
+      home: number;
+    })
+  | (StepBase & { kind: "done"; table: HopscotchSnapshot });
+
 export type BstDeleteStep =
   | (StepBase & { kind: "begin"; tree: BstSnapshot; targetValue: number })
   | (StepBase & {
