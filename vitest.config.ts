@@ -14,7 +14,11 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      include: ["src/lib/algorithms/**/*.ts", "src/lib/dataStructures/**/*.ts"],
+      include: [
+        "src/lib/algorithms/**/*.ts",
+        "src/lib/dataStructures/**/*.ts",
+        "src/lib/ml/**/*.ts",
+      ],
       thresholds: {
         "src/lib/algorithms/**/*.ts": {
           lines: 100,
@@ -23,6 +27,12 @@ export default defineConfig({
           statements: 100,
         },
         "src/lib/dataStructures/**/*.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
+        "src/lib/ml/**/*.ts": {
           lines: 100,
           functions: 100,
           branches: 100,
