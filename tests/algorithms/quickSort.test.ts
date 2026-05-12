@@ -91,4 +91,55 @@ describe("quickSort", () => {
     const { finalArray } = runToCompletion([4, 4, 4, 4, 4]);
     expect([...finalArray]).toEqual([4, 4, 4, 4, 4]);
   });
+
+  it("property: total step count is bounded by O(n²) — catches infinite loops on adversarial inputs", () => {
+    // Worst case for Lomuto quicksort (sorted input) is O(n²). For n=50
+    // a generous ceiling is n² × 4 ≈ 10000 steps. Any infinite-loop bug
+    // in the recursion would blow past this immediately.
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -50, max: 50 }), { maxLength: 50 }), (input) => {
+        const n = input.length;
+        const ceiling = Math.max(20, 4 * n * n);
+        const steps = [...quickSort(input)];
+        expect(steps.length).toBeLessThanOrEqual(ceiling);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("property: after each partition-finalizing pivot swap, the partition invariant holds", () => {
+    // Detection: a `swap` step whose indices are [i, hi] where hi equals
+    // the immediately-preceding `pivot` step's index is partition-finalizing.
+    // At that moment, every value in arr[range[0]..i-1] is ≤ arr[i] and
+    // every value in arr[i+1..range[1]] is > arr[i].
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -30, max: 30 }), { maxLength: 20 }), (input) => {
+        let pivotIndex: number | null = null;
+        for (const step of quickSort(input)) {
+          if (step.kind === "pivot") {
+            pivotIndex = step.index;
+            continue;
+          }
+          if (
+            step.kind === "swap" &&
+            pivotIndex !== null &&
+            step.indices[1] === pivotIndex &&
+            step.range
+          ) {
+            const [lo, hi] = step.range;
+            const i = step.indices[0];
+            const pivotValue = step.array[i];
+            for (let k = lo; k < i; k++) {
+              expect(step.array[k]).toBeLessThanOrEqual(pivotValue);
+            }
+            for (let k = i + 1; k <= hi; k++) {
+              expect(step.array[k]).toBeGreaterThan(pivotValue);
+            }
+            pivotIndex = null;
+          }
+        }
+      }),
+      { numRuns: 100 },
+    );
+  });
 });
