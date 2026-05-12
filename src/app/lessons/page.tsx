@@ -146,26 +146,33 @@ const topics: readonly Topic[] = [
   },
   {
     title: "Machine learning intuitions",
-    description: "Coming soon. Visualizations that build intuition for ML internals.",
+    description:
+      "Visualizations that build intuition for ML internals — every lesson has a math-level toggle so you can read it as casual prose or with the chain rule and ∇L in plain sight.",
     pathPrefix: "/lessons/ml",
     lessons: [
       {
-        status: "coming-soon",
+        status: "live",
+        slug: "gradient-descent",
         title: "Gradient Descent",
         difficulty: "beginner",
-        blurb: "Watch the optimizer walk down a loss landscape.",
+        blurb:
+          "Watch the optimizer walk down a 2D loss landscape — pick an lr, see the trajectory bend.",
       },
       {
-        status: "coming-soon",
+        status: "live",
+        slug: "backprop",
         title: "Backpropagation",
         difficulty: "intermediate",
-        blurb: "How a network learns by reverse-mode differentiation.",
+        blurb:
+          "One forward + one backward pass on a 2 → 2 → 1 ReLU MLP — chain rule made concrete.",
       },
       {
-        status: "coming-soon",
-        title: "Transformer Attention",
+        status: "live",
+        slug: "attention",
+        title: "Attention",
         difficulty: "advanced",
-        blurb: "The attention head, decomposed into Q, K, V — and what each one is doing.",
+        blurb:
+          "Single attention head over 3 tokens, decomposed into Q, K, V — and what each one is doing.",
       },
     ],
   },
