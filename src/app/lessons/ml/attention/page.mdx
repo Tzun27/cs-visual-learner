@@ -1,0 +1,138 @@
+import { AttentionViz } from "@/components/visualizations/AttentionViz";
+import { MathLevel, IntuitionOnly, MathOnly } from "@/components/mdx/MathLevel";
+
+export const metadata = {
+  title: "Attention",
+  description:
+    "Watch a single scaled dot-product attention head decompose into Q, K, V — and what each one is doing.",
+};
+
+# Attention
+
+**Difficulty:** advanced · **Category:** machine learning
+
+<MathLevel />
+
+<IntuitionOnly>
+
+Every modern language model — ChatGPT, Claude, Gemini — is built out of the same primitive,
+stacked dozens of times: the **attention head**. This lesson dismantles a single one of
+them.
+
+The mental model worth carrying away: each token in a sequence asks every other token
+"how relevant are you to me?" and then takes a weighted average of their values, where
+the weights are the relevance scores. The clever part is that "relevance" itself is
+_learned_ — encoded as three separate projection matrices (Q, K, V) that the network can
+tune during training.
+
+Three roles per token:
+
+- **Q (query):** what am I looking for? (asked by this token)
+- **K (key):** what do I represent? (offered by every token, including this one)
+- **V (value):** what do I contribute, if you decide to attend to me?
+
+The softmax converts raw scores into proper weights — non-negative numbers that sum to
+1 along each query's row. That's what makes the output a _weighted average_ (the dashed
+box around the heatmap shows the current row sum staying at 1 as the values flow).
+
+Three tokens is a toy example. Real attention layers work the same way with thousands of
+tokens, but the picture wouldn't fit on a screen — the matrix would be a 4000 × 4000 grid.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+A **single-head scaled dot-product attention** layer takes a sequence of $n$ tokens
+$X \in \mathbb{R}^{n \times d_{\text{embed}}}$ and produces a new sequence
+$Y \in \mathbb{R}^{n \times d_v}$ via:
+
+$$
+Q = X W_Q, \quad K = X W_K, \quad V = X W_V
+$$
+
+$$
+A = \text{softmax}\!\left( \frac{Q K^\top}{\sqrt{d_k}} \right), \quad Y = A V
+$$
+
+where $W_Q, W_K \in \mathbb{R}^{d_{\text{embed}} \times d_k}$ and $W_V \in \mathbb{R}^{d_{\text{embed}} \times d_v}$ are learned parameters.
+
+Two design choices worth unpacking:
+
+**Why $\sqrt{d_k}$?** When $Q$ and $K$ are initialized with components from a unit-variance
+distribution, the dot product $Q_i \cdot K_j$ has variance $d_k$ — so its standard deviation
+grows like $\sqrt{d_k}$. Without scaling, softmax of large scores becomes near-one-hot
+(all weight on one entry), and gradients through the softmax saturate to zero. Dividing
+by $\sqrt{d_k}$ keeps the pre-softmax scores in a similar range regardless of $d_k$, which
+keeps gradients flowing.
+
+**Why split into Q, K, V instead of just one matrix?** A single embedding can't usefully
+play three different roles at once. Letting "what am I looking for" (Q) and "what do I
+represent" (K) be different learned views of the same token gives the network expressive
+power that vanilla embedding lookups can't match. V then carries _what the token actually
+contributes_ when attended to — which can be different from either Q or K.
+
+</MathOnly>
+
+<AttentionViz />
+
+<IntuitionOnly>
+
+The demo uses three tokens labeled $t_1, t_2, t_3$ with the same fixed Q, K, V projection
+matrices on every visit (so the trajectory is deterministic). Step through and notice:
+
+1. **Embeddings X are the same input for all three projections** — they're fan-out.
+2. **The 3×3 attention matrix** has each row sum to exactly 1 (the dashed box on the
+   heatmap). Row $i$ is "where does token $i$'s query land?"
+3. **Each output is a literal mixture** — Y[0] is some weighted blend of V[0], V[1], V[2]
+   with weights that came from row 0 of A.
+
+What multi-head attention adds (and what's NOT in this lesson): instead of one (Q, K, V)
+triple, real models use 8–96 of them _in parallel_, each with its own learned matrices.
+Each head can specialize on a different kind of relationship — one might track which
+adjective modifies which noun, another might track which subject goes with which verb, and
+so on. The outputs of all heads are concatenated and projected back down. Same mechanism,
+applied many times.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+A few extensions that the viz deliberately omits, for context:
+
+- **Causal masking** — at training time on next-token-prediction tasks, the score matrix
+  is masked so position $i$ can only attend to positions $j \leq i$. Implemented as
+  $S_{ij} \leftarrow -\infty$ for $j > i$ before softmax. This is what lets a transformer
+  process the whole sequence in parallel during training while still predicting tokens
+  causally at inference.
+- **Multi-head attention** generalizes by running $h$ heads in parallel with their own
+  $W_Q^{(k)}, W_K^{(k)}, W_V^{(k)}$ matrices, concatenating the per-head outputs, and
+  projecting:
+  $$
+    \text{MHA}(X) = \text{concat}(Y^{(1)}, \ldots, Y^{(h)}) W_O
+  $$
+- **Positional information** has to be added to the embeddings explicitly (rotary
+  embeddings, learned positional encodings, etc.) because raw attention is
+  permutation-equivariant — it can't distinguish "the cat sat" from "sat the cat".
+
+The KQV matrices in real transformers are usually low-rank decompositions:
+$d_k = d_{\text{embed}} / h$ for $h$ heads. The total parameter count is the same as a
+single head with $d_k = d_{\text{embed}}$, but spread across more independent attention
+computations.
+
+</MathOnly>
+
+## What's the point?
+
+If you've followed [gradient descent](/lessons/ml/gradient-descent) and
+[backpropagation](/lessons/ml/backprop), you now have the full training loop for a
+transformer in your head:
+
+1. Stack a few dozen attention + feed-forward layers.
+2. Pass a batch of token sequences through; compute a next-token-prediction loss.
+3. Backpropagate gradients through every layer — the recipe doesn't change.
+4. Apply one gradient-descent step to every weight.
+5. Repeat.
+
+That's it. There's no other secret — just lots of compute and lots of data. The "magic"
+of large language models is the scale, not the algorithm. The mechanism inside this lesson
+is the same one running in every transformer ever shipped.
