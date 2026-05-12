@@ -1,0 +1,146 @@
+import { QuadraticProbeInsertViz } from "@/components/visualizations/QuadraticProbeInsertViz";
+import { QuadraticProbeSearchViz } from "@/components/visualizations/QuadraticProbeSearchViz";
+import { QuadraticProbeDeleteViz } from "@/components/visualizations/QuadraticProbeDeleteViz";
+
+export const metadata = {
+  title: "Hash Tables: Quadratic Probing",
+  description:
+    "Same open-addressing table, different probe sequence. Gaps grow as i² instead of i — primary clusters break apart, but the price is a probe formula that only reaches half the slots without a prime-sized table.",
+};
+
+# Hash Tables: Quadratic Probing
+
+**Difficulty:** intermediate · **Category:** data structures
+
+The [linear-probing lesson](/lessons/data-structures/linear-probing) showed how open addressing
+stores every key in one flat array, walking forward one slot at a time when collisions happen.
+The downside was **primary clustering** — once a few adjacent slots fill, every new key that
+hashes nearby ends up walking the entire cluster, and the cluster only grows.
+
+Quadratic probing fixes the clustering by changing one line. The probe sequence is no longer
+$i, i+1, i+2, \ldots$ — it's $i, i+1, i+4, i+9, \ldots$. The $j$-th probe lands at
+$(h + j^2) \bmod c$. Same wrap-around. Same three slot states (empty / tombstone / occupied).
+Same view. The only thing that changes is the formula for "where do I look next?"
+
+## Inserting with $i^2$ steps
+
+<QuadraticProbeInsertViz />
+
+The capacity here is **11** (prime), and the curated input is engineered for the worst case in
+linear probing: every key hashes to the same home slot. The first five inserts are $5$, $16$,
+$27$, $38$, $49$ — each $\equiv 5 \pmod{11}$, all five fighting for slot $5$.
+
+Watch where they end up. Linear probing would have packed them into slots $5, 6, 7, 8, 9$ — a
+tight five-slot cluster that any future key hashing to slot 5 (or 6, or 7, …) would have to walk
+all the way past. Quadratic probing spreads them along the probe sequence instead:
+
+| Key | Home | Probe sequence visited |    Lands at |
+| --: | ---: | :--------------------- | ----------: |
+|   5 |    5 | $5$                    |  slot **5** |
+|  16 |    5 | $5, 6$                 |  slot **6** |
+|  27 |    5 | $5, 6, 9$              |  slot **9** |
+|  38 |    5 | $5, 6, 9, 3$           |  slot **3** |
+|  49 |    5 | $5, 6, 9, 3, 10$       | slot **10** |
+
+After the fifth insert the cluster looks like $\{3, 5, 6, 9, 10\}$ — spread halfway across the
+table, even though every key wanted slot 5. The final insert is $16$ again, demonstrating
+duplicate detection: it follows the same probe sequence, finds itself at slot $6$, and aborts
+without making a new entry.
+
+The **Probes** counter grows the same way it did under linear probing — collision count is what
+the probe sequence is reacting to, not the formula. What changed is where the collisions go.
+
+## Searching: the formula has to match
+
+<QuadraticProbeSearchViz />
+
+The search is structurally identical to insert minus the writeback: hash, probe along the same
+$i^2$ sequence, and stop on either an exact match or an empty slot. Tombstones still keep the
+walk going, for the same reason as in linear probing — a key past a deleted slot might depend
+on the deleted slot being non-empty back when it was originally inserted.
+
+The starting table reuses the insert section's end state, with $16$ then deleted (slot $6$ is
+now a tombstone). The four targets exercise the four cases:
+
+- $\text{search}(5)$ — home-slot hit; zero probes.
+- $\text{search}(27)$ — probe past slot 5 (occupied, not 27) and slot 6 (tombstone), find at
+  slot 9 on the $i=2$ jump.
+- $\text{search}(16)$ — _was_ in the table, just deleted. Walks the full probe sequence past
+  every key in the cluster — slot 5, tombstone-6, 27, 38, 49 — until the $i=5$ jump lands on
+  an empty slot. **Five probes, then miss.** This is the "tombstone keeps the chain intact"
+  case from linear probing, just along a different geometry.
+- $\text{search}(99)$ — different home, immediately empty; zero probes.
+
+Notice the relationship: the search and delete must use _exactly the same_ probe formula as
+insert. If you change the formula and don't rehash, every existing key in the table becomes
+invisible to lookups.
+
+## Removing keys: tombstones again
+
+<QuadraticProbeDeleteViz />
+
+Delete is the same algorithm as search with one extra step at the end: replace the matched slot
+with a tombstone (rather than emptying it). The three targets cover:
+
+- $\text{remove}(27)$ — three probes to find ($i = 0, 1, 2$); slot 9 becomes a tombstone.
+- $\text{remove}(5)$ — direct hit at home; zero probes; slot 5 becomes a tombstone.
+- $\text{remove}(99)$ — home (slot 0) is empty; miss with zero probes.
+
+If this lesson reused [Robin Hood's backshift](/lessons/data-structures/linear-probing#backshift-deletion-removing-a-key-without-tombstones)
+instead of tombstones, the implementation would get _significantly_ harder. Backshift works
+because linear probing's probe path is one contiguous ring of slots; pulling the next key
+back one slot maintains its displacement contract. Quadratic probing's probe path skips around
+non-contiguously, so the next key in the probe order isn't even a neighbor — backshift here
+would have to rewrite the entire probe chain, key by key. Tombstoning sidesteps the problem.
+
+## When does the probe sequence cover everything?
+
+Quadratic probing has one important caveat that linear probing doesn't: **the probe sequence
+isn't guaranteed to visit every slot.** With capacity $c$, the set of values
+$\{0^2, 1^2, 2^2, \ldots\} \bmod c$ is the set of _quadratic residues_ mod $c$, and:
+
+- When $c$ is prime, the probe sequence visits exactly $\frac{c+1}{2}$ distinct slots. So at
+  load factor below $0.5$, there is _always_ an empty slot within the first $c/2$ probes.
+- When $c$ is a power of 2, the probe sequence visits fewer slots — sometimes _far_ fewer.
+  For example, $i^2 \bmod 4 \in \{0, 1\}$: from any home, only two distinct slots are ever
+  reachable. The viz throws an exception if you ever ask the insert generator to fit a key
+  where the probe sequence can't reach an empty slot, exactly to catch this failure mode.
+
+This is the trade-off. Quadratic probing breaks up primary clustering, but it requires either
+keeping capacity prime _and_ keeping load below 0.5, or using one of the standard fixes:
+
+- **Triangular-number probing.** Instead of $j^2$, use $\frac{j(j+1)}{2}$. With capacity a power
+  of 2, this sequence is guaranteed to visit every slot — a popular tweak used by Google's
+  `absl::flat_hash_map` and similar libraries.
+- **Double hashing.** Use a second hash function $h_2(k)$ as the step size: probe at
+  $(h_1(k) + j \cdot h_2(k)) \bmod c$. Different keys with the same $h_1(k)$ now probe along
+  _different_ paths, eliminating both primary and secondary clustering — at the cost of a
+  second hash computation per probe.
+
+## Quadratic vs. linear: where the trade-off lives
+
+Both schemes share the same memory layout, the same view, and the same tombstone-on-delete
+strategy. The difference is purely in probe geometry:
+
+|                   | Linear probing                                     | Quadratic probing                                               |
+| ----------------- | -------------------------------------------------- | --------------------------------------------------------------- |
+| Probe sequence    | $i, i+1, i+2, \ldots$                              | $i, i+1, i+4, i+9, \ldots$                                      |
+| Primary cluster   | High variance — neighbors aggregate                | Broken up — same-home keys spread out                           |
+| Secondary cluster | Yes (any home in the cluster shares the full path) | Yes (same-home keys still share probe path; only $h_1$ matters) |
+| Slot visitation   | Visits every slot                                  | Only $(c+1)/2$ slots when $c$ is prime; far fewer otherwise     |
+| Cache behavior    | Sequential — prefetcher-friendly                   | Skipping forward — less prefetch-friendly, more cache misses    |
+| Capacity choice   | Power of 2 fine                                    | Prime (or use triangular-number probing)                        |
+| Resize trigger    | Load factor $\sim 0.7$                             | Load factor $\sim 0.5$ (otherwise probe sequence may not reach) |
+
+Linear probing wins on cache locality and is easier to keep correct. Quadratic probing wins on
+robustness against adversarial hash distributions, where one bucket might attract many keys.
+Robin Hood (linear with displacement-balancing inserts) is often the better middle ground in
+practice — it keeps the cache story while equalizing probe lengths.
+
+## What's next
+
+- **Double hashing** is the natural follow-up, with a second hash function eliminating the
+  secondary clustering quadratic probing still has.
+- **Hopscotch hashing** bounds the worst-case probe distance to a small constant by allowing the
+  data structure to actively shuffle keys closer to home — a different shape of "rob from the
+  rich" than Robin Hood.

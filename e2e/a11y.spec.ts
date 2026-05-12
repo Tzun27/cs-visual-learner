@@ -16,6 +16,7 @@ const routes = [
   "/lessons/data-structures/tree-traversal",
   "/lessons/data-structures/heap",
   "/lessons/data-structures/linear-probing",
+  "/lessons/data-structures/quadratic-probing",
 ] as const;
 
 for (const route of routes) {

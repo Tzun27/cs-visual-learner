@@ -105,6 +105,14 @@ const topics: readonly Topic[] = [
       },
       {
         status: "live",
+        slug: "quadratic-probing",
+        title: "Hash Tables: Quadratic Probing",
+        difficulty: "intermediate",
+        blurb:
+          "Same flat array, different probe sequence — gaps grow as i² instead of i. Breaks up clustering.",
+      },
+      {
+        status: "live",
         slug: "tree-traversal",
         title: "Tree Traversal",
         difficulty: "beginner",

@@ -240,9 +240,10 @@ This lesson covered the simplest open-addressing scheme and Robin Hood — inser
 variance-reducing refinement and backshift as the matching deletion strategy. Other natural
 follow-ups:
 
-- **Quadratic probing** changes the probe sequence from $i + 1, i + 2, i + 3, \ldots$ to
-  $i + 1, i + 4, i + 9, \ldots$ — same wrap-around, but the gaps spread out, which breaks up
-  primary clustering at the cost of needing capacity to be a prime so all slots get visited.
+- **[Quadratic probing](/lessons/data-structures/quadratic-probing)** changes the probe sequence
+  from $i + 1, i + 2, i + 3, \ldots$ to $i + 1, i + 4, i + 9, \ldots$ — same wrap-around, but the
+  gaps spread out, which breaks up primary clustering at the cost of needing capacity to be a
+  prime so all slots get visited.
 - **Double hashing** uses a second hash function to determine the step size, so different keys
   with the same home slot probe along different paths. Cleanest clustering avoidance, at the cost
   of a second hash computation per probe.
