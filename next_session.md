@@ -8,7 +8,7 @@ Quick orientation for the next agent picking up this project.
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
 - **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + four data-structures lessons (BST insert/search/delete, Hash Tables add/contains/remove, Tree Traversal in four orders, Min-heap insert/extract-min) + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 279 unit + 48 Playwright e2e (incl. 8 axe-core a11y routes) — all green.
+- **Test counts at HEAD:** 289 unit + 50 Playwright e2e (incl. 8 axe-core a11y routes) — all green.
 
 Read these before writing code:
 
@@ -34,8 +34,9 @@ Read these before writing code:
   - **Inorder:** `[1, 2, 3, 4, 5, 6, 7]` (left → root → right — sorted, because this is a BST)
   - **Postorder:** `[1, 3, 2, 5, 7, 6, 4]` (left → right → root — root last)
   - **Level-order:** `[4, 2, 6, 1, 3, 5, 7]` (depth 0, depth 1, depth 2 — same first 3 values as preorder by coincidence)
-- **Heaps & Priority Queues lesson** at `/lessons/data-structures/heap` — covers insert (siftUp) and extract-min (siftDown) on a packed-array min-heap. Two viz sections share the lesson page. The lesson is deliberately distinct from the existing `heap-sort` sorting lesson: this one is a min-heap (priority-queue framing, Dijkstra etc.), heap-sort uses a max-heap; this one renders the heap as a tree, heap-sort animates it as bars.
+- **Heaps & Priority Queues lesson** at `/lessons/data-structures/heap` — covers insert (siftUp), heapify (bottom-up O(n) construction), and extract-min (siftDown) on a packed-array min-heap. Three viz sections share the lesson page. The lesson is deliberately distinct from the existing `heap-sort` sorting lesson: this one is a min-heap (priority-queue framing, Dijkstra etc.), heap-sort uses a max-heap; this one renders the heap as a tree, heap-sort animates it as bars.
   - Insert section: `HeapInsertViz` with two toggleable sequences. **"Mixed order"** = `[4, 9, 1, 7, 2, 8, 3]` exercises a variety of bubble lengths; **"New minimum each time"** = `[7, 6, 5, 4, 3, 2, 1]` makes every value bubble to the root, demonstrating that heap shape stays balanced even with adversarial input (the BST analogue of this input produces a depth-7 chain). Counters: Comparisons / Swaps / Heap size.
+  - Heapify section: `HeapifyViz` runs the bottom-up sift-down construction over `[9, 4, 7, 1, 8, 3, 5, 2, 6]`. Exactly `floor(n/2) = 4` sift-down passes (one per internal node, indices 3 → 2 → 1 → 0). Counters: Sift-down passes / Comparisons / Swaps. The MDX section explains the $O(n)$ amortized bound (geometric decay of subtree sizes beats linear sift-down cost) and contrasts with $n$ successive inserts at $O(n \log n)$.
   - Extract section: `HeapExtractMinViz` runs four `extract_min` calls against the result of the "Mixed order" inserts above, drawing the extracted values out into an ordered list strip below the tree. Counters: Extracted / Comparisons / Sift-down swaps. The extracted list comes out `[1, 2, 3, 4]` confirming the priority-queue property.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
@@ -43,7 +44,7 @@ Read these before writing code:
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table add/contains/remove + tree-traversal 4-mode + heap insert/extract-min + axe).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table add/contains/remove + tree-traversal 4-mode + heap insert/heapify/extract-min + axe).
 
 ## Architectural load-bearing decisions
 
@@ -79,7 +80,8 @@ These are easy to miss and expensive to violate:
 28. **Heap snapshots carry both the array AND `size`; the viz reads `heap.slice(0, size)`.** `HeapSnapshot = { heap: readonly number[]; size: number }`. The extract path could conceivably keep removed values in the array tail for a step or two (as the BST delete does with orphaned nodes), but the current generator pops them immediately — so today `heap.length === size` on every step. Future contracts (e.g., a "popped-but-not-yet-cleared" visualization beat) can rely on `size` being authoritative without breaking existing consumers.
 29. **`heapToTree(snap)` maps a heap onto a `BstSnapshot` so `TreeView` can render it without modification.** Heap children at `2i+1` / `2i+2`, root at id 0. The function lives in `src/lib/dataStructures/heap.ts` and is called inline in both heap vizes (no `useMemo` — the heap object is fresh every render so memoization wouldn't help). This means highlight `nodeId` values in the heap vizes are heap indices, not BST node ids. Confusing if you swap viz types — keep heap and BST highlight code separate.
 30. **Heap insert's `swap-up` / extract's `swap-down` steps use `cursorIndex` + `fromIndex` (not `parentIndex` / `childIndex`).** `cursorIndex` = where the active value now lives _after_ the swap; `fromIndex` = the slot it just vacated. Both are highlighted with the same `placed` kind so the user sees a two-slot swap. The earlier naming (`parentIndex`) was ambiguous post-swap and was renamed during this lesson's authoring; resist switching back.
-31. **Heap insert emits exactly one `settle` step per insert; intermediate snapshots may violate the min-heap invariant.** The transient is on `compare-parent` and during long bubble chains, swap-up restores the invariant locally but the new cursor may still violate against its new grandparent. Property tests assert `isMinHeap` only on `settle` and `done` snapshots — extend the same contract to any future heap operations (decrease-key, heapify) that perform staged rebalancing.
+31. **Heap insert emits exactly one `settle` step per insert; intermediate snapshots may violate the min-heap invariant.** The transient is on `compare-parent` and during long bubble chains, swap-up restores the invariant locally but the new cursor may still violate against its new grandparent. Property tests assert `isMinHeap` only on `settle` and `done` snapshots — extend the same contract to any future heap operations (decrease-key, etc.) that perform staged rebalancing.
+32. **`heapifySequence` only walks indices `(n // 2) - 1` down to `0`; leaves are skipped.** That's where the $O(n)$ bound comes from — sift-down's cost is bounded by the _subtree height below the node_, not the tree height overall, and the bottom half of an array-backed heap is leaves with subtree height 0. Don't "fix" the loop to start at `n - 1` thinking you're being thorough; it would still produce a correct heap but ruin the linear bound that's the whole point of heapify-vs-n-inserts. Property tests assert sift-pass count equals `floor(n / 2)` exactly.
 
 ## Useful commands
 
@@ -117,7 +119,7 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **Heapify + decrease-key on the heap page.** With min-heap insert + extract-min already shipped, the natural follow-ups are (a) `heapify` — building a heap from an array in $O(n)$ via bottom-up sift-down, which is conceptually distinct from $n$ inserts each at $O(\log n)$, and (b) `decrease_key` — Dijkstra's needed operation that requires an index map (or accepts duplicates). The lesson MDX already calls out both as omitted; adding either would slot in as a new section, reuse `HeapInsertViz`'s scaffolding (`heapToTree`, the snippet+codeLines pattern, the cursor+placed highlight palette), and let the lesson grow naturally toward priority-queue applications.
+- **`decrease_key` on the heap page.** Heapify shipped this session; `decrease_key` is the remaining textbook operation called out in the lesson's "What you didn't see" list. The hard part is bookkeeping — you need an index map from value-or-handle → heap-index so you can locate the node in $O(1)$ before sifting up — or you accept duplicate-entry semantics where stale priorities just get pulled and discarded. Either approach is interesting and ties directly to Dijkstra. Conventional viz would show the user clicking a node to lower its key, then watching it bubble up.
 - **Open-addressing hash table.** The current hash-tables lesson uses separate chaining. A companion lesson (or an additional section) that swaps in **linear probing** would showcase tombstones (`deleted` markers vs. `empty`), primary-vs-secondary clustering, and why probe sequences can't terminate early on miss. Most of the scaffolding — `HashTableView`, snippet pattern, exact-match aria-label rule — generalizes; the data model swaps from `buckets: number[][]` to `slots: (entryId | null | "tombstone")[]`.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
@@ -175,6 +177,7 @@ src/components/
     HashTableDeleteViz.tsx          Hash table delete composition (middle/tail/head/miss targets)
     TreeTraversalViz.tsx            Tree traversal composition (4-mode toggle + output sequence strip)
     HeapInsertViz.tsx               Min-heap insert composition (siftUp; 2-sequence toggle)
+    HeapifyViz.tsx                  Min-heap heapify composition (bottom-up siftDown; single curated input)
     HeapExtractMinViz.tsx           Min-heap extract-min composition (siftDown; extracted-list strip)
     stepView.ts                     Shared step→highlight + counter helpers (sort)
 
@@ -187,16 +190,17 @@ src/lib/
     {bubble,heap,insertion,         Python source + named line-number constants
      merge,quick,radix}Sort.snippet.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapExtractStep
+    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep
     binarySearchTree.ts             BST insertSequence + searchSequence + deleteSequence + buildTree
     hashTable.ts                    Hash table insertSequence + searchSequence + deleteSequence + buildHashTable + bucketIndexFor + liveKeys + loadFactor
     traversal.ts                    Parameterized traversalSequence(tree, mode) + TRAVERSAL_MODES + labels
-    heap.ts                         Min-heap heapInsertSequence + heapExtractMinSequence + buildHeap + isMinHeap + heapToTree
+    heap.ts                         Min-heap heapInsertSequence + heapifySequence + heapExtractMinSequence + buildHeap + isMinHeap + heapToTree
     index.ts                        BST operation registry + labels (insert only — search/delete have a different signature)
     {insert,search,delete}Sequence.snippet.ts        Python source + named line-number constants (BST)
     hashTable{Insert,Search,Delete}.snippet.ts        Python source + named line-number constants (hash table)
     {preorder,inorder,postorder,levelOrder}Traversal.snippet.ts  Python source + named line-number constants (traversal)
     heap{Insert,ExtractMin}.snippet.ts               Python source + named line-number constants (heap)
+    heapify.snippet.ts                               Python source + named line-number constants (heapify)
   hooks/
     useStepThrough.ts               Single-list reducer state machine
     useParallelStepThrough.ts       N-list reducer with shared timer
@@ -215,11 +219,11 @@ If you need to make a focused change, these are the files that matter for each s
 - **Add a new BST or hash-table or heap operation:** `src/lib/dataStructures/types.ts` (step union) → write `*.snippet.ts` → extend `binarySearchTree.ts` or `hashTable.ts` or `heap.ts` with a generator → write tests in `tests/dataStructures/*.test.ts` → wire up a new `*Viz.tsx` composition next to the existing ones → render it on the lesson MDX.
 - **Add a new data-structure lesson from scratch:** Mirror Hash Tables. New `*.snippet.ts` per operation + new generator file + new `*View.tsx` presentational primitive (if existing primitives don't fit) + per-operation `*Viz.tsx` compositions + lesson MDX + lessons-index entry (`status: "live"`, set `slug`) + e2e spec + add the route to `e2e/a11y.spec.ts` route list.
 - **Touch the CodePanel:** `src/components/visualizations/CodePanel.tsx` + `tests/components/CodePanel.test.tsx`. Decisions 17–21 cover the load-bearing constraints (lazy Shiki, focusable scroll region, line-number contrast, `not-prose`, scroll math, soft-wrap hanging indent).
-- **Touch the TreeView SVG:** `src/components/visualizations/TreeView.tsx`. Highlight palette uses `--bar-compare / swap / pivot` CSS vars defined in `src/app/globals.css` (light + dark variants). Reused by BST insert/search/delete vizes, TreeTraversalViz, **and both heap vizes via `heapToTree`** — exercise all seven before merging.
+- **Touch the TreeView SVG:** `src/components/visualizations/TreeView.tsx`. Highlight palette uses `--bar-compare / swap / pivot` CSS vars defined in `src/app/globals.css` (light + dark variants). Reused by BST insert/search/delete vizes, TreeTraversalViz, **and all three heap vizes via `heapToTree`** — exercise all eight before merging.
 
 ## What changed in the most recent session
 
-This session shipped the **Heaps & Priority Queues** lesson and added a single-line "git commit discipline" rule to `AGENTS.md`. Five commits, all on `main` (pending push at session end):
+This session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in two phases — initial three-viz rollout followed by the heapify section as an in-place extension:
 
 | #   | subject                                                                            |
 | --- | ---------------------------------------------------------------------------------- |
@@ -229,6 +233,11 @@ This session shipped the **Heaps & Priority Queues** lesson and added a single-l
 | 4   | `feat(lessons)`: add heap & priority queues lesson + promote in index              |
 | 5   | `test(e2e)`: cover heap lesson + add it to axe sweep                               |
 | 6   | `docs`: refresh next_session.md after heap rollout                                 |
+| 7   | `feat(ds)`: add heapify generator + snippet + tests                                |
+| 8   | `feat(viz)`: add HeapifyViz composition                                            |
+| 9   | `feat(lessons)`: add heapify section to heap lesson MDX                            |
+| 10  | `test(e2e)`: cover heapify section in heap spec                                    |
+| 11  | `docs`: refresh next_session.md after heapify rollout                              |
 
 Narrative summary:
 
@@ -237,6 +246,11 @@ Narrative summary:
 3. **Heap vizes** (commit 3). Two composition components following the BSTViz pattern: `HeapInsertViz` (2-sequence toggle, three counters) and `HeapExtractMinViz` (curated 4-extract demo, extracted-list strip below the tree, three counters). Both call `heapToTree` inline and feed the result to the existing `TreeView` — zero modifications to the SVG primitive. Highlight conventions: `cursor` (orange) for compared participants, `placed` (yellow with dashed halo) for the active node + the slot it just vacated on a swap, `duplicate` (red) for the root about to leave on extract.
 4. **Heap lesson + index promotion** (commit 4). `src/app/lessons/data-structures/heap/page.mdx` covers the priority-queue framing (`extract_min`, Dijkstra, top-k), explicitly contrasts heap balance with BST degenerate insertion order, and flips the lessons-index entry from `coming-soon` → `live`. Includes a deliberate "What you didn't see" section listing `heapify`, `decrease_key`, and d-ary/Fibonacci heaps as the natural follow-up surface.
 5. **E2E + a11y** (commit 5). New `e2e/heap.spec.ts` with 5 specs (insert region presence, counter ticking, toggle behavior, extract-min produces "1" first, full extract yields `[1,2,3,4]`) and the route added to `e2e/a11y.spec.ts`'s axe sweep. Verified live in Chrome DevTools MCP — `[1, 2, 3, 4]` extracted in order, no console errors.
-6. **Doc refresh** (commit 6). This file. Decisions 28–31 capture heap-specific gotchas (`heap.size` vs `heap.length`, `heapToTree` semantics, `cursorIndex`/`fromIndex` naming, transient invariant on `compare-parent`).
+6. **Doc refresh** (commit 6). Decisions 28–31 capture heap-specific gotchas (`heap.size` vs `heap.length`, `heapToTree` semantics, `cursorIndex`/`fromIndex` naming, transient invariant on `compare-parent`).
+7. **Heapify generator** (commit 7). New `HeapifyStep` union + `heapifySequence` + `heapify.snippet.ts`. The generator walks indices `(n // 2) - 1 → 0` running an inner sift-down per internal node — exactly the bottom-up construction whose $O(n)$ amortized bound comes from leaf-skipping and the geometric decay of subtree heights. 10 unit/property tests, including the "heapify result has the same multiset as the input and is a valid min-heap" property, and "heapify + extract-all = sorted order" tying it back to the existing operations.
+8. **HeapifyViz** (commit 8). Single-curated-input composition: `[9, 4, 7, 1, 8, 3, 5, 2, 6]` (n=9, so exactly 4 sift-down passes). Same TreeView + CodePanel layout as the other heap vizes, counters: Sift-down passes / Comparisons / Swaps. No source toggle — the lesson value is observing the bottom-up traversal, not comparing inputs.
+9. **Heapify lesson section** (commit 9). New "Building a heap from an array" section inserted _between_ Insert and Extract in the MDX. Explains the $O(n)$ argument (sum of `n/2^(h+1) · O(h)` telescopes to $O(n)$) and removes `heapify` from the lesson's "What you didn't see" list, leaving only `decrease_key` and d-ary/Fibonacci heaps as named follow-ups.
+10. **E2E expansion** (commit 10). Two new specs in `e2e/heap.spec.ts` — heapify region presence + counter ticking, and "running to completion produces exactly 4 sift-down passes" pinned to the input size. Brought the spec to 7 tests total.
+11. **Doc refresh** (commit 11). This file. New decision 32 captures the leaf-skipping invariant in `heapifySequence` that's load-bearing for the $O(n)$ bound.
 
-Test counts grew from **251 unit / 42 e2e (incl. 7 axe routes)** at session start to **279 unit / 48 e2e (incl. 8 axe routes)** at HEAD.
+Test counts grew from **251 unit / 42 e2e (incl. 7 axe routes)** at session start to **289 unit / 50 e2e (incl. 8 axe routes)** at HEAD (+38 unit, +8 e2e — +28 unit from initial heap, +10 from heapify; +5 e2e from initial heap, +2 from heapify, +1 axe route).
