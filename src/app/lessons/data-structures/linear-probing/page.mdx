@@ -1,0 +1,161 @@
+import { LinearProbeInsertViz } from "@/components/visualizations/LinearProbeInsertViz";
+import { LinearProbeSearchViz } from "@/components/visualizations/LinearProbeSearchViz";
+import { LinearProbeDeleteViz } from "@/components/visualizations/LinearProbeDeleteViz";
+
+export const metadata = {
+  title: "Hash Tables: Linear Probing",
+  description:
+    "Open-addressing hash tables store everything in a single flat array of slots. Watch keys probe forward to find an empty seat, see what deletes leave behind, and understand why empty isn't the same as 'never had anything here'.",
+};
+
+# Hash Tables: Linear Probing
+
+**Difficulty:** intermediate · **Category:** data structures
+
+The [previous hash-table lesson](/lessons/data-structures/hash-tables) used **separate chaining** —
+when two keys collide, the second one becomes part of a linked list hanging off the bucket. The
+table is an array of variable-length chains, and deletes are a simple list splice.
+
+This lesson visualizes the other major strategy: **open addressing**, specifically **linear
+probing**. There is exactly one slot per array index. Every key lives directly in the table, no
+auxiliary structures. When a collision happens, the colliding key walks forward — one slot at a
+time, wrapping around the end — until it finds an empty seat.
+
+The motivation is cache locality. A chain is great for theory and writability, but each pointer
+hop is potentially a cache miss; a linear-probing table fits its values in contiguous memory and
+gets to ride the CPU's prefetcher. Python's `dict`, Rust's `HashMap`, and the JVM's
+`open-addressing` hash sets all use variants of this approach for that reason.
+
+## Inserting into an open-addressed table
+
+<LinearProbeInsertViz />
+
+Each cell shows one slot. Empty slots are drawn dashed; occupied slots show their key; we'll
+introduce the third state (tombstone) in the next section.
+
+Watch the **Probes** counter as the viz advances. The first three inserts pile into the same
+neighborhood because they all hash to slot 5 (each value is $5 \bmod 8 = 5$ or $13 \bmod 8 = 5$ or
+$21 \bmod 8 = 5$). The second one probes once and lands at slot 6; the third probes twice and
+lands at slot 7. This is **primary clustering** — once a few neighboring slots fill up, every new
+key that hashes anywhere into that region has to walk all the way past the cluster.
+
+A couple of paths worth pausing on:
+
+- **Wrap-around.** The fifth insert is $23$, which hashes to slot $7$. Slot 7 is already taken by
+  $21$, so the probe walks forward — and wraps to slot 0. Linear probing treats the table as a
+  ring; the probe sequence is $i, (i+1) \bmod c, (i+2) \bmod c, \ldots$.
+- **Duplicate detection.** The final insert is $5$ a second time. The probe walks to slot $5$,
+  sees an exact match, and aborts without making a new entry. Compared to separate chaining,
+  duplicate detection is the same idea: walk the probe sequence and check each existing key.
+
+The amortized cost of insert is $O(1)$ — _but only if the table stays sparsely loaded_. Once the
+**load factor** $\alpha = \frac{\text{occupied}}{\text{capacity}}$ climbs above about $0.7$,
+primary clustering makes probe sequences grow rapidly, and production implementations resize the
+backing array (typically doubling it) to keep $\alpha$ bounded. This lesson sticks with a fixed
+capacity of 8 so the viz stays legible.
+
+## Searching with tombstones
+
+Linear-probing _delete_ is where the design has to get clever — and that cleverness shapes how
+**search** works too. Let's start with search.
+
+<LinearProbeSearchViz />
+
+The starting table for this section is the same as the insert section's end state, except we've
+already deleted $13$ to plant a tombstone at slot 6. (Tombstones are drawn as cells with a
+small × through them.)
+
+The search algorithm is structurally identical to insert's probing: hash to the home slot, then
+walk forward until you find your key, or run out. The decision is what counts as "running out":
+
+- **Empty slot → stop, declare miss.** An empty slot at index $i$ means nothing has ever lived at
+  $i$ during the lifetime of this table. So if the key we're searching for were here, the original
+  insert would have placed it at $i$ — and since it's not at $i$, it's not in the table at all.
+- **Tombstone slot → keep going.** A tombstone at $i$ means a key _used to_ live at $i$ and got
+  deleted. Critically, _other keys_ might have arrived later and probed past $i$ on their way to a
+  slot further down. So we have to keep walking.
+
+Watch the second search, for $21$. The probe path is $5 \to 6 \to 7$:
+
+1. Slot 5 is occupied by $5$ (not $21$) → probe.
+2. Slot 6 is a **tombstone** → probe (do not stop here!).
+3. Slot 7 has $21$ → found.
+
+If we had stopped at the tombstone, we would have falsely reported $21$ as missing. That's the
+whole point of tombstones: they preserve the "someone probed through here" history.
+
+The third search, for $13$ (the key we deleted), is the contrasting case. The probe walks
+$5 \to 6 \to 7 \to 0$ — past the tombstone, past every key in the cluster, and finally to a
+genuinely empty slot at index 0. Empty means "not here," so it's a miss.
+
+## Deleting: why we can't just clear the slot
+
+Now the delete operation itself becomes inevitable.
+
+<LinearProbeDeleteViz />
+
+The delete algorithm walks the probe sequence the same way search does, finds the matching slot,
+and replaces it with a **tombstone** — not with `EMPTY`. That single design choice is what makes
+the search logic from the previous section work.
+
+Trace the first delete in the viz, for $13$:
+
+1. Hash to slot 5. Probe past 5 (the key $5$, not $13$).
+2. Slot 6 has $13$ — found.
+3. Replace slot 6 with a tombstone.
+
+The slot's contents are visibly gone, but the slot itself isn't reset to empty. Any future search
+that probes through index 6 will correctly walk past it.
+
+The second delete, for $4$, is the simple case: $4$ lives at its home slot, no probing, tombstoned
+in one step. The third target, $99$, isn't in the table at all — its home slot ($99 \bmod 8 = 3$)
+is empty, so the search half of delete reports a miss immediately, and nothing changes.
+
+## The cost of tombstones
+
+Tombstones make linear-probing _correct_, but they don't come free:
+
+- **Searches and inserts have to walk through them.** A table that has accumulated tombstones
+  behaves like one with a higher effective load factor — even though `liveKeys / capacity` is
+  low, probe sequences can still be long.
+- **The table can grow "logically full" while half empty.** If you alternate inserts and deletes
+  on a small enough capacity, the entire probe range can be tombstones with no real keys in it.
+  Insert performance degrades catastrophically.
+
+The fix is **rehashing**: when the count of tombstones gets high enough, allocate a fresh backing
+array of the same (or larger) capacity and reinsert only the live keys. Tombstones evaporate.
+Real implementations interleave this with their normal resizing strategy — for instance, Python's
+`dict` does a resize-in-place when tombstones reach about ⅔ of the capacity.
+
+## Linear probing vs. separate chaining
+
+Both strategies handle collisions, both are $O(1)$ amortized for the standard operations. They
+just trade off in different ways:
+
+|                  | Separate chaining (chained buckets)                         | Linear probing (open addressing)                                    |
+| ---------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| Memory layout    | Array of pointers + scattered chain nodes                   | Single contiguous array                                             |
+| Cache behavior   | Pointer chase per probe — possible cache miss               | Adjacent slots; CPU prefetcher helps                                |
+| Worst-case load  | Degrades gracefully — chains just grow longer               | Degrades sharply past $\alpha \approx 0.7$ due to clustering        |
+| Delete           | Simple list splice                                          | Must leave a tombstone                                              |
+| Resizing trigger | Average chain length                                        | Load factor; tombstone count                                        |
+| Best at          | Unpredictable load, frequent deletes, large values per slot | Numeric or small-value keys, predictable load, read-heavy workloads |
+
+In modern hardware-aware design, the cache argument tends to win for typical workloads — which is
+why so many production hash tables use a variant of open addressing. But primary clustering is a
+real failure mode, and the data structure has to compensate (Robin Hood probing, double hashing,
+or fancier schemes like Hopscotch) when the trade-off bites.
+
+## What's next
+
+This lesson covered the simplest open-addressing scheme. The natural follow-ups:
+
+- **Quadratic probing** changes the probe sequence from $i + 1, i + 2, i + 3, \ldots$ to
+  $i + 1, i + 4, i + 9, \ldots$ — same wrap-around, but the gaps spread out, which breaks up
+  primary clustering at the cost of needing capacity to be a prime so all slots get visited.
+- **Double hashing** uses a second hash function to determine the step size, so different keys
+  with the same home slot probe along different paths. Cleanest clustering avoidance, at the cost
+  of a second hash computation per probe.
+- **Robin Hood hashing** rebalances probe distances on every insert: if the key being inserted
+  has walked further from its home than the key already in the slot, they swap. The variance of
+  probe length shrinks dramatically, which is a huge win for cache-line bounded loads.

@@ -94,7 +94,14 @@ const topics: readonly Topic[] = [
         slug: "hash-tables",
         title: "Hash Tables",
         difficulty: "intermediate",
-        blurb: "Collision strategies, load factor, and when O(1) is a lie.",
+        blurb: "Separate chaining: how collisions become linked lists. Add, contains, and remove.",
+      },
+      {
+        status: "live",
+        slug: "linear-probing",
+        title: "Hash Tables: Linear Probing",
+        difficulty: "intermediate",
+        blurb: "Open addressing — keys live in a single flat array. Why deletes leave tombstones.",
       },
       {
         status: "live",
