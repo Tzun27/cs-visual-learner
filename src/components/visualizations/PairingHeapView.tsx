@@ -62,17 +62,6 @@ function leafCount(snap: PairingHeapSnapshot, id: number): number {
   return total === 0 ? 1 : total;
 }
 
-function maxDepthFrom(snap: PairingHeapSnapshot, id: number, depth: number): number {
-  const node = snap.nodes[id];
-  let max = depth;
-  let child = node.firstChildId;
-  while (child !== null) {
-    max = Math.max(max, maxDepthFrom(snap, child, depth + 1));
-    child = snap.nodes[child].nextSiblingId;
-  }
-  return max;
-}
-
 export function PairingHeapView({ heap, highlights = [], className }: PairingHeapViewProps) {
   const { nodes, roots } = heap;
   const highlightById = new Map<number, PairingHeapNodeKind>();
@@ -204,9 +193,3 @@ export function PairingHeapView({ heap, highlights = [], className }: PairingHea
     </svg>
   );
 }
-// `liveCount` is computed from positions.size — only nodes reachable from
-// `roots` get positioned, so orphaned ids (e.g., the freshly-removed root
-// after a delete-min step) drop out automatically. The `maxDepthFrom` helper
-// is referenced from the lesson copy and tests; keep it exported by inclusion
-// here even though no current consumer calls it.
-export { maxDepthFrom };

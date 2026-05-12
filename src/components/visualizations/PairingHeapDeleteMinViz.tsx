@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { buildPairingHeap, pairingHeapDeleteMinSequence } from "@/lib/dataStructures/pairingHeap";
+import { pairingHeapDeleteMinSequence } from "@/lib/dataStructures/pairingHeap";
 import { pairingHeapDeleteMinPython } from "@/lib/dataStructures/pairingHeapDeleteMin.snippet";
 import type { PairingHeapDeleteMinStep, PairingHeapSnapshot } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
@@ -32,11 +32,6 @@ const INITIAL: PairingHeapSnapshot = (() => {
     roots: [0],
   };
 })();
-
-// (`buildPairingHeap` is imported but used only as a defensive reference
-// here — keep it so the snippet stays "the obvious helper" for future
-// edits of this demo.)
-void buildPairingHeap;
 
 export type PairingHeapDeleteMinVizProps = {
   initialSpeedMs?: number;
