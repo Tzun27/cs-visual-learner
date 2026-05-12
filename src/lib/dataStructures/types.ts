@@ -324,6 +324,115 @@ export type HeapExtractStep =
   | (StepBase & { kind: "empty"; heap: HeapSnapshot })
   | (StepBase & { kind: "done"; heap: HeapSnapshot });
 
+// Open-addressing hash table (linear probing) as a hash set. Each slot is
+// in one of three states: empty (never held a value), tombstone (held a
+// value that was deleted), or occupied with a key. Tombstones are the
+// load-bearing difference from separate chaining: deleting a key cannot
+// reset the slot to "empty," because a subsequent search could probe past
+// it and incorrectly report a miss for a later key in the same cluster.
+export type LinearProbeSlot =
+  | { readonly state: "empty" }
+  | { readonly state: "tombstone" }
+  | { readonly state: "occupied"; readonly key: number };
+
+export type LinearProbeSnapshot = {
+  readonly capacity: number;
+  readonly slots: readonly LinearProbeSlot[];
+};
+
+export type LinearProbeInsertStep =
+  | (StepBase & { kind: "begin"; table: LinearProbeSnapshot; insertingKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "probe";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+      probeCount: number;
+    })
+  | (StepBase & {
+      kind: "duplicate";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "place";
+      table: LinearProbeSnapshot;
+      insertingKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
+
+export type LinearProbeSearchStep =
+  | (StepBase & { kind: "begin"; table: LinearProbeSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "probe";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+      probeCount: number;
+    })
+  | (StepBase & {
+      kind: "found";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
+
+export type LinearProbeDeleteStep =
+  | (StepBase & { kind: "begin"; table: LinearProbeSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "probe";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+      probeCount: number;
+    })
+  | (StepBase & {
+      kind: "found";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "tombstone";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
+
 export type BstDeleteStep =
   | (StepBase & { kind: "begin"; tree: BstSnapshot; targetValue: number })
   | (StepBase & {
