@@ -97,7 +97,7 @@ export function ContourView({
         y1={yToSvg(0)}
         x2={VIEWBOX_WIDTH - PADDING_X}
         y2={yToSvg(0)}
-        stroke="var(--bar-default-stroke)"
+        stroke="var(--bar-default)"
         strokeWidth={1}
         strokeOpacity={0.35}
       />
@@ -106,7 +106,7 @@ export function ContourView({
         y1={PADDING_Y}
         x2={xToSvg(0)}
         y2={VIEWBOX_HEIGHT - PADDING_Y}
-        stroke="var(--bar-default-stroke)"
+        stroke="var(--bar-default)"
         strokeWidth={1}
         strokeOpacity={0.35}
       />
@@ -119,7 +119,7 @@ export function ContourView({
             .map(([x, y]) => `${xToSvg(x).toFixed(2)},${yToSvg(y).toFixed(2)}`)
             .join(" ")}
           fill="none"
-          stroke="var(--bar-default-stroke)"
+          stroke="var(--bar-default)"
           strokeWidth={1}
           strokeOpacity={0.45}
           strokeDasharray="2 2"
