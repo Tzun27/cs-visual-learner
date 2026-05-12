@@ -612,6 +612,95 @@ export type LinearProbeDeleteStep =
     })
   | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
 
+// Pairing heap. A min-heap implemented as a multi-way tree where each
+// node's children form a singly linked list — represented here in
+// "left-child, right-sibling" form: a node's `firstChildId` points to
+// the head of its child list, and each child's `nextSiblingId` walks
+// the rest of that list. The heap's roots are tracked separately
+// because some intermediate states (delete-min's two-pass merge) have
+// more than one root briefly. In steady state the snapshot has exactly
+// one root or zero (empty).
+export type PairingHeapNode = {
+  readonly id: number;
+  readonly value: number;
+  readonly firstChildId: number | null;
+  readonly nextSiblingId: number | null;
+};
+
+export type PairingHeapSnapshot = {
+  readonly nodes: readonly PairingHeapNode[];
+  readonly roots: readonly number[];
+};
+
+// Merge takes two heaps and produces one. The "link" step makes the
+// node with the larger root value a child of the node with the smaller
+// root value (min-heap order). When either heap is empty the result is
+// the other; that's why both root ids are nullable in the begin step.
+export type PairingHeapMergeStep =
+  | (StepBase & {
+      kind: "begin";
+      heap: PairingHeapSnapshot;
+      aRootId: number | null;
+      bRootId: number | null;
+    })
+  | (StepBase & {
+      kind: "compare-roots";
+      heap: PairingHeapSnapshot;
+      aRootId: number;
+      bRootId: number;
+    })
+  | (StepBase & {
+      kind: "link";
+      heap: PairingHeapSnapshot;
+      parentId: number;
+      childId: number;
+    })
+  | (StepBase & { kind: "done"; heap: PairingHeapSnapshot });
+
+// Delete-min removes the current root and merges its children using
+// the classic two-pass algorithm: first pass merges children left to
+// right in pairs; second pass folds the resulting list right-to-left.
+// The viz emits a step for each phase boundary plus each individual
+// child-pair link.
+export type PairingHeapDeleteMinStep =
+  | (StepBase & { kind: "begin"; heap: PairingHeapSnapshot })
+  | (StepBase & {
+      kind: "remove-root";
+      heap: PairingHeapSnapshot;
+      removedId: number;
+      removedValue: number;
+    })
+  | (StepBase & {
+      kind: "pair-start";
+      heap: PairingHeapSnapshot;
+      removedId: number;
+      // The two roots currently being paired in the first pass.
+      aRootId: number;
+      bRootId: number;
+    })
+  | (StepBase & {
+      kind: "pair-link";
+      heap: PairingHeapSnapshot;
+      removedId: number;
+      parentId: number;
+      childId: number;
+    })
+  | (StepBase & {
+      kind: "fold-start";
+      heap: PairingHeapSnapshot;
+      removedId: number;
+      aRootId: number;
+      bRootId: number;
+    })
+  | (StepBase & {
+      kind: "fold-link";
+      heap: PairingHeapSnapshot;
+      removedId: number;
+      parentId: number;
+      childId: number;
+    })
+  | (StepBase & { kind: "done"; heap: PairingHeapSnapshot });
+
 // Hopscotch hashing: open addressing with a bounded probe distance H
 // (the "neighborhood"). Each slot owns a hopInfo bitmask of H bits; bit j
 // of slot i set means slot (i+j) mod capacity holds a key whose home is i.
