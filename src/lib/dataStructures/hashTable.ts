@@ -4,6 +4,7 @@ import { hashTableSearchLines } from "./hashTableSearch.snippet";
 import type {
   HashTableDeleteStep,
   HashTableEntry,
+  HashTableKV,
   HashTableSearchStep,
   HashTableSnapshot,
   HashTableStep,
@@ -41,17 +42,18 @@ export function emptyHashTable(capacity: number = DEFAULT_CAPACITY): HashTableSn
 }
 
 export function* insertSequence(
-  keys: readonly number[],
+  pairs: readonly HashTableKV[],
   capacity: number = DEFAULT_CAPACITY,
 ): Generator<HashTableStep> {
   const entries: HashTableEntry[] = [];
   const buckets: number[][] = emptyBuckets(capacity);
 
-  for (const key of keys) {
+  for (const [key, value] of pairs) {
     yield {
       kind: "begin",
       table: snapshot(capacity, entries, buckets),
       insertingKey: key,
+      insertingValue: value,
       codeLines: hashTableInsertLines.begin,
     };
 
@@ -60,40 +62,47 @@ export function* insertSequence(
       kind: "hash",
       table: snapshot(capacity, entries, buckets),
       insertingKey: key,
+      insertingValue: value,
       bucketIndex,
       codeLines: hashTableInsertLines.hash,
     };
 
     const bucket = buckets[bucketIndex];
-    let duplicate = false;
+    let overwritten = false;
     for (const entryId of bucket) {
       const cursor = entries[entryId];
       yield {
         kind: "probe",
         table: snapshot(capacity, entries, buckets),
         insertingKey: key,
+        insertingValue: value,
         bucketIndex,
         cursorEntryId: entryId,
         codeLines: hashTableInsertLines.probe,
       };
       if (cursor.key === key) {
+        // Map semantics: the key already lives here, replace the value.
+        const oldValue = cursor.value;
+        entries[entryId] = { ...cursor, value };
         yield {
-          kind: "duplicate",
+          kind: "overwrite",
           table: snapshot(capacity, entries, buckets),
           insertingKey: key,
+          insertingValue: value,
+          oldValue,
           bucketIndex,
           cursorEntryId: entryId,
-          codeLines: hashTableInsertLines.duplicate,
+          codeLines: hashTableInsertLines.overwrite,
         };
-        duplicate = true;
+        overwritten = true;
         break;
       }
     }
 
-    if (duplicate) continue;
+    if (overwritten) continue;
 
     const newEntryId = entries.length;
-    entries.push({ id: newEntryId, key });
+    entries.push({ id: newEntryId, key, value });
     buckets[bucketIndex] = [...bucket, newEntryId];
     yield {
       kind: "place",
@@ -112,11 +121,11 @@ export function* insertSequence(
 }
 
 export function buildHashTable(
-  keys: readonly number[],
+  pairs: readonly HashTableKV[],
   capacity: number = DEFAULT_CAPACITY,
 ): HashTableSnapshot {
   let final: HashTableSnapshot = emptyHashTable(capacity);
-  for (const step of insertSequence(keys, capacity)) {
+  for (const step of insertSequence(pairs, capacity)) {
     if (step.kind === "done") final = step.table;
   }
   return final;
@@ -159,6 +168,7 @@ export function* searchSequence(
           kind: "found",
           table: initial,
           targetKey,
+          foundValue: initial.entries[entryId].value,
           bucketIndex,
           cursorEntryId: entryId,
           codeLines: hashTableSearchLines.found,

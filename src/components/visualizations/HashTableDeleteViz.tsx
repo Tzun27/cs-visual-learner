@@ -3,15 +3,24 @@
 import { useMemo } from "react";
 import { buildHashTable, deleteSequence } from "@/lib/dataStructures/hashTable";
 import { hashTableDeletePython } from "@/lib/dataStructures/hashTableDelete.snippet";
-import type { HashTableDeleteStep } from "@/lib/dataStructures/types";
+import type { HashTableDeleteStep, HashTableKV } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { HashTableView, type HashCellHighlight } from "./HashTableView";
 
-// Pre-built table: bucket 1 = [1, 9, 17, 25], bucket 2 = [2].
-const BUILD_KEYS = [1, 9, 17, 25, 2] as const;
+// Pre-built table:
+//   bucket 1 = [(1, 10), (9, 90), (17, 170), (25, 250)]
+//   bucket 2 = [(2, 20)]
+// Values are 10× key for easy sanity-reading by the user.
+const BUILD_PAIRS: readonly HashTableKV[] = [
+  [1, 10],
+  [9, 90],
+  [17, 170],
+  [25, 250],
+  [2, 20],
+] as const;
 // 9  → middle of chain;  25 → tail of chain;  1 → head of chain;
 // 99 → miss in an empty bucket (no probes).
 const DELETE_TARGETS = [9, 25, 1, 99] as const;
@@ -46,17 +55,17 @@ function annotationFor(step: HashTableDeleteStep | undefined): string | null {
   if (!step) return null;
   switch (step.kind) {
     case "begin":
-      return `Removing ${step.targetKey}`;
+      return `remove(${step.targetKey})`;
     case "hash":
       return `hash(${step.targetKey}) % 8 = ${step.bucketIndex}`;
     case "probe": {
       const cursor = step.table.entries[step.cursorEntryId];
-      return `Probing ${cursor.key} in bucket ${step.bucketIndex}`;
+      return `Probing key ${cursor.key} (value ${cursor.value}) in bucket ${step.bucketIndex}`;
     }
     case "found":
-      return `Found ${step.targetKey}`;
+      return `Found key ${step.targetKey}`;
     case "unlink":
-      return `Removed ${step.targetKey} from bucket ${step.bucketIndex}`;
+      return `Removed key ${step.targetKey} from bucket ${step.bucketIndex}`;
     case "miss":
       return `${step.targetKey} not in bucket ${step.bucketIndex}`;
     case "done":
@@ -83,7 +92,7 @@ function countMisses(steps: readonly HashTableDeleteStep[]): number {
 }
 
 export function HashTableDeleteViz({ initialSpeedMs = 400 }: HashTableDeleteVizProps) {
-  const initial = useMemo(() => buildHashTable(BUILD_KEYS), []);
+  const initial = useMemo(() => buildHashTable(BUILD_PAIRS), []);
   const steps = useMemo<readonly HashTableDeleteStep[]>(
     () => [...deleteSequence(initial, DELETE_TARGETS)],
     [initial],
@@ -112,7 +121,7 @@ export function HashTableDeleteViz({ initialSpeedMs = 400 }: HashTableDeleteVizP
       className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
     >
       <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Removing {DELETE_TARGETS.join(", ")}
+        remove({DELETE_TARGETS.join("), remove(")})
       </p>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">

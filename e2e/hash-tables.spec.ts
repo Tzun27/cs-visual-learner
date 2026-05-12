@@ -57,13 +57,15 @@ test.describe("/lessons/data-structures/hash-tables", () => {
     await reset.click();
     await expect(counters).toContainText(/Probes\s*0/);
     await expect(counters).toContainText(/Placed\s*0/);
-    await expect(counters).toContainText(/Duplicates\s*0/);
+    await expect(counters).toContainText(/Overwrites\s*0/);
   });
 
   test("the search section has its own targets list and counter triplet", async ({ page }) => {
     await page.goto("/lessons/data-structures/hash-tables");
     const searchRegion = page.getByRole("region", { name: "Hash table search", exact: true });
-    await expect(searchRegion.getByText(/Searching for/)).toBeVisible();
+    // Match the title strip's comma-separated form (won't collide with the
+    // single `def get(self, key):` line in the Python snippet).
+    await expect(searchRegion.getByText(/get\(1\), get\(17\)/)).toBeVisible();
     const counters = searchRegion.locator("dl");
     await expect(counters).toContainText(/Probes\s*0/);
     await expect(counters).toContainText(/Found\s*0/);
@@ -88,7 +90,9 @@ test.describe("/lessons/data-structures/hash-tables", () => {
   test("the delete section renders with the unlink-oriented counter triplet", async ({ page }) => {
     await page.goto("/lessons/data-structures/hash-tables");
     const deleteRegion = page.getByRole("region", { name: "Hash table delete", exact: true });
-    await expect(deleteRegion.getByText(/Removing/)).toBeVisible();
+    // Match the title strip's comma-separated form (won't collide with the
+    // single `def remove(self, key):` line in the Python snippet).
+    await expect(deleteRegion.getByText(/remove\(9\), remove\(25\)/)).toBeVisible();
     const counters = deleteRegion.locator("dl");
     await expect(counters).toContainText(/Probes\s*0/);
     await expect(counters).toContainText(/Removed\s*0/);

@@ -3,15 +3,25 @@
 import { useMemo } from "react";
 import { buildHashTable, searchSequence } from "@/lib/dataStructures/hashTable";
 import { hashTableSearchPython } from "@/lib/dataStructures/hashTableSearch.snippet";
-import type { HashTableSearchStep } from "@/lib/dataStructures/types";
+import type { HashTableKV, HashTableSearchStep } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { HashTableView, type HashCellHighlight } from "./HashTableView";
 
-// Pre-built table: bucket 1 = [1, 9, 17], bucket 2 = [2, 50].
-const BUILD_KEYS = [1, 9, 17, 2, 50] as const;
+// Pre-built table:
+//   bucket 1 = [(1, 10), (9, 90), (17, 170)]
+//   bucket 2 = [(2, 20), (50, 500)]
+// Values are 10× the key for easy mental verification — the user can sanity
+// check "I asked for key 17 and got value 170" without external context.
+const BUILD_PAIRS: readonly HashTableKV[] = [
+  [1, 10],
+  [9, 90],
+  [17, 170],
+  [2, 20],
+  [50, 500],
+] as const;
 // 1  → head-of-chain hit; 17 → end-of-chain hit (3 probes);
 // 50 → end-of-chain hit in a smaller bucket;
 // 25 → miss after probing a non-empty bucket;
@@ -47,17 +57,17 @@ function annotationFor(step: HashTableSearchStep | undefined): string | null {
   if (!step) return null;
   switch (step.kind) {
     case "begin":
-      return `Searching for ${step.targetKey}`;
+      return `get(${step.targetKey})`;
     case "hash":
       return `hash(${step.targetKey}) % 8 = ${step.bucketIndex}`;
     case "probe": {
       const cursor = step.table.entries[step.cursorEntryId];
-      return `Probing ${cursor.key} in bucket ${step.bucketIndex}`;
+      return `Probing key ${cursor.key} (value ${cursor.value}) in bucket ${step.bucketIndex}`;
     }
     case "found":
-      return `Found ${step.targetKey}`;
+      return `Found key ${step.targetKey} → value ${step.foundValue}`;
     case "miss":
-      return `${step.targetKey} not in bucket ${step.bucketIndex}`;
+      return `${step.targetKey} not in bucket ${step.bucketIndex} → None`;
     case "done":
       return "Done";
   }
@@ -82,7 +92,7 @@ function countMisses(steps: readonly HashTableSearchStep[]): number {
 }
 
 export function HashTableSearchViz({ initialSpeedMs = 400 }: HashTableSearchVizProps) {
-  const initial = useMemo(() => buildHashTable(BUILD_KEYS), []);
+  const initial = useMemo(() => buildHashTable(BUILD_PAIRS), []);
   const steps = useMemo<readonly HashTableSearchStep[]>(
     () => [...searchSequence(initial, SEARCH_TARGETS)],
     [initial],
@@ -111,7 +121,7 @@ export function HashTableSearchViz({ initialSpeedMs = 400 }: HashTableSearchVizP
       className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
     >
       <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Searching for {SEARCH_TARGETS.join(", ")}
+        get({SEARCH_TARGETS.join("), get(")})
       </p>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">

@@ -19,7 +19,10 @@ const VIEWBOX_WIDTH = 600;
 const PADDING_X = 16;
 const PADDING_Y = 16;
 const HEADER_HEIGHT = 28;
-const CELL_RADIUS_X = 22;
+// Wider/shallower than the pre-map version to give "k: v" cells room
+// to breathe — the longest value with 3 digits + colon + space + 2-digit
+// key needs ~7 monospace glyphs at fontSize 12 ≈ 50 px of inner width.
+const CELL_RADIUS_X = 28;
 const CELL_RADIUS_Y = 14;
 const CELL_SPACING_Y = 38;
 const CONNECTOR_OVERLAP = 4;
@@ -71,7 +74,7 @@ export function HashTableView({
   }
   for (const h of highlights) {
     const entry = table.entries[h.entryId];
-    if (entry) labelParts.push(`entry ${entry.key} ${kindLabel[h.kind]}`);
+    if (entry) labelParts.push(`entry ${entry.key}: ${entry.value} ${kindLabel[h.kind]}`);
   }
   const ariaLabel =
     liveCount === 0
@@ -194,7 +197,7 @@ export function HashTableView({
                 fontFamily="var(--font-mono), monospace"
                 fill="var(--foreground)"
               >
-                {entry.key}
+                {`${entry.key}: ${entry.value}`}
               </text>
               {kind === "placed" && (
                 <ellipse

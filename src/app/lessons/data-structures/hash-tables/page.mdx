@@ -12,47 +12,62 @@ export const metadata = {
 
 **Difficulty:** intermediate · **Category:** data structures
 
-A hash table trades a key into a small integer — a _bucket index_ — by running the key through a
-**hash function**. If two keys land in the same bucket (a _collision_), the table needs a
-strategy for storing both. The version shown here uses **separate chaining**: each bucket holds a
-list, and colliding keys append to that list.
+A hash table stores `key → value` pairs. To put or get an entry, it runs the key through a
+**hash function** to compute a small integer — a _bucket index_ — and looks at just that bucket.
+When two keys land in the same bucket (a _collision_), the table needs a strategy. The version
+shown here uses **separate chaining**: each bucket holds a list, and colliding keys append to
+that list as `(key, value)` pairs.
 
-The eight buckets across the top are indexed $0$ through $7$. The hash function is the simplest one
-that still demonstrates the structure: $\text{bucket}(k) = k \bmod 8$.
+The eight buckets across the top are indexed $0$ through $7$. The hash function is the simplest
+one that still demonstrates the structure: $\text{bucket}(k) = k \bmod 8$. Each cell in a chain
+reads as `key: value` — when we put $(5, 100)$, the cell shows `5: 100`.
 
-## Inserting keys
+## Putting key→value pairs
 
 <HashTableInsertViz />
 
-Press **Play** and watch each key flow through the same three-step routine: hash to find the
-bucket, walk the existing chain looking for a duplicate, then either append or skip.
+Press **Play** and watch each put flow through the same three-step routine: hash to find the
+bucket, walk the existing chain looking for the same key, then either **overwrite** the value if
+the key is already there or **append** a new `(key, value)` pair if it isn't.
 
 - **Yellow** rings mark keys _being probed_ during the chain walk.
-- **Blue** rings (with a dashed halo) just got _placed_ at the end of a bucket.
-- **Orange** rings indicate a _duplicate_ — the key is already there, so nothing is added.
+- **Blue** rings (with a dashed halo) mark either a fresh placement or an overwrite — in both
+  cases, the cell now holds the most recent value for that key.
+- **Orange** rings appear when an existing entry is about to be overwritten.
 
-The first three keys — $5$, $13$, $21$ — all hash to bucket $5$ and pile up in a chain. The chain
-walk before each insert is what makes the table _set-like_: a second copy of $5$ is detected on
-the third probe and dropped on the floor.
+The first three puts — $(5, 100)$, $(13, 250)$, $(21, 75)$ — all hash to bucket $5$ and pile up
+into a chain. The interesting one is the sixth put: $(5, 150)$. Key $5$ is already at the head of
+bucket $5$ with value $100$. The chain walk finds it on the first probe and the value gets
+replaced — $100 \to 150$ — without growing the chain. Watch the Overwrites counter tick by one
+while Placed stays the same.
 
-The insert cost is $O(1 + \text{chain length})$. With a good hash function and a sensible load
-factor, chains stay short and inserts are constant-time on average. Bad hash functions, or
+This is the load-bearing difference between a hash _set_ (which would drop the duplicate key) and
+a hash _map_ (which overwrites the value). Production hash tables — Python's `dict`, Java's
+`HashMap`, Rust's `HashMap`, JS's `Map` — are all maps. A "set" is just a map where you don't
+care about the value.
+
+The put cost is $O(1 + \text{chain length})$. With a good hash function and a sensible load
+factor, chains stay short and puts are constant-time on average. Bad hash functions, or
 oversubscribed tables, are how the $O(1)$ promise turns into $O(n)$.
 
-## Searching the table
+## Getting a value by key
 
 <HashTableSearchViz />
 
-Search is the same three-step routine without the writeback: hash, walk the bucket's chain, and
-return either the entry or a miss. The viz runs five lookups against a pre-built table where
-bucket $1$ holds $[1, 9, 17]$ and bucket $2$ holds $[2, 50]$:
+Get is the same three-step routine without the writeback: hash, walk the bucket's chain, and
+either return the stored value or report nothing was found. The viz runs five lookups against a
+pre-built table where bucket $1$ holds $[(1, 10), (9, 90), (17, 170)]$ and bucket $2$ holds
+$[(2, 20), (50, 500)]$. The values are deliberately set to $10 \times \text{key}$ so you can
+sanity-check the returned value at a glance.
 
-- $1$ — head-of-chain hit; only one probe needed.
-- $17$ — end-of-chain hit; the walk has to pass $1$ and $9$ first.
-- $50$ — hit in a shorter chain.
-- $25$ — _miss_, but only after probing every entry in bucket $1$. The chain is short, but a long
-  chain with a non-matching key is exactly where hash table performance degrades.
-- $3$ — _miss_ against an empty bucket. Zero probes — the bucket itself is the answer.
+- $\text{get}(1)$ — head-of-chain hit; returns $10$ after one probe.
+- $\text{get}(17)$ — end-of-chain hit, returns $170$; the walk has to pass $1$ and $9$ first.
+- $\text{get}(50)$ — hit in a shorter chain, returns $500$.
+- $\text{get}(25)$ — _miss_, but only after probing every entry in bucket $1$. The chain is
+  short here, but a long chain with no matching key is exactly where hash-table performance
+  degrades.
+- $\text{get}(3)$ — _miss_ against an empty bucket. Zero probes — the empty bucket is the answer.
+  Returns `None`.
 
 That last case is the lookup story at its best: hash, see an empty bucket, return. It's the
 reason hash tables outperform balanced trees for unordered membership: a tree always needs at
@@ -67,26 +82,31 @@ bucket must hold a chain of length $\geq 2$ by the pigeonhole principle.
 
 In practice, hash tables resize themselves once $\alpha$ crosses a threshold (often $0.75$). The
 table allocates a larger bucket array and **rehashes** every existing key into a new bucket. This
-amortizes to $O(1)$ per insert despite occasional $O(n)$ resize events.
+amortizes to $O(1)$ per put despite occasional $O(n)$ resize events.
 
-The viz omits resizing to keep the model honest: every collision in the picture is collision the
-hash function actually caused, not collision a too-small table forced.
+The viz omits resizing to keep the model honest: every collision in the picture is a collision
+the hash function actually caused, not one a too-small table forced.
 
 ## Removing keys
 
 <HashTableDeleteViz />
 
-Delete is structurally the same as search, with an extra writeback step at the end. The viz
-removes four keys from a pre-built table with bucket $1$ = $[1, 9, 17, 25]$ and bucket $2$ = $[2]$:
+Remove is structurally the same as get, with one extra writeback at the end. The viz removes
+four keys from a pre-built table with bucket $1$ = $[(1, 10), (9, 90), (17, 170), (25, 250)]$ and
+bucket $2$ = $[(2, 20)]$:
 
-- $9$ — middle of the chain. Two probes to find it, then the chain shrinks to $[1, 17, 25]$.
-- $25$ — _now the tail_ after $9$ left. Three probes (the chain has $1$, $17$, $25$ in that order).
-- $1$ — head of the chain. One probe.
-- $99$ — miss in an empty bucket. Zero probes.
+- $\text{remove}(9)$ — middle of the chain. Two probes to find it, then the chain shrinks to
+  $[(1, 10), (17, 170), (25, 250)]$.
+- $\text{remove}(25)$ — _now the tail_ after $9$ left. Three probes (the chain has $1$, $17$,
+  $25$ in that order).
+- $\text{remove}(1)$ — head of the chain. One probe.
+- $\text{remove}(99)$ — miss in an empty bucket. Zero probes.
 
-In separate chaining, delete is straightforward: find the entry, splice it out of the bucket
+In separate chaining, remove is straightforward: find the entry, splice it out of the bucket
 list. Other strategies (open addressing with probing) need _tombstones_ to keep subsequent
-lookups working, because a hole in the probe sequence would otherwise terminate a search early.
+lookups working, because a hole in the probe sequence would otherwise terminate a search
+early — that's the whole story of the
+[linear probing lesson](/lessons/data-structures/linear-probing).
 
 ## When the abstraction leaks
 

@@ -1,17 +1,17 @@
-export const hashTableSearchPython = `def contains(self, key):
+export const hashTableSearchPython = `def get(self, key):
     i = hash(key) % self.capacity
     bucket = self.buckets[i]
-    for k in bucket:
+    for k, v in bucket:
         if k == key:
-            return True
-    return False
+            return v
+    return None
 `;
 
 export const hashTableSearchLines = {
   begin: [1],
   hash: [2, 3],
   probe: [4, 5],
-  found: [6],
+  found: [5, 6],
   miss: [7],
   done: [1],
 } as const;

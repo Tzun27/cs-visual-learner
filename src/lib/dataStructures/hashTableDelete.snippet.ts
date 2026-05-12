@@ -1,7 +1,7 @@
 export const hashTableDeletePython = `def remove(self, key):
     i = hash(key) % self.capacity
     bucket = self.buckets[i]
-    for j, k in enumerate(bucket):
+    for j, (k, v) in enumerate(bucket):
         if k == key:
             bucket.pop(j)
             return True

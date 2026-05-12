@@ -14,12 +14,20 @@ import {
 import { hashTableDeletePython } from "@/lib/dataStructures/hashTableDelete.snippet";
 import { hashTableInsertPython } from "@/lib/dataStructures/hashTableInsert.snippet";
 import { hashTableSearchPython } from "@/lib/dataStructures/hashTableSearch.snippet";
-import type { HashTableSnapshot } from "@/lib/dataStructures/types";
+import type { HashTableKV, HashTableSnapshot } from "@/lib/dataStructures/types";
 
 function finalOf<S extends { kind: string; table: HashTableSnapshot }>(steps: readonly S[]) {
   const last = steps.at(-1);
   if (!last || last.kind !== "done") throw new Error("expected 'done' as last step");
   return last.table;
+}
+
+// Compact builder: convert a bare key list into (key, value) pairs where
+// value === key. Saves test boilerplate and keeps assertions readable —
+// since tests below are about structure (buckets, hits, misses), they
+// rarely care about the value specifically.
+function kvs(...keys: number[]): HashTableKV[] {
+  return keys.map((k) => [k, k] as const);
 }
 
 describe("bucketIndexFor", () => {
@@ -75,7 +83,7 @@ describe("insertSequence", () => {
 
   it("every emitted step carries codeLines inside the displayed Python source", () => {
     const lineCount = hashTableInsertPython.split("\n").length;
-    for (const step of insertSequence([5, 13, 5, 1, 9])) {
+    for (const step of insertSequence(kvs(5, 13, 5, 1, 9))) {
       expect(step.codeLines).toBeDefined();
       expect(step.codeLines!.length).toBeGreaterThan(0);
       for (const line of step.codeLines!) {
@@ -86,7 +94,7 @@ describe("insertSequence", () => {
   });
 
   it("yields begin → hash → place for a first insert (empty bucket)", () => {
-    const steps = [...insertSequence([3])];
+    const steps = [...insertSequence(kvs(3))];
     expect(steps.map((s) => s.kind)).toEqual(["begin", "hash", "place", "done"]);
     const place = steps[2];
     if (place.kind !== "place") throw new Error("expected place");
@@ -96,7 +104,7 @@ describe("insertSequence", () => {
 
   it("walks the chain when inserting into a colliding bucket", () => {
     // With default capacity 8, both 1 and 9 hash to bucket 1.
-    const steps = [...insertSequence([1, 9])];
+    const steps = [...insertSequence(kvs(1, 9))];
     const kinds = steps.map((s) => s.kind);
     // begin, hash, place (for 1), then begin, hash, probe(1), place (for 9)
     expect(kinds).toEqual(["begin", "hash", "place", "begin", "hash", "probe", "place", "done"]);
@@ -104,8 +112,16 @@ describe("insertSequence", () => {
     expect(finalTable.buckets[1]).toEqual([0, 1]); // both entry ids land in bucket 1, in insertion order
   });
 
-  it("emits a 'duplicate' step instead of placing when the key is already present", () => {
-    const steps = [...insertSequence([5, 5])];
+  it("overwrites the existing entry's value when the key is already present (map semantics)", () => {
+    // Same key, different values. The first put places a new entry; the
+    // second put walks to the existing entry, sees the key match, and
+    // overwrites the value. No second 'place' step.
+    const steps = [
+      ...insertSequence([
+        [5, 100],
+        [5, 200],
+      ]),
+    ];
     const kinds = steps.map((s) => s.kind);
     expect(kinds).toEqual([
       "begin",
@@ -114,23 +130,32 @@ describe("insertSequence", () => {
       "begin",
       "hash",
       "probe",
-      "duplicate",
+      "overwrite",
       "done",
     ]);
     expect(steps.filter((s) => s.kind === "place")).toHaveLength(1);
     const finalTable = finalOf(steps);
     expect(finalTable.entries).toHaveLength(1);
+    expect(finalTable.entries[0]).toMatchObject({ key: 5, value: 200 });
+    const overwrite = steps.find((s) => s.kind === "overwrite");
+    if (overwrite?.kind !== "overwrite") throw new Error("expected overwrite");
+    expect(overwrite.oldValue).toBe(100);
+    expect(overwrite.insertingValue).toBe(200);
   });
 
   it("does not mutate its input", () => {
-    const input = [3, 1, 2];
-    const snap = [...input];
+    const input: HashTableKV[] = [
+      [3, 30],
+      [1, 10],
+      [2, 20],
+    ];
+    const snap = JSON.parse(JSON.stringify(input));
     void [...insertSequence(input)];
-    expect(input).toEqual(snap);
+    expect(JSON.parse(JSON.stringify(input))).toEqual(snap);
   });
 
   it("emits fresh table snapshots, not aliased mutable refs", () => {
-    const steps = [...insertSequence([1, 9, 17])];
+    const steps = [...insertSequence(kvs(1, 9, 17))];
     const tables = steps.map((s) => s.table);
     for (let i = 0; i < tables.length; i++) {
       for (let j = i + 1; j < tables.length; j++) {
@@ -146,7 +171,7 @@ describe("insertSequence", () => {
         fc.array(fc.integer({ min: 0, max: 200 }), { maxLength: 30 }),
         fc.integer({ min: 1, max: 16 }),
         (keys, cap) => {
-          for (const step of insertSequence(keys, cap)) {
+          for (const step of insertSequence(kvs(...keys), cap)) {
             if ("bucketIndex" in step && "insertingKey" in step) {
               expect(step.bucketIndex).toBe(bucketIndexFor(step.insertingKey, cap));
             }
@@ -162,9 +187,34 @@ describe("insertSequence", () => {
         fc.array(fc.integer({ min: 0, max: 200 }), { maxLength: 30 }),
         fc.integer({ min: 1, max: 16 }),
         (keys, cap) => {
-          const final = finalOf([...insertSequence(keys, cap)]);
+          const final = finalOf([...insertSequence(kvs(...keys), cap)]);
           const live = new Set(liveKeys(final));
           expect(live).toEqual(new Set(keys));
+        },
+      ),
+    );
+  });
+
+  it("property: the final value for any duplicated key is its LAST put", () => {
+    // Map semantics: re-putting the same key overwrites the value, so
+    // for keys that appear multiple times in the input the final entry
+    // carries the last (key, value) pair's value.
+    fc.assert(
+      fc.property(
+        fc.array(fc.tuple(fc.integer({ min: 0, max: 50 }), fc.integer({ min: 0, max: 1000 })), {
+          minLength: 1,
+          maxLength: 25,
+        }),
+        (pairs) => {
+          const lastValue = new Map<number, number>();
+          for (const [k, v] of pairs) lastValue.set(k, v);
+          const final = finalOf([...insertSequence(pairs)]);
+          for (const bucket of final.buckets) {
+            for (const id of bucket) {
+              const e = final.entries[id];
+              expect(e.value).toBe(lastValue.get(e.key));
+            }
+          }
         },
       ),
     );
@@ -177,13 +227,13 @@ describe("buildHashTable", () => {
   });
 
   it("matches the last 'done' step of insertSequence", () => {
-    const keys = [1, 9, 17, 2, 10, 50];
-    const fromGen = finalOf([...insertSequence(keys)]);
-    expect(buildHashTable(keys)).toEqual(fromGen);
+    const pairs = kvs(1, 9, 17, 2, 10, 50);
+    const fromGen = finalOf([...insertSequence(pairs)]);
+    expect(buildHashTable(pairs)).toEqual(fromGen);
   });
 
   it("can build with a custom capacity", () => {
-    const t = buildHashTable([1, 5, 9], 4);
+    const t = buildHashTable(kvs(1, 5, 9), 4);
     expect(t.capacity).toBe(4);
     // 1 → 1, 5 → 1, 9 → 1; all collide in bucket 1 under capacity 4.
     expect(t.buckets[1]).toHaveLength(3);
@@ -196,7 +246,7 @@ describe("loadFactor", () => {
   });
 
   it("returns liveKeys.length / capacity", () => {
-    const t = buildHashTable([1, 9, 17]); // 3 distinct, capacity 8
+    const t = buildHashTable(kvs(1, 9, 17)); // 3 distinct, capacity 8
     expect(loadFactor(t)).toBeCloseTo(3 / 8);
   });
 
@@ -208,7 +258,7 @@ describe("loadFactor", () => {
 });
 
 describe("searchSequence", () => {
-  const t = buildHashTable([1, 9, 17, 2, 50]);
+  const t = buildHashTable(kvs(1, 9, 17, 2, 50));
 
   it("yields only a 'done' step for empty targets", () => {
     const steps = [...searchSequence(t, [])];
@@ -265,15 +315,33 @@ describe("searchSequence", () => {
     expect(steps.at(-1)?.kind).toBe("done");
   });
 
-  it("property: every present key is reported 'found' exactly once", () => {
+  it("found steps surface the stored value alongside the key", () => {
+    // Confirm map semantics on the search side: 'found' must carry the
+    // value that was put under this key, not just an acknowledgement.
+    const map = buildHashTable([
+      [1, 111],
+      [9, 999],
+    ]);
+    const steps = [...searchSequence(map, [9, 1])];
+    const founds = steps.filter((s) => s.kind === "found");
+    expect(founds.map((f) => (f.kind === "found" ? f.foundValue : null))).toEqual([999, 111]);
+  });
+
+  it("property: every present key is reported 'found' exactly once with its stored value", () => {
     fc.assert(
       fc.property(
         fc.uniqueArray(fc.integer({ min: 0, max: 200 }), { minLength: 1, maxLength: 25 }),
         (keys) => {
-          const table = buildHashTable(keys);
+          const pairs = keys.map((k) => [k, k * 7] as const);
+          const table = buildHashTable(pairs);
           const steps = [...searchSequence(table, keys)];
-          expect(steps.filter((s) => s.kind === "found")).toHaveLength(keys.length);
+          const founds = steps.filter((s) => s.kind === "found");
+          expect(founds).toHaveLength(keys.length);
           expect(steps.some((s) => s.kind === "miss")).toBe(false);
+          for (const f of founds) {
+            if (f.kind !== "found") throw new Error("expected found");
+            expect(f.foundValue).toBe(f.targetKey * 7);
+          }
         },
       ),
     );
@@ -284,7 +352,7 @@ describe("searchSequence", () => {
       fc.property(
         fc.uniqueArray(fc.integer({ min: 0, max: 100 }), { minLength: 1, maxLength: 20 }),
         (keys) => {
-          const table = buildHashTable(keys);
+          const table = buildHashTable(kvs(...keys));
           const present = new Set(keys);
           const absent = [500, 501, 502, 503].filter((k) => !present.has(k));
           if (absent.length === 0) return;
@@ -298,16 +366,16 @@ describe("searchSequence", () => {
 });
 
 describe("deleteSequence", () => {
-  const baseKeys = [1, 9, 17, 2, 50] as const;
+  const basePairs: HashTableKV[] = kvs(1, 9, 17, 2, 50);
 
   it("yields only a 'done' step for empty targets", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     const steps = [...deleteSequence(t, [])];
     expect(steps.map((s) => s.kind)).toEqual(["done"]);
   });
 
   it("every emitted delete step carries codeLines pointing inside the displayed Python source", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     const lineCount = hashTableDeletePython.split("\n").length;
     for (const step of deleteSequence(t, [1, 9, 17, 99])) {
       expect(step.codeLines).toBeDefined();
@@ -319,7 +387,7 @@ describe("deleteSequence", () => {
   });
 
   it("emits 'miss' when the bucket is empty", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     const steps = [...deleteSequence(t, [3])];
     expect(steps.some((s) => s.kind === "miss")).toBe(true);
     expect(steps.some((s) => s.kind === "found")).toBe(false);
@@ -327,7 +395,7 @@ describe("deleteSequence", () => {
   });
 
   it("emits 'miss' when the bucket has only non-matching keys", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     // 25 → bucket 1 with [1, 9, 17]; none match.
     const steps = [...deleteSequence(t, [25])];
     expect(steps.filter((s) => s.kind === "probe")).toHaveLength(3);
@@ -336,7 +404,7 @@ describe("deleteSequence", () => {
   });
 
   it("removes a head-of-bucket key with one probe + found + unlink", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     const steps = [...deleteSequence(t, [1])];
     expect(steps.map((s) => s.kind)).toEqual(["begin", "hash", "probe", "found", "unlink", "done"]);
     const final = finalOf(steps);
@@ -345,7 +413,7 @@ describe("deleteSequence", () => {
   });
 
   it("removes a middle-of-chain key, preserving the rest of the chain", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     // Delete 9 from [1, 9, 17] → [1, 17].
     const steps = [...deleteSequence(t, [9])];
     const final = finalOf(steps);
@@ -354,7 +422,7 @@ describe("deleteSequence", () => {
   });
 
   it("orphans entries on delete — the entry stays in entries[] but is not reachable from any bucket", () => {
-    const t = buildHashTable([1, 9]);
+    const t = buildHashTable(kvs(1, 9));
     const steps = [...deleteSequence(t, [1])];
     const final = finalOf(steps);
     expect(final.entries).toHaveLength(2); // tombstoned, not spliced
@@ -365,7 +433,7 @@ describe("deleteSequence", () => {
   });
 
   it("processes multiple targets and shares the running table", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     const steps = [...deleteSequence(t, [1, 17, 99])];
     expect(steps.filter((s) => s.kind === "begin")).toHaveLength(3);
     expect(steps.filter((s) => s.kind === "unlink")).toHaveLength(2);
@@ -375,7 +443,7 @@ describe("deleteSequence", () => {
   });
 
   it("does not mutate the input snapshot", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     const beforeBuckets = t.buckets.map((b) => [...b]);
     const beforeEntries = t.entries.map((e) => ({ ...e }));
     void [...deleteSequence(t, [1, 9])];
@@ -384,7 +452,7 @@ describe("deleteSequence", () => {
   });
 
   it("emits fresh table snapshots, not aliased mutable refs", () => {
-    const t = buildHashTable(baseKeys);
+    const t = buildHashTable(basePairs);
     const tables = [...deleteSequence(t, [1, 9])].map((s) => s.table);
     for (let i = 0; i < tables.length; i++) {
       for (let j = i + 1; j < tables.length; j++) {
@@ -400,7 +468,7 @@ describe("deleteSequence", () => {
         fc.uniqueArray(fc.integer({ min: 0, max: 50 }), { minLength: 1, maxLength: 20 }),
         fc.array(fc.integer({ min: 0, max: 50 }), { maxLength: 10 }),
         (insertKeys, deleteKeys) => {
-          const t = buildHashTable(insertKeys);
+          const t = buildHashTable(kvs(...insertKeys));
           const steps = [...deleteSequence(t, deleteKeys)];
           const final = finalOf(steps);
           const remaining = new Set(insertKeys);

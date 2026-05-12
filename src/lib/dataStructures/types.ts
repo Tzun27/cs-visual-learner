@@ -95,16 +95,25 @@ export type BstTraversalStep =
       sequence: readonly number[];
     });
 
-// Hash table (separate chaining hash set). Entries are dense-id like BST nodes
-// — `entries[id]` always returns the original entry, even after deletes — so
-// step snapshots can refer back to historical entries by id. Buckets are
-// `readonly number[]` lists of entry ids; delete splices the id out of the
-// bucket but leaves the entry in `entries[]` (orphaned, unreachable from any
-// bucket). Capacity is fixed for a given snapshot (no rehashing).
+// Hash table (separate chaining hash map). Entries are dense-id like BST
+// nodes — `entries[id]` always returns the original entry, even after
+// deletes — so step snapshots can refer back to historical entries by id.
+// Each entry carries both `key` and `value`: this is a hash _map_, not a
+// hash set, so duplicate-key puts overwrite the value rather than drop the
+// input. Buckets are `readonly number[]` lists of entry ids; delete splices
+// the id out of the bucket but leaves the entry in `entries[]` (orphaned,
+// unreachable from any bucket). Capacity is fixed for a given snapshot
+// (no rehashing).
 export type HashTableEntry = {
   readonly id: number;
   readonly key: number;
+  readonly value: number;
 };
+
+// `(key, value)` input tuple consumed by the put / insertSequence
+// generator and by buildHashTable. Tuples (not objects) so the source
+// arrays read like Python `dict.items()` literals.
+export type HashTableKV = readonly [number, number];
 
 export type HashTableSnapshot = {
   readonly capacity: number;
@@ -113,24 +122,37 @@ export type HashTableSnapshot = {
 };
 
 export type HashTableStep =
-  | (StepBase & { kind: "begin"; table: HashTableSnapshot; insertingKey: number })
+  | (StepBase & {
+      kind: "begin";
+      table: HashTableSnapshot;
+      insertingKey: number;
+      insertingValue: number;
+    })
   | (StepBase & {
       kind: "hash";
       table: HashTableSnapshot;
       insertingKey: number;
+      insertingValue: number;
       bucketIndex: number;
     })
   | (StepBase & {
       kind: "probe";
       table: HashTableSnapshot;
       insertingKey: number;
+      insertingValue: number;
       bucketIndex: number;
       cursorEntryId: number;
     })
   | (StepBase & {
-      kind: "duplicate";
+      // The key already lives in this bucket — the put OVERWRITES that
+      // entry's value (map semantics). The snapshot at this step has
+      // already been mutated; `oldValue` is the value that was just
+      // replaced and is carried for annotation purposes only.
+      kind: "overwrite";
       table: HashTableSnapshot;
       insertingKey: number;
+      insertingValue: number;
+      oldValue: number;
       bucketIndex: number;
       cursorEntryId: number;
     })
@@ -161,6 +183,9 @@ export type HashTableSearchStep =
       kind: "found";
       table: HashTableSnapshot;
       targetKey: number;
+      // Map-semantics: a found step surfaces the entry's value so the
+      // viz / annotation can render "X → 250" rather than just "X".
+      foundValue: number;
       bucketIndex: number;
       cursorEntryId: number;
     })
