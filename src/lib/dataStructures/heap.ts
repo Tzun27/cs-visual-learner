@@ -1,8 +1,10 @@
+import { heapDecreaseKeyLines } from "./heapDecreaseKey.snippet";
 import { heapExtractMinLines } from "./heapExtractMin.snippet";
 import { heapifyLines } from "./heapify.snippet";
 import { heapInsertLines } from "./heapInsert.snippet";
 import type {
   BstSnapshot,
+  HeapDecreaseKeyStep,
   HeapExtractStep,
   HeapifyStep,
   HeapInsertStep,
@@ -266,6 +268,97 @@ export function* heapifySequence(initial: readonly number[]): Generator<HeapifyS
     kind: "done",
     heap: snapshot(heap, n),
     codeLines: heapifyLines.done,
+  };
+}
+
+export type DecreaseKeyOp = {
+  readonly index: number;
+  readonly newValue: number;
+};
+
+export function* heapDecreaseKeySequence(
+  initial: readonly number[],
+  ops: readonly DecreaseKeyOp[],
+): Generator<HeapDecreaseKeyStep> {
+  const heap: number[] = [...initial];
+
+  for (const { index, newValue } of ops) {
+    // Precondition check is part of the algorithm contract; we throw
+    // on misuse rather than silently doing nothing. The viz never
+    // hits this with its curated inputs.
+    if (index < 0 || index >= heap.length) {
+      throw new Error(`heap decrease_key: index ${index} out of range`);
+    }
+    if (newValue > heap[index]) {
+      throw new Error(
+        `heap decrease_key: new value ${newValue} is larger than existing ${heap[index]}`,
+      );
+    }
+
+    const oldValue = heap[index];
+    yield {
+      kind: "begin",
+      heap: snapshot(heap, heap.length),
+      index,
+      newValue,
+      oldValue,
+      codeLines: heapDecreaseKeyLines.begin,
+    };
+
+    heap[index] = newValue;
+    let cursor = index;
+    yield {
+      kind: "set",
+      heap: snapshot(heap, heap.length),
+      cursorIndex: cursor,
+      newValue,
+      codeLines: heapDecreaseKeyLines.set,
+    };
+
+    while (cursor > 0) {
+      const pIdx = parentIndex(cursor);
+      yield {
+        kind: "compare-parent",
+        heap: snapshot(heap, heap.length),
+        cursorIndex: cursor,
+        parentIndex: pIdx,
+        codeLines: heapDecreaseKeyLines.compareParent,
+      };
+      if (heap[cursor] < heap[pIdx]) {
+        [heap[cursor], heap[pIdx]] = [heap[pIdx], heap[cursor]];
+        yield {
+          kind: "swap-up",
+          heap: snapshot(heap, heap.length),
+          cursorIndex: pIdx,
+          fromIndex: cursor,
+          codeLines: heapDecreaseKeyLines.swapUp,
+        };
+        cursor = pIdx;
+      } else {
+        yield {
+          kind: "settle",
+          heap: snapshot(heap, heap.length),
+          cursorIndex: cursor,
+          codeLines: heapDecreaseKeyLines.settle,
+        };
+        break;
+      }
+    }
+
+    if (cursor === 0) {
+      yield {
+        kind: "settle",
+        heap: snapshot(heap, heap.length),
+        cursorIndex: 0,
+        codeLines: heapDecreaseKeyLines.settle,
+      };
+    }
+  }
+
+  yield {
+    kind: "done",
+    heap: snapshot(heap, heap.length),
+    codeLines: heapDecreaseKeyLines.done,
   };
 }
 

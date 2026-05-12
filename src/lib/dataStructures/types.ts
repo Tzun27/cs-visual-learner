@@ -284,6 +284,48 @@ export type HeapifyStep =
     })
   | (StepBase & { kind: "done"; heap: HeapSnapshot });
 
+// `decrease_key` lowers an existing entry's value and sifts it up until
+// the min-heap invariant holds. Structurally similar to insert's siftUp
+// path, but the cursor starts at an arbitrary index (chosen by the
+// caller / a priority-queue handle) rather than at the new last slot —
+// so there's no `append` step and the begin step records the index, the
+// new value, and the old value that's being overwritten.
+export type HeapDecreaseKeyStep =
+  | (StepBase & {
+      kind: "begin";
+      heap: HeapSnapshot;
+      index: number;
+      newValue: number;
+      oldValue: number;
+    })
+  | (StepBase & {
+      kind: "set";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      newValue: number;
+    })
+  | (StepBase & {
+      kind: "compare-parent";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      parentIndex: number;
+    })
+  | (StepBase & {
+      kind: "swap-up";
+      heap: HeapSnapshot;
+      // Mirrors insert's convention: `cursorIndex` is where the value
+      // now lives (= old parent slot), `fromIndex` is the slot just
+      // vacated (= old cursor slot).
+      cursorIndex: number;
+      fromIndex: number;
+    })
+  | (StepBase & {
+      kind: "settle";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+    })
+  | (StepBase & { kind: "done"; heap: HeapSnapshot });
+
 export type HeapExtractStep =
   | (StepBase & { kind: "begin"; heap: HeapSnapshot })
   | (StepBase & {

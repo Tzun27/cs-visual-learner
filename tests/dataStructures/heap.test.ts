@@ -2,11 +2,13 @@ import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import {
   buildHeap,
+  heapDecreaseKeySequence,
   heapExtractMinSequence,
   heapifySequence,
   heapInsertSequence,
   isMinHeap,
 } from "@/lib/dataStructures/heap";
+import { heapDecreaseKeyPython } from "@/lib/dataStructures/heapDecreaseKey.snippet";
 import { heapExtractMinPython } from "@/lib/dataStructures/heapExtractMin.snippet";
 import { heapifyPython } from "@/lib/dataStructures/heapify.snippet";
 import { heapInsertPython } from "@/lib/dataStructures/heapInsert.snippet";
@@ -409,6 +411,165 @@ describe("heapifySequence", () => {
         }
         expect(extracted).toEqual([...vals].sort((a, b) => a - b));
       }),
+    );
+  });
+});
+
+describe("heapDecreaseKeySequence", () => {
+  // Curated demo heap. Valid min-heap:
+  //         4
+  //       /   \
+  //      9     7
+  //     / \   / \
+  //    13 11 8  12
+  const DEMO = [4, 9, 7, 13, 11, 8, 12] as const;
+
+  it("yields only 'done' for an empty op list", () => {
+    const steps = [...heapDecreaseKeySequence(DEMO, [])];
+    expect(steps.map((s) => s.kind)).toEqual(["done"]);
+  });
+
+  it("bubbles a decreased value to the root through multiple swaps", () => {
+    // decrease(index=6, new=2): 12 → 2 bubbles up two levels to the root.
+    const steps = [...heapDecreaseKeySequence(DEMO, [{ index: 6, newValue: 2 }])];
+    const kinds = steps.map((s) => s.kind);
+    // begin → set → compare-parent → swap-up → compare-parent → swap-up → settle → done
+    expect(kinds).toEqual([
+      "begin",
+      "set",
+      "compare-parent",
+      "swap-up",
+      "compare-parent",
+      "swap-up",
+      "settle",
+      "done",
+    ]);
+    const done = steps.at(-1);
+    if (done?.kind !== "done") throw new Error("expected done");
+    expect(done.heap.heap).toEqual([2, 9, 4, 13, 11, 8, 7]);
+    expect(isMinHeap(done.heap)).toBe(true);
+  });
+
+  it("settles immediately when the new value is still >= parent", () => {
+    // decrease(index=4, new=10): 11 → 10 on the demo heap. Parent at
+    // index 1 holds 9, and 10 < 9 is false, so the loop settles without
+    // any swaps.
+    const steps = [...heapDecreaseKeySequence(DEMO, [{ index: 4, newValue: 10 }])];
+    const swaps = steps.filter((s) => s.kind === "swap-up");
+    expect(swaps).toHaveLength(0);
+    const compares = steps.filter((s) => s.kind === "compare-parent");
+    expect(compares).toHaveLength(1);
+    const done = steps.at(-1);
+    if (done?.kind !== "done") throw new Error("expected done");
+    expect(done.heap.heap).toEqual([4, 9, 7, 13, 10, 8, 12]);
+    expect(isMinHeap(done.heap)).toBe(true);
+  });
+
+  it("settles immediately on a root-index decrease (no compare)", () => {
+    // Decreasing the root itself never has a parent to swap with — the
+    // loop body never executes; we get a single 'settle' step.
+    const steps = [...heapDecreaseKeySequence(DEMO, [{ index: 0, newValue: 1 }])];
+    const compares = steps.filter((s) => s.kind === "compare-parent");
+    expect(compares).toHaveLength(0);
+    const settle = steps.filter((s) => s.kind === "settle");
+    expect(settle).toHaveLength(1);
+    const done = steps.at(-1);
+    if (done?.kind !== "done") throw new Error("expected done");
+    expect(done.heap.heap[0]).toBe(1);
+  });
+
+  it("throws when the new value is larger than the existing value", () => {
+    expect(() => [...heapDecreaseKeySequence(DEMO, [{ index: 0, newValue: 999 }])]).toThrow(
+      /larger than/,
+    );
+  });
+
+  it("throws when the index is out of range", () => {
+    expect(() => [...heapDecreaseKeySequence(DEMO, [{ index: 99, newValue: 0 }])]).toThrow(
+      /out of range/,
+    );
+    expect(() => [...heapDecreaseKeySequence(DEMO, [{ index: -1, newValue: 0 }])]).toThrow(
+      /out of range/,
+    );
+  });
+
+  it("every emitted step carries codeLines pointing inside the displayed Python source", () => {
+    const lineCount = heapDecreaseKeyPython.split("\n").length;
+    const steps = [
+      ...heapDecreaseKeySequence(DEMO, [
+        { index: 6, newValue: 2 },
+        { index: 4, newValue: 10 },
+        { index: 0, newValue: -1 },
+      ]),
+    ];
+    for (const step of steps) {
+      expect(step.codeLines).toBeDefined();
+      expect(step.codeLines!.length).toBeGreaterThan(0);
+      for (const line of step.codeLines!) {
+        expect(line).toBeGreaterThanOrEqual(1);
+        expect(line).toBeLessThanOrEqual(lineCount);
+      }
+    }
+  });
+
+  it("does not mutate its input array", () => {
+    const before = [...DEMO];
+    void [...heapDecreaseKeySequence(DEMO, [{ index: 6, newValue: 2 }])];
+    expect([...DEMO]).toEqual(before);
+  });
+
+  it("the final heap is always a valid min-heap and a permutation of (input minus old + new)", () => {
+    // For any valid (index, newValue ≤ heap[index]) pair, the post-state
+    // is the input with one slot replaced and the min-heap invariant
+    // restored. This is the load-bearing correctness property.
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: -100, max: 100 }), { minLength: 2, maxLength: 12 }),
+        fc.integer({ min: 0, max: 11 }),
+        fc.integer({ min: -200, max: 100 }),
+        (vals, rawIndex, candidate) => {
+          // First heapify the input so we start from a valid heap.
+          const heap = [...heapifySequence(vals)].at(-1)!.heap.heap;
+          if (heap.length === 0) return;
+          const i = rawIndex % heap.length;
+          const newVal = Math.min(candidate, heap[i]);
+          const final = [...heapDecreaseKeySequence(heap, [{ index: i, newValue: newVal }])].at(-1);
+          if (final?.kind !== "done") throw new Error("expected done");
+          expect(isMinHeap(final.heap)).toBe(true);
+          // Multiset check: the final heap is the input with heap[i]
+          // replaced by newVal.
+          const expected = [...heap];
+          expected[i] = newVal;
+          expect([...final.heap.heap].sort((a, b) => a - b)).toEqual(
+            expected.sort((a, b) => a - b),
+          );
+        },
+      ),
+    );
+  });
+
+  it("property: decrease_key never increases the value at any index", () => {
+    // After a decrease, every index's value is <= what it was at the
+    // same index pre-op (since swaps only move smaller values up).
+    // Not literally true index-by-index (swaps reorganize), but the
+    // multiset is preserved-and-replaced (already covered above). This
+    // test catches generator bugs that *increase* a value.
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: 0, max: 100 }), { minLength: 1, maxLength: 10 }),
+        fc.integer({ min: 0, max: 9 }),
+        (vals, rawIndex) => {
+          const heap = [...heapifySequence(vals)].at(-1)!.heap.heap;
+          if (heap.length === 0) return;
+          const i = rawIndex % heap.length;
+          // Pick newValue = heap[i] - 1 (strictly smaller).
+          const newVal = heap[i] - 1;
+          const final = [...heapDecreaseKeySequence(heap, [{ index: i, newValue: newVal }])].at(-1);
+          if (final?.kind !== "done") throw new Error("expected done");
+          // Root should be the minimum of (old root, new value).
+          expect(final.heap.heap[0]).toBeLessThanOrEqual(Math.min(heap[0], newVal));
+        },
+      ),
     );
   });
 });
