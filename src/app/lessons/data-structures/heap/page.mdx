@@ -2,6 +2,7 @@ import { HeapInsertViz } from "@/components/visualizations/HeapInsertViz";
 import { HeapifyViz } from "@/components/visualizations/HeapifyViz";
 import { HeapExtractMinViz } from "@/components/visualizations/HeapExtractMinViz";
 import { HeapDecreaseKeyViz } from "@/components/visualizations/HeapDecreaseKeyViz";
+import { HeapDecreaseKeyInteractive } from "@/components/visualizations/HeapDecreaseKeyInteractive";
 
 export const metadata = {
   title: "Heaps & Priority Queues",
@@ -142,6 +143,20 @@ The viz runs two operations against a fixed demo heap:
 
 Each operation is $O(\log n)$ — sift-up walks at most the height of the tree, just like insert.
 The interesting cost is _not_ the sift-up itself, though.
+
+### Try it yourself
+
+The trace above runs two scripted operations. Pick any node in the heap below, drop its value,
+and watch the algorithm restore the invariant. The new value can be anything ≤ the current value
+(equal is fine, but the algorithm only ever moves values _up_, so a larger new value would
+violate `decrease_key`'s contract and is rejected).
+
+<HeapDecreaseKeyInteractive />
+
+The interesting moves are the ones that bubble all the way to the root. Try dropping the value
+at index 5 (which is $8$) to something below the root's current value — you'll see sift-up walk
+two levels up. Or pick a node whose new value is already greater than its parent's; the
+algorithm does a single comparison and settles in place.
 
 ### The "find the index" problem
 

@@ -216,4 +216,44 @@ test.describe("/lessons/data-structures/heap", () => {
     await expect(counters).toContainText(/Swaps\s*2/);
     await expect(counters).toContainText(/Operations\s*2/);
   });
+
+  test("interactive decrease_key: picking an index + new value runs the algorithm", async ({
+    page,
+  }) => {
+    await page.goto("/lessons/data-structures/heap");
+    const region = page.getByRole("region", { name: "Interactive decrease_key", exact: true });
+    await expect(region).toBeVisible();
+
+    const indexButtons = region.getByRole("group", { name: /Heap node index buttons/ });
+    await expect(indexButtons).toBeVisible();
+    // Click the index-5 button (value 8 in the demo heap).
+    const fifthButton = indexButtons.getByRole("button").nth(5);
+    await fifthButton.click();
+    await expect(fifthButton).toHaveAttribute("aria-pressed", "true");
+
+    // Default new-value draft auto-fills to current - 1. Override to 1
+    // so siftUp bubbles to the root for a clear animation.
+    const newValueInput = region.getByLabel(/New value for the selected node/);
+    await newValueInput.fill("1");
+
+    const runButton = region.getByRole("button", { name: /Run decrease_key/ });
+    await expect(runButton).toBeEnabled();
+    await runButton.click();
+
+    // After Run, the playback controls take over. Step forward through
+    // the entire trace.
+    const stepForward = region
+      .getByRole("toolbar", { name: /Playback controls/ })
+      .getByRole("button", { name: /Step forward/ });
+    for (let i = 0; i < 20; i++) {
+      if (!(await stepForward.isEnabled())) break;
+      await stepForward.click();
+    }
+    // Animation done. Step forward is disabled. The root button (index 0)
+    // now shows the new minimum (1) — siftUp bubbled the decreased value
+    // to the root because 1 < everything else along the path.
+    await expect(stepForward).toBeDisabled();
+    const rootButton = indexButtons.getByRole("button").nth(0);
+    await expect(rootButton).toContainText("1");
+  });
 });
