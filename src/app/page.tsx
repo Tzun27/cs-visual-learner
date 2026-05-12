@@ -8,14 +8,14 @@ const lessons = [
     blurb: "Watch the largest values bubble to the end one swap at a time. Feel the quadratic.",
   },
   {
+    slug: "insertion-sort",
+    title: "Insertion Sort",
+    blurb: "Slide each new value into its place in the sorted prefix. Quadratic, but quietly so.",
+  },
+  {
     slug: "merge-sort",
     title: "Merge Sort",
     blurb: "Divide-and-conquer in motion. Sub-ranges shrink, then merge.",
-  },
-  {
-    slug: "quick-sort",
-    title: "Quick Sort",
-    blurb: "A pivot, a partition, recursion. Fast on average — see why.",
   },
 ] as const;
 
