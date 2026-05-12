@@ -49,6 +49,17 @@ test.describe("/lessons/data-structures/heap", () => {
       }),
     ).toBeVisible();
 
+    const decreaseRegion = page.getByRole("region", {
+      name: "Min-heap decrease-key visualization",
+      exact: true,
+    });
+    await expect(decreaseRegion).toBeVisible();
+    await expect(
+      decreaseRegion.getByRole("toolbar", { name: /Playback controls/ }).getByRole("button", {
+        name: /Step forward/,
+      }),
+    ).toBeVisible();
+
     expect(consoleErrors).toEqual([]);
   });
 
@@ -182,5 +193,27 @@ test.describe("/lessons/data-structures/heap", () => {
       .getByRole("group", { name: /Extracted minimums/ })
       .getByRole("listitem");
     await expect(extractedItems).toHaveText(["1", "2", "3", "4"]);
+  });
+
+  test("running the decrease-key viz to completion produces 3 compares + 2 swaps + 2 ops", async ({
+    page,
+  }) => {
+    await page.goto("/lessons/data-structures/heap");
+    const region = page.getByRole("region", {
+      name: "Min-heap decrease-key visualization",
+      exact: true,
+    });
+    const stepForward = region.getByRole("button", { name: /Step forward/ });
+    const counters = region.locator("dl");
+
+    for (let i = 0; i < 80; i++) {
+      if (!(await stepForward.isEnabled())) break;
+      await stepForward.click();
+    }
+    // decrease(6, 2): 2 compares + 2 swaps. decrease(4, 10): 1 compare + 0 swaps.
+    // Two begin steps = 2 ops total.
+    await expect(counters).toContainText(/Comparisons\s*3/);
+    await expect(counters).toContainText(/Swaps\s*2/);
+    await expect(counters).toContainText(/Operations\s*2/);
   });
 });
