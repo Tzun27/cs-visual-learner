@@ -19,6 +19,7 @@ test.describe("/lessons/data-structures/linear-probing", () => {
       "Linear-probe search",
       "Linear-probe delete",
       "Robin Hood insert",
+      "Robin Hood delete",
     ]) {
       const region = page.getByRole("region", { name, exact: true });
       await expect(region).toBeVisible();
@@ -104,6 +105,25 @@ test.describe("/lessons/data-structures/linear-probing", () => {
     // Input [5, 14, 13, 22]: one swap (when 13 evicts 14), 4 keys placed total.
     await expect(counters).toContainText(/Placed\s*4/);
     await expect(counters).toContainText(/Swaps\s*1/);
+  });
+
+  test("Robin Hood delete viz pulls two keys and removes two, with one miss", async ({ page }) => {
+    await page.goto("/lessons/data-structures/linear-probing");
+    const region = page.getByRole("region", { name: "Robin Hood delete", exact: true });
+    const stepForward = region.getByRole("button", { name: /Step forward/ });
+    const counters = region.locator("dl");
+
+    for (let i = 0; i < 80; i++) {
+      if (!(await stepForward.isEnabled())) break;
+      await stepForward.click();
+    }
+    // Targets [13, 5, 99] on the Robin Hood demo table:
+    //   delete 13 → 1 probe + 2 pulls + 1 clear
+    //   delete 5  → 0 probes + 0 pulls + 1 clear (stops at at-home)
+    //   delete 99 → miss (no probe, no pull, no clear)
+    await expect(counters).toContainText(/Probes\s*1/);
+    await expect(counters).toContainText(/Pulls\s*2/);
+    await expect(counters).toContainText(/Removed\s*2/);
   });
 
   test("delete viz tombstones two slots and reports one miss on key 99", async ({ page }) => {
