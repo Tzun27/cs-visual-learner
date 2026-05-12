@@ -7,8 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + five data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete, Tree Traversal in four orders, Min-heap insert/heapify/extract-min) + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 330 unit + 56 Playwright e2e (incl. 9 axe-core a11y routes) — all green.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + five data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Tree Traversal in four orders, Min-heap insert/heapify/extract-min) + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 340 unit + 57 Playwright e2e (incl. 9 axe-core a11y routes) — all green.
 
 Read these before writing code:
 
@@ -34,6 +34,7 @@ Read these before writing code:
   - Search section: `LinearProbeSearchViz` builds `[5, 13, 21, 4]` then deletes 13 to plant a tombstone at slot 6. Targets `[5, 21, 13, 12, 4]` produce 3 hits + 2 misses; the second target (21) is the lesson's hero — it probes _past_ the tombstone to find 21 at slot 7, demonstrating exactly why tombstones can't be set to empty.
   - Delete section: `LinearProbeDeleteViz` deletes `[13, 4, 99]` from the same base table; 13 requires probing, 4 is a direct hit, 99 hashes to an empty home slot for a clean miss. Counters: Probes / Removed / Misses.
   - Robin Hood section: `RobinHoodInsertViz` runs `[5, 14, 13, 22]` with displacement annotations rendered next to every key. The third insert (13) hits the swap path: 13 has walked further than the already-placed 14, so 14 gets evicted and continues probing. Final state has 13 and 14 both at displacement +1, where plain linear probing would give 0/+2 — exactly the variance reduction the algorithm is designed for. Counters: Probes / Swaps / Placed.
+  - Robin Hood delete section: `RobinHoodDeleteViz` deletes `[13, 5, 99]` from that same end-state table via backshift — no tombstones produced. The first delete (13) probes once, finds 13 at slot 6, and pulls 14 and 22 toward home until the chain ends at empty slot 1; both displaced keys move strictly closer to home. The second delete (5) is found directly, but the next slot holds 14 already at home (+0), so backshift can't run — slot 5 is just cleared. The third (99) misses on an empty home slot. Counters: Probes / Pulls / Removed.
 - **Tree Traversal lesson** at `/lessons/data-structures/tree-traversal` — single viz with a four-button mode toggle (preorder / inorder / postorder / level-order) over the same balanced demo tree from the BST lesson (`buildTree([4, 2, 6, 1, 3, 5, 7])` — 7 nodes, depth 3). Each visit step appends one value to an "Output sequence" strip below the tree, and the CodePanel swaps Python source per mode so the position of `visit(node)` is visibly different across the three DFS orders. One parameterized `traversalSequence(tree, mode)` generator covers all four orderings; DFS uses inner recursion, level-order uses an explicit queue, matching the displayed snippets. Expected outputs on the demo tree:
   - **Preorder:** `[4, 2, 1, 3, 6, 5, 7]` (root → left subtree → right subtree)
   - **Inorder:** `[1, 2, 3, 4, 5, 6, 7]` (left → root → right — sorted, because this is a BST)
@@ -92,6 +93,8 @@ These are easy to miss and expensive to violate:
 35. **`linearProbeSearchSequence` and `linearProbeDeleteSequence` walk at most `capacity` slots and then emit a terminal `miss`.** Without that bound, a fully-tombstoned table (no empty slots anywhere) would loop forever. The Python snippet uses `while table[i] is not EMPTY` which can in theory loop forever in that pathological state — the generator's `probeCount < capacity` guard is what makes it terminate. The lesson uses curated inputs that never hit this case, but if a property test ever sees a fully-tombstoned table, this guard fires and gracefully yields a miss.
 36. **Robin Hood reuses `LinearProbeSnapshot` — displacement is _derived_, not stored.** `displacementOf(table, slotIndex) = (slotIndex - hash(key) % capacity) mod capacity`. This keeps the snapshot type unchanged across linear-probing and Robin Hood; the only schema additions are the new `RobinHoodInsertStep` union and the `showDisplacements?: boolean` prop on `LinearProbeView`. Don't introduce a `displacement` field into `LinearProbeSlot` even if it would simplify the viz — it would break the snapshot equality used by tests, and break linear-probing snapshots that don't carry that field.
 37. **`robinHoodInsertSequence`'s tombstone branch fast-paths placement instead of swapping.** Encountering a tombstone with `probe > existingProbe` (where tombstone's existing displacement is modeled as 0) just places the key directly — there's nothing to evict. This is intentional: it gives Robin Hood the tombstone-reuse property that plain linear probing's insert lacks (decision 34). The trade-off is that Robin Hood's correctness arguments around backshift deletion don't quite hold when tombstones get reused this way; production implementations typically pair Robin Hood with _backshift deletion_, not tombstones, and the lesson MDX flags this explicitly.
+38. **`robinHoodDeleteSequence` never emits a tombstone — backshift is the deletion contract.** The generator stops the pull loop on either an empty slot or an occupied slot whose key is already at its home (displacement 0). The `clear` step carries both the cleared index and the blocker index plus a `blockerReason: "empty" | "at-home"` field, so the viz can highlight what stopped the chain. There is no `tombstone` step variant on `RobinHoodDeleteStep` — if you find yourself adding one, you're mixing strategies and should re-read decision 37; a real Robin Hood table commits to one of "backshift everywhere" or "tombstones everywhere," not both. The property test "after full deletion every slot is `empty`" pins this invariant.
+39. **Robin Hood viz highlights use both `placed` and `cursor` simultaneously on `pull` and `clear` steps.** Where the linear-probing vizes only ever color one slot per step, `RobinHoodDeleteViz` paints two: on `pull`, the destination is `placed` (yellow) and the source is `cursor` (orange), so the user reads "key X arrived here, came from there"; on `clear`, the just-emptied slot is `placed` and the blocker slot is `cursor`, so the user can immediately see what stopped backshift. The `LinearProbeHighlight[]` API already supports multi-cell highlights — if you mirror this pattern for any new multi-slot operation (e.g., Hopscotch swaps), preserve the convention that `placed` is "where the active key now lives" and `cursor` is "auxiliary slot to look at."
 
 ## Useful commands
 
@@ -130,8 +133,8 @@ User deferred this. When you do it:
 ### Suggested next features
 
 - **`decrease_key` on the heap page.** Heapify shipped earlier; `decrease_key` is the remaining textbook operation called out in the heap lesson's "What you didn't see" list. The hard part is bookkeeping — you need an index map from value-or-handle → heap-index so you can locate the node in $O(1)$ before sifting up — or you accept duplicate-entry semantics where stale priorities just get pulled and discarded. Either approach is interesting and ties directly to Dijkstra. Conventional viz would show the user clicking a node to lower its key, then watching it bubble up.
-- **Backshift deletion for Robin Hood** as a counterpart to the just-shipped Robin Hood insert section. The MDX explicitly flags this as the natural follow-up: instead of a tombstone, deletion walks forward pulling each subsequent key one slot toward its home until reaching either an empty slot or a key already at its home. Most of the scaffolding is there — `LinearProbeView` already supports `showDisplacements` — the work is one new step union + snippet + generator + viz + a new section in the lesson.
 - **Quadratic probing or double hashing** as a third open-addressing variant. The lesson explicitly names these in "What's next." Quadratic probing changes the probe sequence to $i+1, i+4, i+9, \ldots$ (or any sequence with non-constant gaps); double hashing uses a second hash function as the step size.
+- **Hopscotch hashing** is now also named in the linear-probing lesson's "What's next." It bounds the maximum probe distance by a small constant (e.g. 32 slots) by maintaining a hop bit-mask per slot showing which neighbors hold keys from that home. Inserts that overflow the neighborhood trigger a swap chain to make room. More involved bookkeeping than Robin Hood, but lookups become very fast.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
 - **Language toggle on the code panel.** All snippets are Python today. Adding TypeScript (the actual generator source) or another teaching language would re-tokenize on toggle and roughly double the snippet-authoring work per algorithm. The pieces are in place: `CodePanel` already accepts a `language` prop and Shiki supports many languages — what's missing is a per-algorithm registry of `{ python: source, typescript: source }` and matching line-number maps.
@@ -192,6 +195,7 @@ src/components/
     LinearProbeSearchViz.tsx        Linear-probing search composition (the "probe past tombstone" demo)
     LinearProbeDeleteViz.tsx        Linear-probing delete composition (probed delete + direct + miss)
     RobinHoodInsertViz.tsx          Robin Hood insert composition (showDisplacements + swap demo)
+    RobinHoodDeleteViz.tsx          Robin Hood backshift-delete composition (pulls + at-home stop + miss)
     TreeTraversalViz.tsx            Tree traversal composition (4-mode toggle + output sequence strip)
     HeapInsertViz.tsx               Min-heap insert composition (siftUp; 2-sequence toggle)
     HeapifyViz.tsx                  Min-heap heapify composition (bottom-up siftDown; single curated input)
@@ -207,13 +211,13 @@ src/lib/
     {bubble,heap,insertion,         Python source + named line-number constants
      merge,quick,radix}Sort.snippet.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step + RobinHoodInsertStep
+    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step + RobinHoodInsertStep + RobinHoodDeleteStep
     binarySearchTree.ts             BST insertSequence + searchSequence + deleteSequence + buildTree
     hashTable.ts                    Hash table insertSequence + searchSequence + deleteSequence + buildHashTable + bucketIndexFor + liveKeys + loadFactor
     traversal.ts                    Parameterized traversalSequence(tree, mode) + TRAVERSAL_MODES + labels
     heap.ts                         Min-heap heapInsertSequence + heapifySequence + heapExtractMinSequence + buildHeap + isMinHeap + heapToTree
     linearProbe.ts                  Linear-probing insertSequence + searchSequence + deleteSequence + buildLinearProbeTable + emptyTable + slotIndexFor + liveKeys + loadFactor
-    robinHood.ts                    Robin Hood robinHoodInsertSequence + buildRobinHoodTable + displacementOf + maxDisplacement
+    robinHood.ts                    Robin Hood robinHoodInsertSequence + robinHoodDeleteSequence + buildRobinHoodTable + displacementOf + maxDisplacement
     index.ts                        BST operation registry + labels (insert only — search/delete have a different signature)
     {insert,search,delete}Sequence.snippet.ts        Python source + named line-number constants (BST)
     hashTable{Insert,Search,Delete}.snippet.ts        Python source + named line-number constants (hash table)
@@ -221,7 +225,7 @@ src/lib/
     heap{Insert,ExtractMin}.snippet.ts               Python source + named line-number constants (heap)
     heapify.snippet.ts                               Python source + named line-number constants (heapify)
     linearProbe{Insert,Search,Delete}.snippet.ts     Python source + named line-number constants (linear probing)
-    robinHoodInsert.snippet.ts                       Python source + named line-number constants (Robin Hood)
+    robinHood{Insert,Delete}.snippet.ts              Python source + named line-number constants (Robin Hood)
   hooks/
     useStepThrough.ts               Single-list reducer state machine
     useParallelStepThrough.ts       N-list reducer with shared timer
@@ -245,7 +249,31 @@ If you need to make a focused change, these are the files that matter for each s
 
 ## What changed in the most recent session
 
-This session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), a fourth viz section in the linear-probing lesson for **Robin Hood probing**, and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in four phases — heap (insert + extract-min), heapify as an in-place extension, linear probing as a brand-new lesson, and Robin Hood as an in-place extension to it:
+This session shipped **Robin Hood backshift deletion** as the natural counterpart to the Robin Hood insert section landed in the prior session. The linear-probing lesson now contains five viz sections (insert, search, delete, Robin Hood insert, Robin Hood delete) and the "What's next" list has rotated backshift deletion out (just shipped) and Hopscotch hashing in. Five commits landed:
+
+| #   | subject                                                                  |
+| --- | ------------------------------------------------------------------------ |
+| 1   | `feat(ds)`: add Robin Hood backshift-delete generator + snippet + tests  |
+| 2   | `feat(viz)`: add RobinHoodDeleteViz composition                          |
+| 3   | `feat(lessons)`: add backshift deletion section to linear-probing lesson |
+| 4   | `test(e2e)`: cover Robin Hood delete viz                                 |
+| 5   | `docs`: refresh next_session.md after Robin Hood delete rollout          |
+
+Narrative summary:
+
+1. **Backshift-delete generator** (commit 1). New `RobinHoodDeleteStep` union in `types.ts` (begin / hash / probe / found / pull / clear / miss / done) plus `robinHoodDeleteSequence` in `robinHood.ts` and its `robinHoodDelete.snippet.ts` (12-line Python). The generator's distinctive feature is the inner backshift loop: after a found-step, walk forward from the deleted slot pulling each subsequent key one slot toward home until the chain stops at either an empty slot or a key already at home (displacement 0). The `clear` step carries both the cleared index and the blocker index plus a `blockerReason: "empty" | "at-home"` discriminator so the viz can render both reasons distinctly. 10 unit + property tests, including the key invariant "after deleting every inserted key in any order, every slot is `empty`" — backshift never leaves a tombstone behind.
+2. **Backshift-delete viz** (commit 2). `RobinHoodDeleteViz` mirrors the insert viz's structure (TreeView-of-slots + CodePanel side-by-side at `md+`, three counters, playback toolbar) but introduces multi-slot highlights: `pull` colors both destination (placed/yellow) and source (cursor/orange), and `clear` colors both the just-emptied slot and the slot that stopped the chain. The curated input `[13, 5, 99]` runs against the Robin Hood insert section's end-state table and exercises all three branches: a 2-pull backshift with empty terminator, an at-home stop with zero pulls, and a clean miss. Counters: Probes / Pulls / Removed (1 / 2 / 2 at completion).
+3. **Lesson MDX section** (commit 3). New `## Backshift deletion: removing a key without tombstones` slotted between the existing Robin Hood probing section and "What's next." Walks through each of the three delete targets, then a `### Why backshift is "Robin Hood's" delete` subsection that calls out the design coupling: backshift replaces tombstones entirely, the variance-reducing displacement property survives deletions, and crucially, backshift and the insert's tombstone fast-path don't compose — a real implementation commits to one strategy. "What's next" loses backshift (just shipped) and gains Hopscotch hashing as a third open-addressing variant.
+4. **E2E coverage** (commit 4). Added `Robin Hood delete` to the region-list assertion and a new spec that pins the per-target counter outcomes (1 probe + 2 pulls + 2 removed after full playback). 6 specs total in the file (up from 6 → 7… actually we're at 7 now). The route was already in the a11y sweep so the new viz is covered for WCAG 2.1 AA out of the gate.
+5. **Doc refresh** (commit 5). This file. New decisions 38–39 capture backshift-specific contracts: never-emit-a-tombstone, and the multi-slot highlight convention (`placed` = active key now lives here; `cursor` = auxiliary slot worth looking at).
+
+Test counts grew from **330 unit / 56 e2e (incl. 9 axe routes)** at session start to **340 unit / 57 e2e (incl. 9 axe routes)** at HEAD (+10 unit, +1 e2e; the new viz reuses the existing linear-probing route so no axe sweep grew).
+
+---
+
+### Previous session
+
+The prior session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), a fourth viz section in the linear-probing lesson for **Robin Hood probing**, and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in four phases — heap (insert + extract-min), heapify as an in-place extension, linear probing as a brand-new lesson, and Robin Hood as an in-place extension to it:
 
 | #   | subject                                                                            |
 | --- | ---------------------------------------------------------------------------------- |
