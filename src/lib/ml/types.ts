@@ -36,3 +36,66 @@ export type GradientDescentStep =
       kind: "done";
       snapshot: GradientDescentSnapshot;
     });
+
+/* ------------------------------------------------------------------ *
+ * Backprop                                                            *
+ * ------------------------------------------------------------------ */
+
+export type BackpropWeights = {
+  readonly w11: number;
+  readonly w12: number;
+  readonly b1: number;
+  readonly w21: number;
+  readonly w22: number;
+  readonly b2: number;
+  readonly v1: number;
+  readonly v2: number;
+  readonly c: number;
+};
+
+/** Forward-pass activations. `undefined` means "not yet computed at this step". */
+export type BackpropActivations = {
+  readonly h1Pre?: number;
+  readonly h1?: number;
+  readonly h2Pre?: number;
+  readonly h2?: number;
+  readonly y?: number;
+};
+
+/** Gradients of the loss w.r.t. every quantity. Same "undefined = not yet" convention. */
+export type BackpropGradients = {
+  readonly dLdy?: number;
+  readonly dLdv1?: number;
+  readonly dLdv2?: number;
+  readonly dLdc?: number;
+  readonly dLdh1Pre?: number;
+  readonly dLdw11?: number;
+  readonly dLdw12?: number;
+  readonly dLdb1?: number;
+  readonly dLdh2Pre?: number;
+  readonly dLdw21?: number;
+  readonly dLdw22?: number;
+  readonly dLdb2?: number;
+};
+
+export type BackpropPhase = "forward" | "loss" | "backward" | "update" | "done";
+
+export type BackpropSnapshot = {
+  readonly inputs: readonly [number, number];
+  readonly target: number;
+  readonly weights: BackpropWeights;
+  readonly activations: BackpropActivations;
+  readonly loss?: number;
+  readonly gradients: BackpropGradients;
+  readonly phase: BackpropPhase;
+};
+
+export type BackpropStep =
+  | (StepBase & { kind: "begin"; snapshot: BackpropSnapshot })
+  | (StepBase & { kind: "forward-hidden"; hiddenIndex: 0 | 1; snapshot: BackpropSnapshot })
+  | (StepBase & { kind: "forward-output"; snapshot: BackpropSnapshot })
+  | (StepBase & { kind: "compute-loss"; snapshot: BackpropSnapshot })
+  | (StepBase & { kind: "backward-output"; snapshot: BackpropSnapshot })
+  | (StepBase & { kind: "backward-hidden"; hiddenIndex: 0 | 1; snapshot: BackpropSnapshot })
+  | (StepBase & { kind: "apply-update"; snapshot: BackpropSnapshot })
+  | (StepBase & { kind: "done"; snapshot: BackpropSnapshot });
