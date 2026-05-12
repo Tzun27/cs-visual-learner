@@ -10,6 +10,7 @@ const routes = [
   "/lessons/data-structures/hash-tables",
   "/lessons/data-structures/tree-traversal",
   "/lessons/data-structures/heap",
+  "/lessons/data-structures/linear-probing",
 ] as const;
 
 for (const route of routes) {
