@@ -7,8 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + three data-structures lessons (BST insert/search/delete, Hash Tables add/contains/remove, Tree Traversal in four orders) + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 251 unit + 42 Playwright e2e (incl. 7 axe-core a11y routes) — all green.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + four data-structures lessons (BST insert/search/delete, Hash Tables add/contains/remove, Tree Traversal in four orders, Min-heap insert/extract-min) + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 279 unit + 48 Playwright e2e (incl. 8 axe-core a11y routes) — all green.
 
 Read these before writing code:
 
@@ -34,13 +34,16 @@ Read these before writing code:
   - **Inorder:** `[1, 2, 3, 4, 5, 6, 7]` (left → root → right — sorted, because this is a BST)
   - **Postorder:** `[1, 3, 2, 5, 7, 6, 4]` (left → right → root — root last)
   - **Level-order:** `[4, 2, 6, 1, 3, 5, 7]` (depth 0, depth 1, depth 2 — same first 3 values as preorder by coincidence)
+- **Heaps & Priority Queues lesson** at `/lessons/data-structures/heap` — covers insert (siftUp) and extract-min (siftDown) on a packed-array min-heap. Two viz sections share the lesson page. The lesson is deliberately distinct from the existing `heap-sort` sorting lesson: this one is a min-heap (priority-queue framing, Dijkstra etc.), heap-sort uses a max-heap; this one renders the heap as a tree, heap-sort animates it as bars.
+  - Insert section: `HeapInsertViz` with two toggleable sequences. **"Mixed order"** = `[4, 9, 1, 7, 2, 8, 3]` exercises a variety of bubble lengths; **"New minimum each time"** = `[7, 6, 5, 4, 3, 2, 1]` makes every value bubble to the root, demonstrating that heap shape stays balanced even with adversarial input (the BST analogue of this input produces a depth-7 chain). Counters: Comparisons / Swaps / Heap size.
+  - Extract section: `HeapExtractMinViz` runs four `extract_min` calls against the result of the "Mixed order" inserts above, drawing the extracted values out into an ordered list strip below the tree. Counters: Extracted / Comparisons / Sift-down swaps. The extracted list comes out `[1, 2, 3, 4]` confirming the priority-queue property.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table add/contains/remove + tree-traversal 4-mode + axe).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table add/contains/remove + tree-traversal 4-mode + heap insert/extract-min + axe).
 
 ## Architectural load-bearing decisions
 
@@ -73,6 +76,10 @@ These are easy to miss and expensive to violate:
 25. **Hash-table viz `aria-label`s collide with their CodePanel siblings under loose regex.** Each section is `<section aria-label="Hash table insert" />` and its `<CodePanel ariaLabel="Hash table insert pseudocode" />`. A Playwright locator like `getByRole("region", { name: /Hash table insert/ })` matches both and errors with `strict mode violation`. Use exact-string matching: `getByRole("region", { name: "Hash table insert", exact: true })`. Same rule applies to any future viz that pairs a section with a CodePanel where both labels share a prefix — `TreeTraversalViz` already follows this.
 26. **`<ol>` / `<ul>` may only contain `<li>` children — placeholders included.** Axe's `list` rule flags any non-`<li>` direct child as a structure violation (`only-listitems`). When `TreeTraversalViz` is in empty state, the "(empty)" placeholder is a `<p>`, and the `<ol>` is only rendered once there's at least one visited value. Don't embed a `<span>(empty)</span>` directly inside the list — Playwright a11y sweep will catch it.
 27. **Traversal steps carry the growing sequence on every step, not just the latest visit.** `BstTraversalStep.sequence` is a `readonly number[]` snapshot. The viz reads `currentStep.sequence` directly to render the output strip — no separate accumulator state. If you add new traversal modes (Morris, level-order with depth-grouping, etc.), preserve this contract so step-back works correctly via snapshots.
+28. **Heap snapshots carry both the array AND `size`; the viz reads `heap.slice(0, size)`.** `HeapSnapshot = { heap: readonly number[]; size: number }`. The extract path could conceivably keep removed values in the array tail for a step or two (as the BST delete does with orphaned nodes), but the current generator pops them immediately — so today `heap.length === size` on every step. Future contracts (e.g., a "popped-but-not-yet-cleared" visualization beat) can rely on `size` being authoritative without breaking existing consumers.
+29. **`heapToTree(snap)` maps a heap onto a `BstSnapshot` so `TreeView` can render it without modification.** Heap children at `2i+1` / `2i+2`, root at id 0. The function lives in `src/lib/dataStructures/heap.ts` and is called inline in both heap vizes (no `useMemo` — the heap object is fresh every render so memoization wouldn't help). This means highlight `nodeId` values in the heap vizes are heap indices, not BST node ids. Confusing if you swap viz types — keep heap and BST highlight code separate.
+30. **Heap insert's `swap-up` / extract's `swap-down` steps use `cursorIndex` + `fromIndex` (not `parentIndex` / `childIndex`).** `cursorIndex` = where the active value now lives _after_ the swap; `fromIndex` = the slot it just vacated. Both are highlighted with the same `placed` kind so the user sees a two-slot swap. The earlier naming (`parentIndex`) was ambiguous post-swap and was renamed during this lesson's authoring; resist switching back.
+31. **Heap insert emits exactly one `settle` step per insert; intermediate snapshots may violate the min-heap invariant.** The transient is on `compare-parent` and during long bubble chains, swap-up restores the invariant locally but the new cursor may still violate against its new grandparent. Property tests assert `isMinHeap` only on `settle` and `done` snapshots — extend the same contract to any future heap operations (decrease-key, heapify) that perform staged rebalancing.
 
 ## Useful commands
 
@@ -110,7 +117,7 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **Heaps & Priority Queues** is now the most natural next data-structures lesson. The `heap-sort` lesson already animates the heap inside an array; a dedicated heap lesson would visualize it as an actual binary tree (TreeView reusable!) and walk through `siftUp`/`siftDown` for insert + extract-min. The Python snippet would mirror what already exists in `heapSort.snippet.ts` — could share the source or split it.
+- **Heapify + decrease-key on the heap page.** With min-heap insert + extract-min already shipped, the natural follow-ups are (a) `heapify` — building a heap from an array in $O(n)$ via bottom-up sift-down, which is conceptually distinct from $n$ inserts each at $O(\log n)$, and (b) `decrease_key` — Dijkstra's needed operation that requires an index map (or accepts duplicates). The lesson MDX already calls out both as omitted; adding either would slot in as a new section, reuse `HeapInsertViz`'s scaffolding (`heapToTree`, the snippet+codeLines pattern, the cursor+placed highlight palette), and let the lesson grow naturally toward priority-queue applications.
 - **Open-addressing hash table.** The current hash-tables lesson uses separate chaining. A companion lesson (or an additional section) that swaps in **linear probing** would showcase tombstones (`deleted` markers vs. `empty`), primary-vs-secondary clustering, and why probe sequences can't terminate early on miss. Most of the scaffolding — `HashTableView`, snippet pattern, exact-match aria-label rule — generalizes; the data model swaps from `buckets: number[][]` to `slots: (entryId | null | "tombstone")[]`.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
@@ -123,7 +130,7 @@ User deferred this. When you do it:
 - The smoke test relies on heading text ("Learn computer science"). If the landing copy changes, update `e2e/smoke.spec.ts` in the same commit.
 - The package.json `name` is still `addyosmani-test` from initial scaffolding — harmless but inconsistent with the repo name. Rename if/when convenient.
 - The `vitest.config.ts` 100% coverage gate currently only covers `src/lib/algorithms/`. Extending it to `src/lib/dataStructures/` would prevent the same drift in the new track — left out of the BST and hash-tables PRs to avoid bundling unrelated config tightening. With BST + hash tables both now substantial modules, this is overdue.
-- Axe-core now runs on seven routes (`/`, `/lessons`, `/lessons/sorting/bubble-sort`, `/lessons/sorting/compare`, `/lessons/data-structures/binary-search-tree`, `/lessons/data-structures/hash-tables`, `/lessons/data-structures/tree-traversal`). The other four sort pages (`insertion-sort`, `merge-sort`, `quick-sort`, `heap-sort`, `radix-sort`) ship with `CodePanel` but aren't in the sweep. Adding them would catch any future panel-related regressions earlier — the existing routes cover the structural shape, but each algorithm has its own snippet length and could surface unique contrast/wrapping edge cases.
+- Axe-core now runs on eight routes (`/`, `/lessons`, `/lessons/sorting/bubble-sort`, `/lessons/sorting/compare`, `/lessons/data-structures/binary-search-tree`, `/lessons/data-structures/hash-tables`, `/lessons/data-structures/tree-traversal`, `/lessons/data-structures/heap`). The other four sort pages (`insertion-sort`, `merge-sort`, `quick-sort`, `heap-sort`, `radix-sort`) ship with `CodePanel` but aren't in the sweep. Adding them would catch any future panel-related regressions earlier — the existing routes cover the structural shape, but each algorithm has its own snippet length and could surface unique contrast/wrapping edge cases.
 - The hash-tables viz uses keys-only ("hash set") semantics. If you ever want it to behave as a hash _map_, extend `HashTableEntry` with a `value` field, update the snippets (`bucket = [(k, v), ...]`), and update `HashTableView` to render `k: v` cells. Most of the rest of the pipeline is value-agnostic.
 
 ## Things to leave alone
@@ -145,6 +152,7 @@ src/app/                            App Router routes
     binary-search-tree/page.mdx     BST insert + search + delete lesson
     hash-tables/page.mdx            Hash table add + contains + remove lesson
     tree-traversal/page.mdx         Preorder / inorder / postorder / level-order
+    heap/page.mdx                   Min-heap insert (siftUp) + extract-min (siftDown)
   opengraph-image.tsx               Edge-runtime OG card (1200x630)
   sitemap.ts, robots.ts             SEO
 
@@ -166,6 +174,8 @@ src/components/
     HashTableSearchViz.tsx          Hash table search composition (head/end/empty-bucket targets)
     HashTableDeleteViz.tsx          Hash table delete composition (middle/tail/head/miss targets)
     TreeTraversalViz.tsx            Tree traversal composition (4-mode toggle + output sequence strip)
+    HeapInsertViz.tsx               Min-heap insert composition (siftUp; 2-sequence toggle)
+    HeapExtractMinViz.tsx           Min-heap extract-min composition (siftDown; extracted-list strip)
     stepView.ts                     Shared step→highlight + counter helpers (sort)
 
 src/lib/
@@ -177,14 +187,16 @@ src/lib/
     {bubble,heap,insertion,         Python source + named line-number constants
      merge,quick,radix}Sort.snippet.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep
+    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapExtractStep
     binarySearchTree.ts             BST insertSequence + searchSequence + deleteSequence + buildTree
     hashTable.ts                    Hash table insertSequence + searchSequence + deleteSequence + buildHashTable + bucketIndexFor + liveKeys + loadFactor
     traversal.ts                    Parameterized traversalSequence(tree, mode) + TRAVERSAL_MODES + labels
+    heap.ts                         Min-heap heapInsertSequence + heapExtractMinSequence + buildHeap + isMinHeap + heapToTree
     index.ts                        BST operation registry + labels (insert only — search/delete have a different signature)
     {insert,search,delete}Sequence.snippet.ts        Python source + named line-number constants (BST)
     hashTable{Insert,Search,Delete}.snippet.ts        Python source + named line-number constants (hash table)
     {preorder,inorder,postorder,levelOrder}Traversal.snippet.ts  Python source + named line-number constants (traversal)
+    heap{Insert,ExtractMin}.snippet.ts               Python source + named line-number constants (heap)
   hooks/
     useStepThrough.ts               Single-list reducer state machine
     useParallelStepThrough.ts       N-list reducer with shared timer
@@ -200,33 +212,31 @@ docs/                               SPEC, PLAN, TASKS
 If you need to make a focused change, these are the files that matter for each subsystem. Read them in this order to come up to speed quickly.
 
 - **Add a new sorting algorithm:** `src/lib/algorithms/types.ts` (step union, add a variant if needed) → write `src/lib/algorithms/foo.snippet.ts` → write `src/lib/algorithms/foo.ts` (the generator) → register in `src/lib/algorithms/index.ts` → write `tests/algorithms/foo.test.ts` (100% coverage required) → create `src/app/lessons/sorting/foo-sort/page.mdx` → add to `src/app/lessons/page.tsx` lessons array → add e2e to `e2e/lessons.spec.ts`'s array.
-- **Add a new BST or hash-table operation:** `src/lib/dataStructures/types.ts` (step union) → write `*.snippet.ts` → extend `binarySearchTree.ts` or `hashTable.ts` with a generator → write tests in `tests/dataStructures/*.test.ts` → wire up a new `*Viz.tsx` composition next to the existing ones → render it on the lesson MDX.
+- **Add a new BST or hash-table or heap operation:** `src/lib/dataStructures/types.ts` (step union) → write `*.snippet.ts` → extend `binarySearchTree.ts` or `hashTable.ts` or `heap.ts` with a generator → write tests in `tests/dataStructures/*.test.ts` → wire up a new `*Viz.tsx` composition next to the existing ones → render it on the lesson MDX.
 - **Add a new data-structure lesson from scratch:** Mirror Hash Tables. New `*.snippet.ts` per operation + new generator file + new `*View.tsx` presentational primitive (if existing primitives don't fit) + per-operation `*Viz.tsx` compositions + lesson MDX + lessons-index entry (`status: "live"`, set `slug`) + e2e spec + add the route to `e2e/a11y.spec.ts` route list.
 - **Touch the CodePanel:** `src/components/visualizations/CodePanel.tsx` + `tests/components/CodePanel.test.tsx`. Decisions 17–21 cover the load-bearing constraints (lazy Shiki, focusable scroll region, line-number contrast, `not-prose`, scroll math, soft-wrap hanging indent).
-- **Touch the TreeView SVG:** `src/components/visualizations/TreeView.tsx`. Highlight palette uses `--bar-compare / swap / pivot` CSS vars defined in `src/app/globals.css` (light + dark variants). Reused by BST insert/search/delete vizes and TreeTraversalViz — exercise all five before merging.
+- **Touch the TreeView SVG:** `src/components/visualizations/TreeView.tsx`. Highlight palette uses `--bar-compare / swap / pivot` CSS vars defined in `src/app/globals.css` (light + dark variants). Reused by BST insert/search/delete vizes, TreeTraversalViz, **and both heap vizes via `heapToTree`** — exercise all seven before merging.
 
 ## What changed in the most recent session
 
-For context if the next agent wonders why certain things look like they do, here's the full sequence of work from this session in commit order. All landed on `main`:
+This session shipped the **Heaps & Priority Queues** lesson and added a single-line "git commit discipline" rule to `AGENTS.md`. Five commits, all on `main` (pending push at session end):
 
-| #   | hash      | subject                                                               |
-| --- | --------- | --------------------------------------------------------------------- |
-| 1   | `0949724` | `fix(code-panel)`: soft-wrap long lines with hanging indent           |
-| 2   | `8e07e0b` | `feat(ds)`: add hash table generators + snippets + tests              |
-| 3   | `c0ea5b1` | `feat(viz)`: add HashTableView presentational primitive               |
-| 4   | `1664e0a` | `feat(lessons)`: add hash tables lesson with insert/search/delete viz |
-| 5   | `5eda5fc` | `test(e2e)`: cover hash tables lesson + add it to axe sweep           |
-| 6   | `e39bb2f` | `docs`: refresh next_session.md after hash tables rollout             |
-| 7   | `29dccb4` | `feat(ds)`: add tree traversal generator + 4 snippets + tests         |
-| 8   | `c5c98b4` | `feat(lessons)`: add tree traversal lesson with 4-mode toggle         |
-| 9   | `0fd70c9` | `test(e2e)`: cover tree traversal lesson + fix empty-state list a11y  |
-| 10  | `a12001e` | `docs`: refresh next_session.md after tree traversal rollout          |
+| #   | subject                                                                            |
+| --- | ---------------------------------------------------------------------------------- |
+| 1   | `docs(agents)`: add git commit discipline guidance to AGENTS.md                    |
+| 2   | `feat(ds)`: add min-heap insert + extract-min generators + snippets + tests        |
+| 3   | `feat(viz)`: add HeapInsertViz + HeapExtractMinViz (reuse TreeView via heapToTree) |
+| 4   | `feat(lessons)`: add heap & priority queues lesson + promote in index              |
+| 5   | `test(e2e)`: cover heap lesson + add it to axe sweep                               |
+| 6   | `docs`: refresh next_session.md after heap rollout                                 |
 
 Narrative summary:
 
-1. **CodePanel cutoff fix** (commit 1). Long Python lines (notably bubble sort's tuple swap on line 6) were overflowing the panel's clientWidth and getting clipped without a visible scroll affordance. Row spans now use `whitespace-pre-wrap pr-2 pl-11 -indent-9` — see decision 21. Verified visually with Chrome DevTools MCP on the landing page and via `npm run e2e`.
-2. **Hash Tables lesson** (commits 2–5). Five commits: generators + snippets + 39 unit/property tests, `HashTableView` primitive + 7 component tests, three composition vizes + MDX + lessons-index promotion, 7 e2e specs + axe route. Decisions 22–25 capture hash-table specifics.
-3. **Tree Traversal lesson** (commits 7–9). Three commits: `traversalSequence` generator + 4 snippets + 14 unit/property tests (including BFS depth-monotonicity), `TreeTraversalViz` composition with 4-mode toggle + output-sequence strip + MDX + lessons-index promotion, 5 e2e specs + axe route. Decisions 26–27 capture traversal specifics. Caught one real a11y bug on the way in (placeholder `<span>` as a direct `<ol>` child) — see decision 26.
-4. **Doc refreshes** (commits 6, 10). One after each lesson shipped — staged + committed locally, pushed in batches after user authorization.
+1. **AGENTS.md update** (commit 1). One-line addition recording the project's "commit per logical task" convention. The rule was implicit before this session; making it explicit removes future-agent ambiguity.
+2. **Heap data structure** (commit 2). New min-heap module mirroring the BST module's shape: `HeapSnapshot` (`heap: readonly number[]; size: number`), two step unions, `heapInsertSequence` (siftUp via `(i-1)>>1` parent), `heapExtractMinSequence` (siftDown picking the smaller of two children), `buildHeap`, `isMinHeap`, and `heapToTree` (the structural mapper used by the vizes). 28 unit + property tests including the "extract all yields sorted" property that ties insert and extract together.
+3. **Heap vizes** (commit 3). Two composition components following the BSTViz pattern: `HeapInsertViz` (2-sequence toggle, three counters) and `HeapExtractMinViz` (curated 4-extract demo, extracted-list strip below the tree, three counters). Both call `heapToTree` inline and feed the result to the existing `TreeView` — zero modifications to the SVG primitive. Highlight conventions: `cursor` (orange) for compared participants, `placed` (yellow with dashed halo) for the active node + the slot it just vacated on a swap, `duplicate` (red) for the root about to leave on extract.
+4. **Heap lesson + index promotion** (commit 4). `src/app/lessons/data-structures/heap/page.mdx` covers the priority-queue framing (`extract_min`, Dijkstra, top-k), explicitly contrasts heap balance with BST degenerate insertion order, and flips the lessons-index entry from `coming-soon` → `live`. Includes a deliberate "What you didn't see" section listing `heapify`, `decrease_key`, and d-ary/Fibonacci heaps as the natural follow-up surface.
+5. **E2E + a11y** (commit 5). New `e2e/heap.spec.ts` with 5 specs (insert region presence, counter ticking, toggle behavior, extract-min produces "1" first, full extract yields `[1,2,3,4]`) and the route added to `e2e/a11y.spec.ts`'s axe sweep. Verified live in Chrome DevTools MCP — `[1, 2, 3, 4]` extracted in order, no console errors.
+6. **Doc refresh** (commit 6). This file. Decisions 28–31 capture heap-specific gotchas (`heap.size` vs `heap.length`, `heapToTree` semantics, `cursorIndex`/`fromIndex` naming, transient invariant on `compare-parent`).
 
-All three new lessons were modeled deliberately on the BST module's contract so existing decisions (dense-id snapshots, tombstoning, codeLines-per-branch, snippet co-location, exact-match aria-label rule) carry over verbatim. New decisions 21–27 capture only the deltas. Test counts grew from **~200 unit / ~25 e2e** at the start of the session to **251 unit / 42 e2e (incl. 7 axe routes)** at HEAD.
+Test counts grew from **251 unit / 42 e2e (incl. 7 axe routes)** at session start to **279 unit / 48 e2e (incl. 8 axe routes)** at HEAD.
