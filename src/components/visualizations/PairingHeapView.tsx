@@ -39,8 +39,8 @@ const palette: Record<PairingHeapNodeKind, { fill: string; stroke: string; text:
   },
   removed: {
     fill: "transparent",
-    stroke: "var(--bar-default-stroke)",
-    text: "var(--bar-default-stroke)",
+    stroke: "var(--bar-default)",
+    text: "var(--bar-default)",
   },
 };
 
@@ -127,7 +127,7 @@ export function PairingHeapView({ heap, highlights = [], className }: PairingHea
           dominantBaseline="central"
           fontFamily="var(--font-mono), monospace"
           fontSize={14}
-          fill="var(--bar-default-stroke)"
+          fill="var(--bar-default)"
         >
           (empty heap)
         </text>
@@ -147,7 +147,7 @@ export function PairingHeapView({ heap, highlights = [], className }: PairingHea
                 y1={parentPos.y + NODE_RADIUS}
                 x2={childPos.x}
                 y2={childPos.y - NODE_RADIUS}
-                stroke="var(--bar-default-stroke)"
+                stroke="var(--bar-default)"
                 strokeWidth={1.5}
               />,
             );
