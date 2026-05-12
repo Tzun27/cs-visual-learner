@@ -1,3 +1,4 @@
+import { slotIndexFor } from "@/lib/dataStructures/linearProbe";
 import type { LinearProbeSnapshot } from "@/lib/dataStructures/types";
 
 export type LinearProbeCellKind = "cursor" | "placed" | "duplicate";
@@ -10,6 +11,10 @@ export type LinearProbeHighlight = {
 export type LinearProbeViewProps = {
   table: LinearProbeSnapshot;
   highlights?: readonly LinearProbeHighlight[];
+  // When true, render a small "+N" badge inside each occupied cell
+  // showing the slot's displacement from its key's home. Used by the
+  // Robin Hood section where the displacement distribution is the point.
+  showDisplacements?: boolean;
   className?: string;
 };
 
@@ -32,7 +37,12 @@ const kindLabel: Record<LinearProbeCellKind, string> = {
   duplicate: "duplicate match",
 };
 
-export function LinearProbeView({ table, highlights = [], className }: LinearProbeViewProps) {
+export function LinearProbeView({
+  table,
+  highlights = [],
+  showDisplacements = false,
+  className,
+}: LinearProbeViewProps) {
   const { capacity, slots } = table;
   const innerWidth = VIEWBOX_WIDTH - PADDING_X * 2;
   const slotWidth = capacity > 0 ? innerWidth / capacity : innerWidth;
@@ -112,17 +122,32 @@ export function LinearProbeView({ table, highlights = [], className }: LinearPro
               strokeDasharray={dashArray}
             />
             {slot.state === "occupied" && (
-              <text
-                x={x + slotWidth / 2}
-                y={cellY + CELL_HEIGHT / 2}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={16}
-                fontFamily="var(--font-mono), monospace"
-                fill="var(--foreground)"
-              >
-                {slot.key}
-              </text>
+              <>
+                <text
+                  x={x + slotWidth / 2}
+                  y={cellY + CELL_HEIGHT / 2 + (showDisplacements ? -6 : 0)}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={16}
+                  fontFamily="var(--font-mono), monospace"
+                  fill="var(--foreground)"
+                >
+                  {slot.key}
+                </text>
+                {showDisplacements && (
+                  <text
+                    x={x + slotWidth / 2}
+                    y={cellY + CELL_HEIGHT / 2 + 12}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={10}
+                    fontFamily="var(--font-mono), monospace"
+                    fill="var(--bar-default-stroke)"
+                  >
+                    {`+${(i - slotIndexFor(slot.key, capacity) + capacity) % capacity}`}
+                  </text>
+                )}
+              </>
             )}
             {isTombstone && (
               <>
