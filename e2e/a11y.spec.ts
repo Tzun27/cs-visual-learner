@@ -9,6 +9,7 @@ const routes = [
   "/lessons/data-structures/binary-search-tree",
   "/lessons/data-structures/hash-tables",
   "/lessons/data-structures/tree-traversal",
+  "/lessons/data-structures/heap",
 ] as const;
 
 for (const route of routes) {
