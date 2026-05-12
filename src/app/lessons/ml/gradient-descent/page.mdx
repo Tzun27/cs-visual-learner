@@ -1,0 +1,125 @@
+import { GradientDescentViz } from "@/components/visualizations/GradientDescentViz";
+import { MathLevel, IntuitionOnly, MathOnly } from "@/components/mdx/MathLevel";
+
+export const metadata = {
+  title: "Gradient Descent",
+  description:
+    "Watch a vanilla gradient-descent optimizer walk down a 2D loss landscape. Pick a learning rate and see the trajectory bend, converge, or oscillate.",
+};
+
+# Gradient Descent
+
+**Difficulty:** beginner · **Category:** machine learning
+
+<MathLevel />
+
+<IntuitionOnly>
+
+Imagine standing on a hillside in fog. You can feel which way is downhill under your feet, even
+if you can't see the bottom. Take one small step downhill. Then do it again. Eventually you
+reach the valley floor. That's **gradient descent** — the workhorse algorithm behind most of
+modern machine learning.
+
+The "hill" in this lesson is a simple bowl-shaped landscape: there's a single lowest point, and
+every direction away from it goes up. You can see this geometry in the dashed rings on the
+viz below — each ring is a contour at a fixed height, like an elevation line on a topographic
+map. The lower the ring, the closer to the bottom.
+
+Each step, the algorithm:
+
+1. **Asks "which way is down?"** from the current point. (That's the gradient — though for now,
+   just think of it as the steepest-downhill direction.)
+2. **Walks a short distance** in that direction. How short? That's controlled by the **learning
+   rate** — a small number you pick before the algorithm runs.
+
+A learning rate that's too small wastes effort — tiny steps mean it takes forever to reach the
+bottom. Too large and you can overshoot, bouncing back and forth across the valley instead of
+settling in. The "0.32 (oscillates)" preset below makes that overshoot vivid.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+Given a differentiable loss $L: \mathbb{R}^n \to \mathbb{R}$ and a parameter vector
+$\mathbf{w} \in \mathbb{R}^n$, **gradient descent** iterates
+
+$$
+\mathbf{w}_{t+1} \leftarrow \mathbf{w}_t - \alpha \nabla L(\mathbf{w}_t)
+$$
+
+where $\alpha > 0$ is the **learning rate**. The gradient $\nabla L(\mathbf{w})$ points in the
+direction of steepest _increase_, so subtracting it walks down the loss surface. The algorithm
+terminates either when $\lVert \nabla L \rVert$ falls below a tolerance (we've reached a critical
+point — for convex $L$, this is the global minimum) or when a fixed step budget is exhausted.
+
+The toy loss used below is an asymmetric quadratic bowl:
+
+$$
+L(w_1, w_2) = w_1^2 + 3 w_2^2, \qquad \nabla L(w_1, w_2) = \begin{pmatrix} 2 w_1 \\ 6 w_2 \end{pmatrix}
+$$
+
+The dashed contour rings are level sets $L(w_1, w_2) = c$ — algebraically, ellipses with
+semi-axes $\sqrt{c}$ along $w_1$ and $\sqrt{c/3}$ along $w_2$. Because the curvature is steeper
+along $w_2$, the gradient is _six times_ more sensitive to $w_2$ than $w_1$. With a fixed step
+size, the $w_2$ component overshoots before the $w_1$ component has made much progress — that's
+the trajectory's bend.
+
+The learning rate that makes the $w_2$ component oscillate is $\alpha > 1/3$: the multiplier
+$|1 - 6\alpha|$ exceeds $1$ at $\alpha = 1/3$. The "0.32 (oscillates)" preset is right at the
+edge.
+
+</MathOnly>
+
+<GradientDescentViz />
+
+<IntuitionOnly>
+
+Try the four learning rates. The "cautious" one converges but takes a lot of steps. "Balanced"
+and "brisk" both work well. "Oscillates" is past the safe limit — even though each step is
+_pointed_ in the right direction, the step is too big and overshoots the valley floor.
+
+What you can't see from the picture: every step requires computing the gradient. In the toy
+2-parameter bowl, that's a tiny calculation. In a real neural network with millions of
+parameters, computing the gradient is the expensive part of training — and a fast, accurate
+gradient is what backpropagation provides (next lesson).
+
+</IntuitionOnly>
+
+<MathOnly>
+
+A convergence guarantee for the bowl: with $\alpha < 1/3$, the iterate $\mathbf{w}_t$
+contracts by a factor of $\max(|1 - 2\alpha|, |1 - 6\alpha|)$ per step. For $\alpha = 0.1$ that
+multiplier is $\max(0.8, 0.4) = 0.8$, so $L(\mathbf{w}_t) \to 0$ at a geometric rate. For
+$\alpha > 1/3$ the $w_2$-component multiplier exceeds $1$ — the iterate diverges along that
+axis. (This is the simplest possible _convergence analysis_ of gradient descent: real losses
+require Lipschitz conditions on $\nabla L$, but the geometry is the same.)
+
+Gradient descent generalizes: same idea, same update, just with $\nabla L$ computed by
+**backpropagation** through a network rather than by hand. That's the next lesson.
+
+</MathOnly>
+
+## Why "gradient" descent? Why not just "downhill"?
+
+The gradient _is_ the downhill direction (locally, after flipping the sign) — but the word is
+load-bearing in a few ways:
+
+- **It's the steepest** downhill direction. Among all unit-length directions you could step in,
+  $-\nabla L$ is the one that decreases $L$ the fastest.
+- **It's local.** The gradient is computed at one specific point. If the landscape were not a
+  smooth bowl but had a sharp ridge, the "downhill" direction could flip between adjacent
+  points. Gradient descent still works, but you can no longer reason about each step as part of
+  a single smooth path.
+- **It scales with how steep the slope is.** A point near the rim of the bowl has a large
+  gradient; a point near the bottom has a small one. So gradient descent automatically takes
+  big steps where it's far from the minimum, and small steps as it converges — without any
+  per-step learning-rate schedule.
+
+## What's next
+
+The two follow-up lessons in this pillar build on the same step-through pattern:
+
+- **Backpropagation** — how to compute $\nabla L$ for a network with many parameters, instead
+  of by hand like we did above.
+- **Attention** — what's actually happening inside a single attention head, the building block
+  of every modern transformer.
