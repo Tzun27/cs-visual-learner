@@ -14,7 +14,12 @@ test.describe("/lessons/data-structures/linear-probing", () => {
     await page.goto("/lessons/data-structures/linear-probing");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/Hash Tables: Linear Probing/);
 
-    for (const name of ["Linear-probe insert", "Linear-probe search", "Linear-probe delete"]) {
+    for (const name of [
+      "Linear-probe insert",
+      "Linear-probe search",
+      "Linear-probe delete",
+      "Robin Hood insert",
+    ]) {
       const region = page.getByRole("region", { name, exact: true });
       await expect(region).toBeVisible();
       await expect(
@@ -84,6 +89,21 @@ test.describe("/lessons/data-structures/linear-probing", () => {
     // Targets [5, 21, 13, 12, 4]: 3 hits (5, 21, 4), 2 misses (13, 12).
     await expect(counters).toContainText(/Found\s*3/);
     await expect(counters).toContainText(/Misses\s*2/);
+  });
+
+  test("Robin Hood insert viz runs to completion: ≥1 swap, 4 placed", async ({ page }) => {
+    await page.goto("/lessons/data-structures/linear-probing");
+    const region = page.getByRole("region", { name: "Robin Hood insert", exact: true });
+    const stepForward = region.getByRole("button", { name: /Step forward/ });
+    const counters = region.locator("dl");
+
+    for (let i = 0; i < 80; i++) {
+      if (!(await stepForward.isEnabled())) break;
+      await stepForward.click();
+    }
+    // Input [5, 14, 13, 22]: one swap (when 13 evicts 14), 4 keys placed total.
+    await expect(counters).toContainText(/Placed\s*4/);
+    await expect(counters).toContainText(/Swaps\s*1/);
   });
 
   test("delete viz tombstones two slots and reports one miss on key 99", async ({ page }) => {
