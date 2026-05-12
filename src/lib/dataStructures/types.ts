@@ -209,6 +209,88 @@ export type HashTableDeleteStep =
     })
   | (StepBase & { kind: "done"; table: HashTableSnapshot });
 
+// Min-heap (binary heap) stored as a packed array. `heap[0]` is the root /
+// minimum, children of index i live at 2i+1 and 2i+2, parent at (i-1)>>1.
+// `size` is the count of live elements — for the extract path we keep prior
+// values in `heap` so the "removed value" can still be referenced by step
+// snapshots, but `size` shrinks. The viz reads `heap.slice(0, size)` to render.
+export type HeapSnapshot = {
+  readonly heap: readonly number[];
+  readonly size: number;
+};
+
+export type HeapInsertStep =
+  | (StepBase & { kind: "begin"; heap: HeapSnapshot; insertingValue: number })
+  | (StepBase & {
+      kind: "append";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      insertingValue: number;
+    })
+  | (StepBase & {
+      kind: "compare-parent";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      parentIndex: number;
+      insertingValue: number;
+    })
+  | (StepBase & {
+      kind: "swap-up";
+      heap: HeapSnapshot;
+      // `cursorIndex` is the new home of the inserted value (= old parent
+      // slot). `fromIndex` is the slot it just vacated (= old cursor).
+      cursorIndex: number;
+      fromIndex: number;
+      insertingValue: number;
+    })
+  | (StepBase & {
+      kind: "settle";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      insertingValue: number;
+    })
+  | (StepBase & { kind: "done"; heap: HeapSnapshot });
+
+export type HeapExtractStep =
+  | (StepBase & { kind: "begin"; heap: HeapSnapshot })
+  | (StepBase & {
+      kind: "take-root";
+      heap: HeapSnapshot;
+      extractedValue: number;
+    })
+  | (StepBase & {
+      kind: "move-last";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      extractedValue: number;
+    })
+  | (StepBase & {
+      kind: "compare-children";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      leftIndex: number;
+      rightIndex: number | null;
+      smallerIndex: number;
+      extractedValue: number;
+    })
+  | (StepBase & {
+      kind: "swap-down";
+      heap: HeapSnapshot;
+      // `cursorIndex` is the new home of the descending value (= the child
+      // slot we just swapped into). `fromIndex` is the slot it left.
+      cursorIndex: number;
+      fromIndex: number;
+      extractedValue: number;
+    })
+  | (StepBase & {
+      kind: "settle";
+      heap: HeapSnapshot;
+      cursorIndex: number;
+      extractedValue: number;
+    })
+  | (StepBase & { kind: "empty"; heap: HeapSnapshot })
+  | (StepBase & { kind: "done"; heap: HeapSnapshot });
+
 export type BstDeleteStep =
   | (StepBase & { kind: "begin"; tree: BstSnapshot; targetValue: number })
   | (StepBase & {
