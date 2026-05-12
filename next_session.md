@@ -7,8 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + four data-structures lessons (BST insert/search/delete, Hash Tables add/contains/remove, Tree Traversal in four orders, Min-heap insert/extract-min) + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 289 unit + 50 Playwright e2e (incl. 8 axe-core a11y routes) — all green.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + five data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete, Tree Traversal in four orders, Min-heap insert/heapify/extract-min) + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 320 unit + 55 Playwright e2e (incl. 9 axe-core a11y routes) — all green.
 
 Read these before writing code:
 
@@ -25,10 +25,14 @@ Read these before writing code:
   - Insert section: `insertSequence` generator + `BSTViz`. Toggle between Balanced and Sorted insert order to see Max depth jump from 4 to 12.
   - Search section: `searchSequence` generator + `BSTSearchViz`, walking a curated mix of hits and misses against the balanced tree.
   - Delete section: `deleteSequence` generator + `BSTDeleteViz`. Curated demo deletes 6 (leaf), 38 (one child), and 50 (two children, successor walk 75 → 63 → 56) against the same balanced tree, exercising all three textbook cases. `TreeView` SVG primitive (inorder x-positioning, dynamic row height) is shared by all three vizes.
-- **Hash Tables lesson** at `/lessons/data-structures/hash-tables` — covers add (insert), contains (search), and remove (delete) on a separate-chaining hash _set_ of capacity 8. Each section pairs a `HashTableView` SVG (8 bucket headers across the top, linked-chain ellipses dropping below) with a per-op Python snippet. The hash function is `hash(key) % capacity`, which equals `key % capacity` in Python for non-negative ints — so the displayed Python is faithful to what the generator computes.
+- **Hash Tables (Separate Chaining) lesson** at `/lessons/data-structures/hash-tables` — covers add (insert), contains (search), and remove (delete) on a separate-chaining hash _set_ of capacity 8. Each section pairs a `HashTableView` SVG (8 bucket headers across the top, linked-chain ellipses dropping below) with a per-op Python snippet. The hash function is `hash(key) % capacity`, which equals `key % capacity` in Python for non-negative ints — so the displayed Python is faithful to what the generator computes.
   - Insert section: curated input `[5, 13, 21, 4, 12, 5, 7]` makes bucket 5 collide three times, bucket 4 collide once, and the second `5` get dropped as a duplicate. `HashTableInsertViz` also feeds the view a `ghostBucketIndex` during `hash` / `probe` steps to preview where the key would land.
   - Search section: pre-built table where bucket 1 = `[1, 9, 17]` and bucket 2 = `[2, 50]`. Targets `[1, 17, 50, 25, 3]` cover head-of-chain hit, end-of-chain hit, hit in a shorter chain, miss-after-probing-non-empty-bucket, and miss-on-empty-bucket (zero probes).
   - Delete section: pre-built table with bucket 1 = `[1, 9, 17, 25]` and bucket 2 = `[2]`. Targets `[9, 25, 1, 99]` cover middle / new-tail / head / empty-bucket-miss.
+- **Hash Tables (Linear Probing) lesson** at `/lessons/data-structures/linear-probing` — same hash-set semantics but open-addressing instead of chaining: a single flat array of 8 slots, each slot in one of three states (empty / occupied with a key / tombstone). The lesson is structured to make the tombstone problem unavoidable.
+  - Insert section: `LinearProbeInsertViz` curated input `[5, 13, 21, 4, 23, 5]` exercises home placement, single-probe collision, double-probe collision, different-home placement, wrap-around (23 hashes to 7, wraps to 0), and duplicate detection. Counters: Probes / Placed / Duplicates.
+  - Search section: `LinearProbeSearchViz` builds `[5, 13, 21, 4]` then deletes 13 to plant a tombstone at slot 6. Targets `[5, 21, 13, 12, 4]` produce 3 hits + 2 misses; the second target (21) is the lesson's hero — it probes _past_ the tombstone to find 21 at slot 7, demonstrating exactly why tombstones can't be set to empty.
+  - Delete section: `LinearProbeDeleteViz` deletes `[13, 4, 99]` from the same base table; 13 requires probing, 4 is a direct hit, 99 hashes to an empty home slot for a clean miss. Counters: Probes / Removed / Misses.
 - **Tree Traversal lesson** at `/lessons/data-structures/tree-traversal` — single viz with a four-button mode toggle (preorder / inorder / postorder / level-order) over the same balanced demo tree from the BST lesson (`buildTree([4, 2, 6, 1, 3, 5, 7])` — 7 nodes, depth 3). Each visit step appends one value to an "Output sequence" strip below the tree, and the CodePanel swaps Python source per mode so the position of `visit(node)` is visibly different across the three DFS orders. One parameterized `traversalSequence(tree, mode)` generator covers all four orderings; DFS uses inner recursion, level-order uses an explicit queue, matching the displayed snippets. Expected outputs on the demo tree:
   - **Preorder:** `[4, 2, 1, 3, 6, 5, 7]` (root → left subtree → right subtree)
   - **Inorder:** `[1, 2, 3, 4, 5, 6, 7]` (left → root → right — sorted, because this is a BST)
@@ -44,7 +48,7 @@ Read these before writing code:
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table add/contains/remove + tree-traversal 4-mode + heap insert/heapify/extract-min + axe).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + tree-traversal 4-mode + heap insert/heapify/extract-min + axe).
 
 ## Architectural load-bearing decisions
 
@@ -82,6 +86,9 @@ These are easy to miss and expensive to violate:
 30. **Heap insert's `swap-up` / extract's `swap-down` steps use `cursorIndex` + `fromIndex` (not `parentIndex` / `childIndex`).** `cursorIndex` = where the active value now lives _after_ the swap; `fromIndex` = the slot it just vacated. Both are highlighted with the same `placed` kind so the user sees a two-slot swap. The earlier naming (`parentIndex`) was ambiguous post-swap and was renamed during this lesson's authoring; resist switching back.
 31. **Heap insert emits exactly one `settle` step per insert; intermediate snapshots may violate the min-heap invariant.** The transient is on `compare-parent` and during long bubble chains, swap-up restores the invariant locally but the new cursor may still violate against its new grandparent. Property tests assert `isMinHeap` only on `settle` and `done` snapshots — extend the same contract to any future heap operations (decrease-key, etc.) that perform staged rebalancing.
 32. **`heapifySequence` only walks indices `(n // 2) - 1` down to `0`; leaves are skipped.** That's where the $O(n)$ bound comes from — sift-down's cost is bounded by the _subtree height below the node_, not the tree height overall, and the bottom half of an array-backed heap is leaves with subtree height 0. Don't "fix" the loop to start at `n - 1` thinking you're being thorough; it would still produce a correct heap but ruin the linear bound that's the whole point of heapify-vs-n-inserts. Property tests assert sift-pass count equals `floor(n / 2)` exactly.
+33. **Linear-probing slots are a 3-state discriminated union, not nullable entries.** `LinearProbeSlot = { state: "empty" } | { state: "tombstone" } | { state: "occupied"; key: number }`. Empty vs tombstone is **not** an internal optimization — it's a semantic distinction the search algorithm depends on: empty terminates probing (miss); tombstone does not. Storing tombstones as `null` and "empty as also null with a flag" defeats the whole point. The current `LinearProbeView` SVG renders a literal × through tombstone cells so the user can see the difference.
+34. **Linear-probing insert never reuses tombstones in this lesson.** Real implementations track the first tombstone seen during probing and place there if no duplicate is found later — but that requires a more complex generator and snippet. We use the simpler "walk past tombstones, place at first empty" semantic, which is correct (tombstones never accumulate into real bugs) but leaves the table susceptible to capacity exhaustion if the user inserts and deletes a lot. The generator throws if it walks `capacity` slots without finding either a duplicate or an empty — this is impossible with the curated inputs the viz uses, and is a defensive guard for any future caller. Don't relax this throw into a silent return without first adding tombstone-reuse logic.
+35. **`linearProbeSearchSequence` and `linearProbeDeleteSequence` walk at most `capacity` slots and then emit a terminal `miss`.** Without that bound, a fully-tombstoned table (no empty slots anywhere) would loop forever. The Python snippet uses `while table[i] is not EMPTY` which can in theory loop forever in that pathological state — the generator's `probeCount < capacity` guard is what makes it terminate. The lesson uses curated inputs that never hit this case, but if a property test ever sees a fully-tombstoned table, this guard fires and gracefully yields a miss.
 
 ## Useful commands
 
@@ -119,8 +126,8 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **`decrease_key` on the heap page.** Heapify shipped this session; `decrease_key` is the remaining textbook operation called out in the lesson's "What you didn't see" list. The hard part is bookkeeping — you need an index map from value-or-handle → heap-index so you can locate the node in $O(1)$ before sifting up — or you accept duplicate-entry semantics where stale priorities just get pulled and discarded. Either approach is interesting and ties directly to Dijkstra. Conventional viz would show the user clicking a node to lower its key, then watching it bubble up.
-- **Open-addressing hash table.** The current hash-tables lesson uses separate chaining. A companion lesson (or an additional section) that swaps in **linear probing** would showcase tombstones (`deleted` markers vs. `empty`), primary-vs-secondary clustering, and why probe sequences can't terminate early on miss. Most of the scaffolding — `HashTableView`, snippet pattern, exact-match aria-label rule — generalizes; the data model swaps from `buckets: number[][]` to `slots: (entryId | null | "tombstone")[]`.
+- **`decrease_key` on the heap page.** Heapify shipped earlier; `decrease_key` is the remaining textbook operation called out in the heap lesson's "What you didn't see" list. The hard part is bookkeeping — you need an index map from value-or-handle → heap-index so you can locate the node in $O(1)$ before sifting up — or you accept duplicate-entry semantics where stale priorities just get pulled and discarded. Either approach is interesting and ties directly to Dijkstra. Conventional viz would show the user clicking a node to lower its key, then watching it bubble up.
+- **Robin Hood probing or quadratic probing as a second open-addressing variant.** The linear-probing lesson explicitly closes by naming these as natural follow-ups. Robin Hood is the more pedagogically interesting one — every probe carries its current displacement, and on collision the key that's traveled farther evicts the one that hasn't. The viz would need a "displacement" annotation per occupied slot and a "swap" step on insert. Underlying `LinearProbeView` SVG primitive already accepts the right shape; mostly a new generator + snippet + section.
 - **ML intuitions track** — long-term roadmap goal: gradient descent → backprop → transformer attention. Materially different visualizations; treat as a new project pillar rather than incremental work.
 - **Promote insertion sort to the landing page primer.** The "What you'll learn first" section curates three cards (bubble / merge / quick). With insertion sort live and beginner-rated, it could replace one of the intermediate cards there. Current copy already links to the full lessons page, so the call is editorial, not technical.
 - **Language toggle on the code panel.** All snippets are Python today. Adding TypeScript (the actual generator source) or another teaching language would re-tokenize on toggle and roughly double the snippet-authoring work per algorithm. The pieces are in place: `CodePanel` already accepts a `language` prop and Shiki supports many languages — what's missing is a per-algorithm registry of `{ python: source, typescript: source }` and matching line-number maps.
@@ -132,7 +139,7 @@ User deferred this. When you do it:
 - The smoke test relies on heading text ("Learn computer science"). If the landing copy changes, update `e2e/smoke.spec.ts` in the same commit.
 - The package.json `name` is still `addyosmani-test` from initial scaffolding — harmless but inconsistent with the repo name. Rename if/when convenient.
 - The `vitest.config.ts` 100% coverage gate currently only covers `src/lib/algorithms/`. Extending it to `src/lib/dataStructures/` would prevent the same drift in the new track — left out of the BST and hash-tables PRs to avoid bundling unrelated config tightening. With BST + hash tables both now substantial modules, this is overdue.
-- Axe-core now runs on eight routes (`/`, `/lessons`, `/lessons/sorting/bubble-sort`, `/lessons/sorting/compare`, `/lessons/data-structures/binary-search-tree`, `/lessons/data-structures/hash-tables`, `/lessons/data-structures/tree-traversal`, `/lessons/data-structures/heap`). The other four sort pages (`insertion-sort`, `merge-sort`, `quick-sort`, `heap-sort`, `radix-sort`) ship with `CodePanel` but aren't in the sweep. Adding them would catch any future panel-related regressions earlier — the existing routes cover the structural shape, but each algorithm has its own snippet length and could surface unique contrast/wrapping edge cases.
+- Axe-core now runs on nine routes (`/`, `/lessons`, `/lessons/sorting/bubble-sort`, `/lessons/sorting/compare`, `/lessons/data-structures/binary-search-tree`, `/lessons/data-structures/hash-tables`, `/lessons/data-structures/tree-traversal`, `/lessons/data-structures/heap`, `/lessons/data-structures/linear-probing`). The other four sort pages (`insertion-sort`, `merge-sort`, `quick-sort`, `heap-sort`, `radix-sort`) ship with `CodePanel` but aren't in the sweep. Adding them would catch any future panel-related regressions earlier — the existing routes cover the structural shape, but each algorithm has its own snippet length and could surface unique contrast/wrapping edge cases.
 - The hash-tables viz uses keys-only ("hash set") semantics. If you ever want it to behave as a hash _map_, extend `HashTableEntry` with a `value` field, update the snippets (`bucket = [(k, v), ...]`), and update `HashTableView` to render `k: v` cells. Most of the rest of the pipeline is value-agnostic.
 
 ## Things to leave alone
@@ -152,7 +159,8 @@ src/app/                            App Router routes
   lessons/sorting/compare/page.mdx  Side-by-side comparison lesson
   lessons/data-structures/          Data-structures track (layout + lessons)
     binary-search-tree/page.mdx     BST insert + search + delete lesson
-    hash-tables/page.mdx            Hash table add + contains + remove lesson
+    hash-tables/page.mdx            Separate-chaining hash table (add / contains / remove)
+    linear-probing/page.mdx         Open-addressing hash table with linear probing + tombstones
     tree-traversal/page.mdx         Preorder / inorder / postorder / level-order
     heap/page.mdx                   Min-heap insert (siftUp) + extract-min (siftDown)
   opengraph-image.tsx               Edge-runtime OG card (1200x630)
@@ -165,6 +173,7 @@ src/components/
     ArrayBars.tsx                   SVG presentational (sort viz)
     TreeView.tsx                    SVG presentational (tree viz)
     HashTableView.tsx               SVG presentational (hash table viz; buckets + chains)
+    LinearProbeView.tsx             SVG presentational (single-row flat slots + tombstone × marks)
     CodePanel.tsx                   Client component: source + line highlights + lazy Shiki
     Controls.tsx                    Toolbar (play/pause/step/reset/speed; size optional)
     SortingViz.tsx                  Single-algorithm composition + state (renders CodePanel when snippet exists)
@@ -175,6 +184,9 @@ src/components/
     HashTableInsertViz.tsx          Hash table insert composition (renders CodePanel + ghost slot)
     HashTableSearchViz.tsx          Hash table search composition (head/end/empty-bucket targets)
     HashTableDeleteViz.tsx          Hash table delete composition (middle/tail/head/miss targets)
+    LinearProbeInsertViz.tsx        Linear-probing insert composition (collisions + wrap-around + dup)
+    LinearProbeSearchViz.tsx        Linear-probing search composition (the "probe past tombstone" demo)
+    LinearProbeDeleteViz.tsx        Linear-probing delete composition (probed delete + direct + miss)
     TreeTraversalViz.tsx            Tree traversal composition (4-mode toggle + output sequence strip)
     HeapInsertViz.tsx               Min-heap insert composition (siftUp; 2-sequence toggle)
     HeapifyViz.tsx                  Min-heap heapify composition (bottom-up siftDown; single curated input)
@@ -190,17 +202,19 @@ src/lib/
     {bubble,heap,insertion,         Python source + named line-number constants
      merge,quick,radix}Sort.snippet.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep
+    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step
     binarySearchTree.ts             BST insertSequence + searchSequence + deleteSequence + buildTree
     hashTable.ts                    Hash table insertSequence + searchSequence + deleteSequence + buildHashTable + bucketIndexFor + liveKeys + loadFactor
     traversal.ts                    Parameterized traversalSequence(tree, mode) + TRAVERSAL_MODES + labels
     heap.ts                         Min-heap heapInsertSequence + heapifySequence + heapExtractMinSequence + buildHeap + isMinHeap + heapToTree
+    linearProbe.ts                  Linear-probing insertSequence + searchSequence + deleteSequence + buildLinearProbeTable + emptyTable + slotIndexFor + liveKeys + loadFactor
     index.ts                        BST operation registry + labels (insert only — search/delete have a different signature)
     {insert,search,delete}Sequence.snippet.ts        Python source + named line-number constants (BST)
     hashTable{Insert,Search,Delete}.snippet.ts        Python source + named line-number constants (hash table)
     {preorder,inorder,postorder,levelOrder}Traversal.snippet.ts  Python source + named line-number constants (traversal)
     heap{Insert,ExtractMin}.snippet.ts               Python source + named line-number constants (heap)
     heapify.snippet.ts                               Python source + named line-number constants (heapify)
+    linearProbe{Insert,Search,Delete}.snippet.ts     Python source + named line-number constants (linear probing)
   hooks/
     useStepThrough.ts               Single-list reducer state machine
     useParallelStepThrough.ts       N-list reducer with shared timer
@@ -220,10 +234,11 @@ If you need to make a focused change, these are the files that matter for each s
 - **Add a new data-structure lesson from scratch:** Mirror Hash Tables. New `*.snippet.ts` per operation + new generator file + new `*View.tsx` presentational primitive (if existing primitives don't fit) + per-operation `*Viz.tsx` compositions + lesson MDX + lessons-index entry (`status: "live"`, set `slug`) + e2e spec + add the route to `e2e/a11y.spec.ts` route list.
 - **Touch the CodePanel:** `src/components/visualizations/CodePanel.tsx` + `tests/components/CodePanel.test.tsx`. Decisions 17–21 cover the load-bearing constraints (lazy Shiki, focusable scroll region, line-number contrast, `not-prose`, scroll math, soft-wrap hanging indent).
 - **Touch the TreeView SVG:** `src/components/visualizations/TreeView.tsx`. Highlight palette uses `--bar-compare / swap / pivot` CSS vars defined in `src/app/globals.css` (light + dark variants). Reused by BST insert/search/delete vizes, TreeTraversalViz, **and all three heap vizes via `heapToTree`** — exercise all eight before merging.
+- **Touch the LinearProbeView SVG:** `src/components/visualizations/LinearProbeView.tsx`. Different layout philosophy from `HashTableView`: single horizontal row of fixed-size cells (no chains), each cell has three visual states (empty=dashed, tombstone=× marks, occupied=key). Three viz compositions consume it (`LinearProbe{Insert,Search,Delete}Viz`). The ×-mark glyph for tombstones is constructed from two SVG lines, not a Unicode character — don't replace with `<text>✗</text>` without checking the centering math.
 
 ## What changed in the most recent session
 
-This session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in two phases — initial three-viz rollout followed by the heapify section as an in-place extension:
+This session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in three phases — heap (with insert + extract-min), heapify as an in-place extension, then linear probing as a brand-new lesson:
 
 | #   | subject                                                                            |
 | --- | ---------------------------------------------------------------------------------- |
@@ -238,6 +253,11 @@ This session shipped the **Heaps & Priority Queues** lesson with three viz secti
 | 9   | `feat(lessons)`: add heapify section to heap lesson MDX                            |
 | 10  | `test(e2e)`: cover heapify section in heap spec                                    |
 | 11  | `docs`: refresh next_session.md after heapify rollout                              |
+| 12  | `feat(ds)`: add linear-probe generators + snippets + tests                         |
+| 13  | `feat(viz)`: add LinearProbeView + 3 viz compositions                              |
+| 14  | `feat(lessons)`: add linear-probing lesson + index entry                           |
+| 15  | `test(e2e)`: cover linear-probing lesson + add it to axe sweep                     |
+| 16  | `docs`: refresh next_session.md after linear-probing rollout                       |
 
 Narrative summary:
 
@@ -251,6 +271,11 @@ Narrative summary:
 8. **HeapifyViz** (commit 8). Single-curated-input composition: `[9, 4, 7, 1, 8, 3, 5, 2, 6]` (n=9, so exactly 4 sift-down passes). Same TreeView + CodePanel layout as the other heap vizes, counters: Sift-down passes / Comparisons / Swaps. No source toggle — the lesson value is observing the bottom-up traversal, not comparing inputs.
 9. **Heapify lesson section** (commit 9). New "Building a heap from an array" section inserted _between_ Insert and Extract in the MDX. Explains the $O(n)$ argument (sum of `n/2^(h+1) · O(h)` telescopes to $O(n)$) and removes `heapify` from the lesson's "What you didn't see" list, leaving only `decrease_key` and d-ary/Fibonacci heaps as named follow-ups.
 10. **E2E expansion** (commit 10). Two new specs in `e2e/heap.spec.ts` — heapify region presence + counter ticking, and "running to completion produces exactly 4 sift-down passes" pinned to the input size. Brought the spec to 7 tests total.
-11. **Doc refresh** (commit 11). This file. New decision 32 captures the leaf-skipping invariant in `heapifySequence` that's load-bearing for the $O(n)$ bound.
+11. **Doc refresh** (commit 11). New decision 32 captures the leaf-skipping invariant in `heapifySequence` that's load-bearing for the $O(n)$ bound.
+12. **Linear-probe generators** (commit 12). New `linearProbe.ts` module + three snippets (`linearProbe{Insert,Search,Delete}.snippet.ts`) + 31 unit/property tests. The data model is `LinearProbeSnapshot = { capacity, slots: LinearProbeSlot[] }` where each slot is a 3-state discriminated union (empty / tombstone / occupied with a key). Insert/search/delete all share the same probe-and-wrap-around pattern; the lesson-specific simplification is "insert never reuses tombstones," covered in decisions 33–35.
+13. **LinearProbeView + viz compositions** (commit 13). Brand-new SVG primitive (horizontal row of 8 cells, dashed for empty, × for tombstone, key text for occupied) plus three composition components (`LinearProbe{Insert,Search,Delete}Viz`) — modeled after the chained `HashTable*Viz` set but adapted to the 3-state slot model. Different `aria-label` shape (`Linear-probe insert` vs the chained lesson's `Hash table insert`) keeps Playwright role-locator queries disambiguated.
+14. **Linear-probing lesson + index** (commit 14). New `/lessons/data-structures/linear-probing` MDX with the three vizes interleaved with prose. Lesson framing: open-addressing as an alternative to separate chaining; the central pedagogical moment is the second search target (21) probing _past_ a tombstone to demonstrate why tombstones can't be reset to empty. The lessons-index entry is added below the existing hash-tables entry, both live; the existing hash-tables entry got its blurb tweaked to mention "Separate chaining" for symmetry.
+15. **E2E + a11y** (commit 15). New `e2e/linear-probing.spec.ts` with 5 specs covering region presence, counter ticking + reset, full-run completion counts for each of the three vizes (5 placed + 1 dup + 4 probes for insert; 3 hits + 2 misses for search; 2 removed + 1 miss for delete). Heap-style exact-name region locators because all three vizes are on one page. Route added to a11y.spec.ts axe sweep.
+16. **Doc refresh** (commit 16). This file. New decisions 33–35 capture linear-probing specifics: the 3-state slot model, the no-tombstone-reuse insert simplification, and the `probeCount < capacity` termination guard.
 
-Test counts grew from **251 unit / 42 e2e (incl. 7 axe routes)** at session start to **289 unit / 50 e2e (incl. 8 axe routes)** at HEAD (+38 unit, +8 e2e — +28 unit from initial heap, +10 from heapify; +5 e2e from initial heap, +2 from heapify, +1 axe route).
+Test counts grew from **251 unit / 42 e2e (incl. 7 axe routes)** at session start to **320 unit / 55 e2e (incl. 9 axe routes)** at HEAD (+69 unit, +13 e2e — +28 from heap, +10 from heapify, +31 from linear probing; +5 from heap, +2 from heapify, +5 from linear probing, +2 axe routes).
