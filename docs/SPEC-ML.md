@@ -1,6 +1,6 @@
 # Spec: ML Intuitions Pillar (v1)
 
-> **Status:** Drafted from `docs/ideas/ml-pillar-v1.md` (Direction A). Awaiting human review before Phase 2 (Plan).
+> **Status:** Shipped 2026-05-12. All 17 tasks in `docs/TASKS-ML.md` complete; all 20 success-criteria checkboxes ticked below.
 > **Author:** Tzun · **Date:** 2026-05-12
 
 ## Objective
@@ -390,32 +390,32 @@ else: no fixed target — write tests where bugs would actually hurt.
 
 Concrete, testable conditions for "v1 of the ML pillar is done":
 
-- [ ] **Three lesson routes live and registered.**
-  - [ ] `/lessons/ml/gradient-descent` renders, viz mounts, step/play/run-to-completion
+- [x] **Three lesson routes live and registered.**
+  - [x] `/lessons/ml/gradient-descent` renders, viz mounts, step/play/run-to-completion
         all work, math toggle swaps prose.
-  - [ ] `/lessons/ml/backprop` same.
-  - [ ] `/lessons/ml/attention` same.
-  - [ ] `/lessons/page.tsx` shows all three as `status: "live"` (no "Coming soon").
-- [ ] **`<MathLevel>` toggle implemented.**
-  - [ ] Defaults to "intuition" on first visit.
-  - [ ] Choice persists via `localStorage` across the three lessons.
-  - [ ] Keyboard-reachable, `aria-pressed` reflects state.
-  - [ ] SSR renders without errors (no `localStorage` access on server).
-- [ ] **Trajectory button in `Controls`.**
-  - [ ] Renders only when the calling viz passes `onRunToCompletion`.
-  - [ ] Animates the full sequence at the current speed for non-reduced-motion users.
-  - [ ] Snaps to end state for reduced-motion users without spinning the timer.
-- [ ] **100% coverage on `src/lib/ml/**`** — extends the existing `algorithms/`+
-   `dataStructures/` gate. CI fails without it.
-- [ ] **Property tests pass** — fast-check on GD convergence, backprop gradient check,
+  - [x] `/lessons/ml/backprop` same.
+  - [x] `/lessons/ml/attention` same.
+  - [x] `/lessons/page.tsx` shows all three as `status: "live"` (no "Coming soon").
+- [x] **`<MathLevel>` toggle implemented.**
+  - [x] Defaults to "intuition" on first visit.
+  - [x] Choice persists via `localStorage` across the three lessons.
+  - [x] Keyboard-reachable, `aria-pressed` reflects state.
+  - [x] SSR renders without errors (no `localStorage` access on server).
+- [x] **Trajectory button in `Controls`.**
+  - [x] Renders only when the calling viz passes `onRunToCompletion`.
+  - [x] Animates the full sequence at the current speed for non-reduced-motion users.
+  - [x] Snaps to end state for reduced-motion users without spinning the timer.
+- [x] **100% coverage on `src/lib/ml/**`** — extends the existing `algorithms/`+
+ `dataStructures/` gate. CI fails without it.
+- [x] **Property tests pass** — fast-check on GD convergence, backprop gradient check,
       attention softmax invariants. 1000 runs each in CI.
-- [ ] **e2e + axe sweep extended** from 17 routes to 20 (all three ML lessons), zero
+- [x] **e2e + axe sweep extended** from 17 routes to 20 (all three ML lessons), zero
       axe-core violations on `serious` or higher.
-- [ ] **Python snippets synced** — every step kind has `codeLines` annotated, branches
+- [x] **Python snippets synced** — every step kind has `codeLines` annotated, branches
       get distinct highlights, line numbers are within `source.split("\n").length`.
-- [ ] **Bundle budget honored.** Each ML lesson route < 175 KB gzipped per the Next
+- [x] **Bundle budget honored.** Each ML lesson route < 175 KB gzipped per the Next
       build report.
-- [ ] **`next_session.md` updated** post-ship with new test counts + ML pillar in
+- [x] **`next_session.md` updated** post-ship with new test counts + ML pillar in
       "What ships today."
 
 ## Open Questions
