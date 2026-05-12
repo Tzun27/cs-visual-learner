@@ -5,8 +5,10 @@ import {
   buildRobinHoodTable,
   displacementOf,
   maxDisplacement,
+  robinHoodDeleteSequence,
   robinHoodInsertSequence,
 } from "@/lib/dataStructures/robinHood";
+import { robinHoodDeletePython } from "@/lib/dataStructures/robinHoodDelete.snippet";
 import { robinHoodInsertPython } from "@/lib/dataStructures/robinHoodInsert.snippet";
 import type { LinearProbeSnapshot } from "@/lib/dataStructures/types";
 
@@ -146,6 +148,160 @@ describe("robinHoodInsertSequence", () => {
           expect(maxDisplacementVariance(rhFinal)).toBeLessThanOrEqual(
             maxDisplacementVariance(linearFinal),
           );
+        },
+      ),
+    );
+  });
+});
+
+describe("robinHoodDeleteSequence", () => {
+  // End-state of the Robin Hood insert demo: 5@5, 13@6, 14@7, 22@0.
+  // Displacements: 5(+0), 13(+1), 14(+1), 22(+2).
+  const DEMO = buildRobinHoodTable(CAP, [5, 14, 13, 22]);
+
+  it("yields only 'done' for an empty target list", () => {
+    const steps = [...robinHoodDeleteSequence(DEMO, [])];
+    expect(steps.map((s) => s.kind)).toEqual(["done"]);
+  });
+
+  it("emits a miss when the home slot is empty", () => {
+    const steps = [...robinHoodDeleteSequence(DEMO, [99])];
+    expect(steps.map((s) => s.kind)).toEqual(["begin", "hash", "miss", "done"]);
+    const miss = steps.find((s) => s.kind === "miss");
+    if (miss?.kind !== "miss") throw new Error("expected miss");
+    expect(miss.slotIndex).toBe(3); // 99 % 8
+  });
+
+  it("backshifts a chain of displaced keys, stopping at an empty slot", () => {
+    // Delete 13: probe past 5, find at slot 6, then pull 14 and 22 toward
+    // their homes; the next slot (slot 1) is empty so we stop and clear
+    // slot 0.
+    const steps = [...robinHoodDeleteSequence(DEMO, [13])];
+    const pulls = steps.filter((s) => s.kind === "pull");
+    expect(pulls).toHaveLength(2);
+    // First pull: 14 from slot 7 → slot 6
+    expect(pulls[0]).toMatchObject({ fromIndex: 7, toIndex: 6, pulledKey: 14 });
+    // Second pull: 22 from slot 0 → slot 7 (wrap-around in the toIndex)
+    expect(pulls[1]).toMatchObject({ fromIndex: 0, toIndex: 7, pulledKey: 22 });
+
+    const clear = steps.find((s) => s.kind === "clear");
+    if (clear?.kind !== "clear") throw new Error("expected clear");
+    expect(clear.clearedIndex).toBe(0);
+    expect(clear.blockerReason).toBe("empty");
+    expect(clear.blockerIndex).toBe(1);
+
+    // Final state: 5@5 (+0), 14@6 (+0), 22@7 (+1). 13 gone.
+    const final = (steps.at(-1) as { kind: "done"; table: LinearProbeSnapshot }).table;
+    expect([...liveKeys(final)].sort((a, b) => a - b)).toEqual([5, 14, 22]);
+    expect(displacementOf(final, 6)).toBe(0);
+    expect(displacementOf(final, 7)).toBe(1);
+    // No tombstones — slot 0 is genuinely empty.
+    expect(final.slots[0].state).toBe("empty");
+  });
+
+  it("backshift stops at a key already at home (no pulls)", () => {
+    // Delete 13 first to land us at: 5@5, 14@6, 22@7. Then delete 5:
+    // i=5 found, j=6 holds 14 with home 6 → at-home → stop, clear slot 5.
+    const steps = [...robinHoodDeleteSequence(DEMO, [13, 5])];
+    // Filter to the second delete only (after the first 'clear' step).
+    const secondBegin = steps.findIndex((s, idx) => s.kind === "begin" && idx > 0);
+    const tail = steps.slice(secondBegin);
+    const pulls = tail.filter((s) => s.kind === "pull");
+    expect(pulls).toHaveLength(0);
+    const clear = tail.find((s) => s.kind === "clear");
+    if (clear?.kind !== "clear") throw new Error("expected clear");
+    expect(clear.clearedIndex).toBe(5);
+    expect(clear.blockerReason).toBe("at-home");
+    expect(clear.blockerIndex).toBe(6);
+
+    const final = (tail.at(-1) as { kind: "done"; table: LinearProbeSnapshot }).table;
+    expect([...liveKeys(final)].sort((a, b) => a - b)).toEqual([14, 22]);
+  });
+
+  it("never leaves a tombstone in the table", () => {
+    // No matter the order, Robin Hood backshift never introduces a
+    // tombstone — that's the whole point.
+    const steps = [...robinHoodDeleteSequence(DEMO, [13, 5, 22, 14])];
+    for (const step of steps) {
+      const slots = step.table.slots;
+      for (const slot of slots) {
+        expect(slot.state).not.toBe("tombstone");
+      }
+    }
+  });
+
+  it("emits a miss when probing past unrelated keys lands on an empty slot", () => {
+    // Build a table where 1 lives at slot 1, but searching for 9 (also
+    // hashes to 1) probes 1 → 2; slot 2 is empty → miss.
+    const t = buildRobinHoodTable(CAP, [1]);
+    const steps = [...robinHoodDeleteSequence(t, [9])];
+    const probes = steps.filter((s) => s.kind === "probe");
+    expect(probes).toHaveLength(1);
+    expect(probes[0].slotIndex).toBe(2);
+    const miss = steps.find((s) => s.kind === "miss");
+    if (miss?.kind !== "miss") throw new Error("expected miss");
+    expect(miss.slotIndex).toBe(2);
+  });
+
+  it("every emitted delete step carries codeLines pointing inside the displayed Python source", () => {
+    const lineCount = robinHoodDeletePython.split("\n").length;
+    for (const step of robinHoodDeleteSequence(DEMO, [13, 5, 99])) {
+      expect(step.codeLines).toBeDefined();
+      expect(step.codeLines!.length).toBeGreaterThan(0);
+      for (const line of step.codeLines!) {
+        expect(line).toBeGreaterThanOrEqual(1);
+        expect(line).toBeLessThanOrEqual(lineCount);
+      }
+    }
+  });
+
+  it("does not mutate its input snapshot", () => {
+    const before = JSON.parse(JSON.stringify(DEMO));
+    void [...robinHoodDeleteSequence(DEMO, [13, 5, 22])];
+    expect(JSON.parse(JSON.stringify(DEMO))).toEqual(before);
+  });
+
+  it("property: deleting every key in any order leaves an empty table", () => {
+    fc.assert(
+      fc.property(
+        fc
+          .uniqueArray(fc.integer({ min: 0, max: 200 }), { minLength: 0, maxLength: 6 })
+          .chain((keys) =>
+            fc.tuple(
+              fc.constant(keys),
+              fc.shuffledSubarray(keys, { minLength: keys.length, maxLength: keys.length }),
+            ),
+          ),
+        ([keys, deleteOrder]) => {
+          const built = buildRobinHoodTable(CAP, keys);
+          let table = built;
+          for (const step of robinHoodDeleteSequence(built, deleteOrder)) {
+            if (step.kind === "done") table = step.table;
+          }
+          expect(liveKeys(table)).toEqual([]);
+          for (const slot of table.slots) {
+            // After full deletion the table must be all-empty — no
+            // tombstones, no stragglers.
+            expect(slot.state).toBe("empty");
+          }
+        },
+      ),
+    );
+  });
+
+  it("property: after any sequence of inserts and deletes, displacements are still ≤ live count", () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(fc.integer({ min: 0, max: 100 }), { minLength: 0, maxLength: 6 }),
+        fc.uniqueArray(fc.integer({ min: 0, max: 100 }), { minLength: 0, maxLength: 4 }),
+        (inserts, deletes) => {
+          const built = buildRobinHoodTable(CAP, inserts);
+          let table = built;
+          for (const step of robinHoodDeleteSequence(built, deletes)) {
+            if (step.kind === "done") table = step.table;
+          }
+          const live = liveKeys(table).length;
+          expect(maxDisplacement(table)).toBeLessThanOrEqual(Math.max(live, 0));
         },
       ),
     );

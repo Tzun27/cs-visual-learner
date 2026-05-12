@@ -456,6 +456,60 @@ export type RobinHoodInsertStep =
     })
   | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
 
+// Robin Hood backshift deletion. Once the target is found, walk forward
+// pulling each subsequent key one slot toward its home, stopping when the
+// next slot is empty or holds a key already at displacement 0. This
+// restores the Robin Hood displacement invariants without leaving any
+// tombstones — at the cost of more bookkeeping per delete than the
+// linear-probing tombstone scheme.
+export type RobinHoodDeleteStep =
+  | (StepBase & { kind: "begin"; table: LinearProbeSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "probe";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+      probeCount: number;
+    })
+  | (StepBase & {
+      kind: "found";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "pull";
+      table: LinearProbeSnapshot;
+      // `pulledKey` moved from `fromIndex` to `toIndex` (always
+      // `toIndex = fromIndex - 1` modulo capacity).
+      fromIndex: number;
+      toIndex: number;
+      pulledKey: number;
+    })
+  | (StepBase & {
+      kind: "clear";
+      table: LinearProbeSnapshot;
+      // Slot that was just emptied. `blockerIndex` is the next-forward slot
+      // that couldn't be pulled; the viz can highlight both so the user sees
+      // why the chain stopped here.
+      clearedIndex: number;
+      blockerIndex: number;
+      blockerReason: "empty" | "at-home";
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: LinearProbeSnapshot;
+      targetKey: number;
+      slotIndex: number;
+    })
+  | (StepBase & { kind: "done"; table: LinearProbeSnapshot });
+
 export type LinearProbeDeleteStep =
   | (StepBase & { kind: "begin"; table: LinearProbeSnapshot; targetKey: number })
   | (StepBase & {

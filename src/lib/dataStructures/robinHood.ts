@@ -1,6 +1,12 @@
 import { slotIndexFor } from "./linearProbe";
+import { robinHoodDeleteLines } from "./robinHoodDelete.snippet";
 import { robinHoodInsertLines } from "./robinHoodInsert.snippet";
-import type { LinearProbeSlot, LinearProbeSnapshot, RobinHoodInsertStep } from "./types";
+import type {
+  LinearProbeSlot,
+  LinearProbeSnapshot,
+  RobinHoodDeleteStep,
+  RobinHoodInsertStep,
+} from "./types";
 
 function snapshot(slots: readonly LinearProbeSlot[], capacity: number): LinearProbeSnapshot {
   return { capacity, slots: slots.map((s) => ({ ...s })) };
@@ -162,6 +168,140 @@ export function buildRobinHoodTable(
     if (step.kind === "done") final = step.table;
   }
   return final;
+}
+
+// Robin Hood backshift deletion: search like normal, then on a match,
+// walk forward pulling each subsequent key one slot to the left until we
+// hit an empty slot or a key already at displacement 0. No tombstones are
+// produced — backshift is what replaces them in the Robin Hood scheme.
+export function* robinHoodDeleteSequence(
+  initial: LinearProbeSnapshot,
+  targets: readonly number[],
+): Generator<RobinHoodDeleteStep> {
+  const { capacity } = initial;
+  const slots: LinearProbeSlot[] = initial.slots.map((s) => ({ ...s }));
+
+  for (const key of targets) {
+    yield {
+      kind: "begin",
+      table: snapshot(slots, capacity),
+      targetKey: key,
+      codeLines: robinHoodDeleteLines.begin,
+    };
+
+    const start = slotIndexFor(key, capacity);
+    yield {
+      kind: "hash",
+      table: snapshot(slots, capacity),
+      targetKey: key,
+      slotIndex: start,
+      codeLines: robinHoodDeleteLines.hash,
+    };
+
+    let cursor = start;
+    let probeCount = 0;
+    let found = false;
+    let missed = false;
+    while (probeCount < capacity) {
+      const slot = slots[cursor];
+      if (slot.state === "empty") {
+        yield {
+          kind: "miss",
+          table: snapshot(slots, capacity),
+          targetKey: key,
+          slotIndex: cursor,
+          codeLines: robinHoodDeleteLines.miss,
+        };
+        missed = true;
+        break;
+      }
+      if (slot.state === "occupied" && slot.key === key) {
+        yield {
+          kind: "found",
+          table: snapshot(slots, capacity),
+          targetKey: key,
+          slotIndex: cursor,
+          codeLines: robinHoodDeleteLines.found,
+        };
+        // Backshift: walk forward pulling each subsequent key one slot
+        // toward its home, until we hit a stop condition.
+        let i = cursor;
+        let j = (i + 1) % capacity;
+        let blockerReason: "empty" | "at-home" = "empty";
+        let pullsThisDelete = 0;
+        // The inner loop is bounded by capacity for the same reason as
+        // the linear-probing probe loops: pathological tables could in
+        // principle have nothing but occupied non-home slots, and we
+        // need a hard stop. In practice this never fires.
+        while (pullsThisDelete < capacity) {
+          const nextSlot = slots[j];
+          if (nextSlot.state !== "occupied") {
+            // Tombstones don't exist in Robin Hood's backshift world,
+            // but defensively treat any non-occupied as a stop.
+            blockerReason = "empty";
+            break;
+          }
+          const nextHome = slotIndexFor(nextSlot.key, capacity);
+          if (nextHome === j) {
+            blockerReason = "at-home";
+            break;
+          }
+          slots[i] = { state: "occupied", key: nextSlot.key };
+          yield {
+            kind: "pull",
+            table: snapshot(slots, capacity),
+            fromIndex: j,
+            toIndex: i,
+            pulledKey: nextSlot.key,
+            codeLines: robinHoodDeleteLines.pull,
+          };
+          pullsThisDelete++;
+          i = j;
+          j = (j + 1) % capacity;
+        }
+        slots[i] = { state: "empty" };
+        yield {
+          kind: "clear",
+          table: snapshot(slots, capacity),
+          clearedIndex: i,
+          blockerIndex: j,
+          blockerReason,
+          codeLines: robinHoodDeleteLines.clear,
+        };
+        found = true;
+        break;
+      }
+      // Slot is occupied with a non-matching key (Robin Hood has no
+      // tombstones, so this is the only "keep probing" case). Advance.
+      probeCount++;
+      cursor = (cursor + 1) % capacity;
+      yield {
+        kind: "probe",
+        table: snapshot(slots, capacity),
+        targetKey: key,
+        slotIndex: cursor,
+        probeCount,
+        codeLines: robinHoodDeleteLines.probe,
+      };
+    }
+    // If we walked the full table without finding or missing, treat as
+    // a miss. Defensive: the curated inputs never trigger this.
+    if (!found && !missed) {
+      yield {
+        kind: "miss",
+        table: snapshot(slots, capacity),
+        targetKey: key,
+        slotIndex: cursor,
+        codeLines: robinHoodDeleteLines.miss,
+      };
+    }
+  }
+
+  yield {
+    kind: "done",
+    table: snapshot(slots, capacity),
+    codeLines: robinHoodDeleteLines.done,
+  };
 }
 
 export function maxDisplacement(table: LinearProbeSnapshot): number {
