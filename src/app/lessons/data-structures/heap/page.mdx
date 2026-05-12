@@ -1,4 +1,5 @@
 import { HeapInsertViz } from "@/components/visualizations/HeapInsertViz";
+import { HeapifyViz } from "@/components/visualizations/HeapifyViz";
 import { HeapExtractMinViz } from "@/components/visualizations/HeapExtractMinViz";
 
 export const metadata = {
@@ -48,6 +49,42 @@ order produced a depth-$n$ right-only chain. Heaps don't have that problem. The 
 purely by _how many_ values are in the heap, not by what those values are or in what order they
 arrived. That's the trade-off: heaps give up the BST's ordering between siblings (you can't ask
 "what's the third-smallest value" without doing real work) in exchange for guaranteed balance.
+
+## Building a heap from an array
+
+What if you already have $n$ values and want to put them all into a heap at once? The obvious
+approach is to start with an empty heap and call `insert` $n$ times — which the section above just
+walked through. That works, and it costs $O(n \log n)$: each insert is $O(\log n)$, and you do $n$
+of them.
+
+But there's a cheaper construction. It's called **heapify**, and it runs in $O(n)$ — strictly
+linear in the input size. The idea is to start with the input array as-is (which is _not_ a valid
+heap), and then sift each internal node down into place, working from the bottom of the tree
+upward.
+
+<HeapifyViz />
+
+The pass starts at index $\lfloor n / 2 \rfloor - 1$ — the last node that has any children at all.
+Leaves don't need processing because a single-node subtree is trivially a heap of size 1. From
+there, the cursor walks _backward_ through the array, calling sift-down on each node. By the time
+we reach the root, every node below it has already been fixed up, so each sift-down only needs to
+fix the local violation.
+
+Two things to watch in the **Sift-down passes** counter:
+
+- It maxes out at $\lfloor n / 2 \rfloor$, not $n$. The bottom half of the array is leaves, and
+  leaves get skipped.
+- Even within the upper half, _most_ of the passes are short. Nodes near the bottom have shallow
+  subtrees to fix, and only nodes near the root might cascade through the whole height.
+
+That bottom-heavy distribution is where the $O(n)$ bound comes from. The standard analysis sums
+$\sum_{h=0}^{\log_2 n} n / 2^{h+1} \cdot O(h)$, which telescopes to $O(n)$ — the geometric decay
+in node count beats the linear growth in sift-down cost. (Successive `insert` doesn't get this
+break because each insert sees a full-height tree on its way up.)
+
+In Python's standard library, `heapq.heapify(list)` is exactly this $O(n)$ build. It's what most
+priority-queue applications start with, especially when the initial workload is "score every item,
+then start popping" rather than "ingest one item at a time."
 
 ## Extracting the minimum
 
@@ -99,10 +136,6 @@ A min-heap is the natural implementation of a priority queue when "highest prior
 
 A few things this lesson skipped for clarity:
 
-- **`heapify`** — building a heap from an already-populated array in $O(n)$ rather than
-  $n$ inserts each costing $O(\log n)$. The trick is to sift-down from the bottom up; the
-  amortized argument is delicate. The `heap-sort` lesson uses this version because it's the
-  in-place build.
 - **`decrease_key`** — Dijkstra needs to lower the priority of a node already in the heap when
   it discovers a shorter path. The textbook fix is to maintain an index map alongside the array
   so you can find the node in $O(1)$; without that, you have to do a linear scan or just
