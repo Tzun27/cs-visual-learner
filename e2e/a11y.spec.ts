@@ -20,6 +20,7 @@ const routes = [
   "/lessons/data-structures/hopscotch",
   "/lessons/data-structures/pairing-heap",
   "/lessons/ml/gradient-descent",
+  "/lessons/ml/backprop",
 ] as const;
 
 for (const route of routes) {

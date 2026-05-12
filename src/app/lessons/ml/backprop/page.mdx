@@ -1,0 +1,145 @@
+import { BackpropViz } from "@/components/visualizations/BackpropViz";
+import { MathLevel, IntuitionOnly, MathOnly } from "@/components/mdx/MathLevel";
+
+export const metadata = {
+  title: "Backpropagation",
+  description:
+    "Watch the chain rule unfold across a tiny 2 → 2 → 1 neural network: one forward pass, one backward pass, one weight update.",
+};
+
+# Backpropagation
+
+**Difficulty:** intermediate · **Category:** machine learning
+
+<MathLevel />
+
+<IntuitionOnly>
+
+The [gradient-descent lesson](/lessons/ml/gradient-descent) showed how a learner walks
+downhill in parameter space — but it skipped the hardest question. **How do we know which
+direction is downhill for every weight in a network with hundreds of parameters?**
+
+That's what **backpropagation** answers. It's a recipe for computing the gradient of the
+loss with respect to every weight, by walking the network _backwards_ from the output and
+multiplying together a few small numbers at each step.
+
+The viz below runs one forward + one backward pass on a tiny network: two inputs feed two
+hidden units (each with a ReLU activation), which feed a single output. The whole
+calculation is exactly nine multiplications and a few additions — small enough to fit on
+this page. Same recipe scales up to GPT-sized models with billions of parameters.
+
+The mental model worth carrying away: each edge of the network gets "blamed" in proportion
+to how much it contributed to the final error. A weight whose downstream connection is
+already near zero gets a small share of the blame. A weight on the path that produced the
+big wrong number gets a large share. That's the chain rule.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+Backpropagation is the chain rule applied to a directed computation graph. Given a
+differentiable loss $L$ that depends on parameters $\mathbf{\theta} = (w_1, \ldots, w_n)$
+through intermediate activations, we want $\partial L / \partial w_i$ for every $i$.
+
+The recipe:
+
+1. **Forward pass.** Compute every intermediate activation, top to bottom.
+2. **Backward pass.** Starting from $\partial L / \partial \text{output} = $ trivial, work
+   backwards through each operation in reverse topological order. For each intermediate
+   $u$ whose immediate downstream dependents are $\{v_k\}$, apply
+   $$
+     \frac{\partial L}{\partial u} = \sum_k \frac{\partial L}{\partial v_k} \cdot \frac{\partial v_k}{\partial u}
+   $$
+3. **Weight update.** Each weight gets $w \leftarrow w - \alpha \cdot \partial L / \partial w$.
+
+For the network in the viz — $\mathbb{R}^2 \to \mathbb{R}^2 \to \mathbb{R}$ with ReLU
+nonlinearity and MSE loss — the chain unfolds as:
+
+$$
+\begin{aligned}
+\frac{\partial L}{\partial y} &= y - t \\
+\frac{\partial L}{\partial v_i} &= (y - t) \cdot h_i \\
+\frac{\partial L}{\partial h_i^{\text{pre}}} &= (y - t) \cdot v_i \cdot \mathbb{1}[h_i^{\text{pre}} > 0] \\
+\frac{\partial L}{\partial w_{ij}} &= \frac{\partial L}{\partial h_i^{\text{pre}}} \cdot x_j
+\end{aligned}
+$$
+
+The indicator $\mathbb{1}[h_i^{\text{pre}} > 0]$ is the ReLU derivative. When the pre-activation
+is negative, the gradient is exactly zero — the so-called "dead ReLU" problem. The unit
+contributes nothing to the output, _and_ no update can revive it (the weights feeding it
+won't budge, because their gradient is also zero).
+
+The factor of $\frac{1}{2}$ in the loss $L = \frac{1}{2}(y - t)^2$ is a convention that makes
+$\partial L / \partial y = y - t$ instead of $2(y - t)$ — same minimum, cleaner gradient.
+
+</MathOnly>
+
+<BackpropViz />
+
+<IntuitionOnly>
+
+Walk it through with the **step-forward** button:
+
+1. **Inputs arrive** at the network's left edge.
+2. **Forward through $h_1$**: multiply each incoming weight by its input, add them up,
+   pass through ReLU (which clips negatives to zero), get the hidden activation.
+3. **Forward through $h_2$**: same recipe, different weights.
+4. **Output**: weighted sum of $h_1, h_2$ plus the bias $c$.
+5. **Loss**: half the squared error against the target.
+6. **Backward at the output**: $\partial L / \partial y$ is just $y - t$ — the error itself.
+   Then $\partial L / \partial v_1$ etc. fall out by chain rule.
+7. **Backward through $h_1$**: the gradient that flowed into $h_1$ gets routed back to
+   each of $h_1$'s incoming weights. The ReLU gate either lets it through (1) or blocks
+   it (0).
+8. **Backward through $h_2$**: same recipe.
+9. **Apply update**: every weight steps in its descent direction by a small amount.
+
+What's not in the viz: real networks are deeper (more layers) and wider (more units per
+layer), but each layer's backward pass is _exactly the same recipe_. That's the magic —
+the algorithm scales.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+What backprop _isn't_: it's not a special form of numerical differentiation. The recipe
+is exact (up to floating-point error) — the gradients you see are the analytical ones,
+not finite-difference approximations.
+
+What backprop _is_: a particular evaluation order of the chain rule that **reuses
+intermediate results**. The naive way to compute $\partial L / \partial w_{ij}$ for every
+$w_{ij}$ separately requires recomputing the network output for each parameter, costing
+$O(P)$ network evaluations for $P$ parameters. Backprop computes all $P$ gradients in
+$O(1)$ extra forward+backward passes, total cost $O(P)$ — the same as one forward pass.
+This is why training was historically intractable until backprop made it $O(P)$ instead
+of $O(P^2)$.
+
+If you've heard "automatic differentiation" (autodiff): backpropagation is the
+reverse-mode flavor of autodiff. Modern ML libraries (PyTorch, JAX) implement autodiff
+generically — you write the forward pass in straight code, and the framework derives the
+backward pass automatically by symbolic chain-rule.
+
+</MathOnly>
+
+## Why ReLU and not sigmoid?
+
+Old textbooks teach backprop with a sigmoid activation: $\sigma(x) = 1 / (1 + e^{-x})$.
+ReLU was a quiet revolution somewhere around 2010 — most modern networks use it (or a
+close cousin like GELU). Two reasons:
+
+- **The gradient doesn't vanish.** Sigmoid's derivative is at most $1/4$, and it goes
+  to zero for inputs far from zero. Multiply a few of those together through a deep
+  network and the gradients flowing back from the output decay exponentially. ReLU's
+  derivative is exactly $1$ in the active region — gradients propagate without decay.
+- **It's cheaper.** $\max(0, x)$ is one comparison and a select. $\sigma(x)$ involves
+  an exponential.
+
+The cost of ReLU's simplicity is the dead-neuron problem: a unit whose pre-activation goes
+negative across all training examples will never recover, because no gradient flows
+through it. Variants like **Leaky ReLU** ($\max(0.01x, x)$) and **GELU** address this by
+letting a small gradient through everywhere.
+
+## What's next
+
+- **Attention** — what's actually happening inside a single attention head, the building
+  block of every modern transformer. Same step-through, very different mechanism.
