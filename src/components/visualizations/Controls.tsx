@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
+import { FastForward, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
 import type { StepThroughStatus } from "@/lib/hooks/useStepThrough";
 
 export type ControlsProps = {
@@ -21,6 +21,12 @@ export type ControlsProps = {
    */
   arraySize?: number;
   onArraySizeChange?: (n: number) => void;
+  /**
+   * When provided, renders a "Run to end" button between Step-forward and Reset. The
+   * caller's handler typically calls the playback hook's `runToCompletion()`. Omit to
+   * hide the button.
+   */
+  onRunToCompletion?: () => void;
   minSpeedMs?: number;
   maxSpeedMs?: number;
   minArraySize?: number;
@@ -44,6 +50,7 @@ export function Controls({
   onReset,
   onSpeedChange,
   onArraySizeChange,
+  onRunToCompletion,
   minSpeedMs = 32,
   maxSpeedMs = 800,
   minArraySize = 4,
@@ -85,6 +92,17 @@ export function Controls({
         >
           <SkipForward className="h-4 w-4" aria-hidden />
         </button>
+        {onRunToCompletion && (
+          <button
+            type="button"
+            onClick={onRunToCompletion}
+            disabled={!canStepForward || isPlaying}
+            aria-label="Run to end"
+            className={buttonClasses}
+          >
+            <FastForward className="h-4 w-4" aria-hidden />
+          </button>
+        )}
         <button
           type="button"
           onClick={onReset}

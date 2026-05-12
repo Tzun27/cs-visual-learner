@@ -131,4 +131,34 @@ describe("useStepThrough", () => {
     expect(result.current.stepIndex).toBe(-1);
     expect(result.current.status).toBe("idle");
   });
+
+  it("runToCompletion under reduced motion snaps to the last step", () => {
+    const { result } = renderHook(() =>
+      useStepThrough(STEPS, { initialSpeed: 100, reducedMotion: true }),
+    );
+    act(() => result.current.runToCompletion());
+    expect(result.current.stepIndex).toBe(STEPS.length - 1);
+    expect(result.current.status).toBe("done");
+  });
+
+  it("runToCompletion on empty steps under reduced motion goes straight to 'done'", () => {
+    const { result } = renderHook(() => useStepThrough([], { reducedMotion: true }));
+    act(() => result.current.runToCompletion());
+    expect(result.current.stepIndex).toBe(-1);
+    expect(result.current.status).toBe("done");
+  });
+
+  it("runToCompletion without reduced motion starts the auto-advance timer", () => {
+    const { result } = renderHook(() => useStepThrough(STEPS, { initialSpeed: 100 }));
+    act(() => result.current.runToCompletion());
+    expect(result.current.status).toBe("playing");
+
+    // Each timer tick is a React commit boundary: fire one timer, let the effect
+    // re-schedule, repeat. Matches the pattern of the play() test above.
+    for (let i = 0; i < STEPS.length; i++) {
+      act(() => vi.advanceTimersByTime(100));
+    }
+    expect(result.current.stepIndex).toBe(STEPS.length - 1);
+    expect(result.current.status).toBe("done");
+  });
 });

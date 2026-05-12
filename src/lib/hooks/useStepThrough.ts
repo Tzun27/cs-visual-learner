@@ -22,6 +22,7 @@ export type StepThroughApi<T> = {
   stepBackward: () => void;
   reset: () => void;
   setSpeed: (ms: number) => void;
+  runToCompletion: () => void;
 };
 
 type State = {
@@ -37,7 +38,8 @@ type Action =
   | { type: "stepBackward" }
   | { type: "reset" }
   | { type: "setSpeed"; speed: number }
-  | { type: "syncTotal"; total: number };
+  | { type: "syncTotal"; total: number }
+  | { type: "jumpToEnd"; total: number };
 
 const DEFAULT_SPEED_MS = 250;
 const MIN_SPEED_MS = 16;
@@ -72,6 +74,9 @@ function reducer(state: State, action: Action): State {
         return { ...state, stepIndex: -1, status: "idle" };
       }
       return state;
+    case "jumpToEnd":
+      if (action.total === 0) return { ...state, status: "done" };
+      return { ...state, stepIndex: action.total - 1, status: "done" };
   }
 }
 
@@ -116,6 +121,13 @@ export function useStepThrough<T>(
   const stepBackward = useCallback(() => dispatch({ type: "stepBackward" }), []);
   const reset = useCallback(() => dispatch({ type: "reset" }), []);
   const setSpeed = useCallback((ms: number) => dispatch({ type: "setSpeed", speed: ms }), []);
+  const runToCompletion = useCallback(() => {
+    if (reducedMotion) {
+      dispatch({ type: "jumpToEnd", total });
+      return;
+    }
+    dispatch({ type: "play" });
+  }, [reducedMotion, total]);
 
   return {
     steps,
@@ -130,5 +142,6 @@ export function useStepThrough<T>(
     stepBackward,
     reset,
     setSpeed,
+    runToCompletion,
   };
 }

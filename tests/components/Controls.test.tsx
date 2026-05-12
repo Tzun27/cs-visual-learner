@@ -83,4 +83,34 @@ describe("Controls", () => {
     await userEvent.keyboard(" ");
     expect(props.onPlay).toHaveBeenCalledOnce();
   });
+
+  it("does not render the Run-to-end button when onRunToCompletion is omitted", () => {
+    render(<Controls {...makeProps()} />);
+    expect(screen.queryByRole("button", { name: /Run to end/ })).not.toBeInTheDocument();
+  });
+
+  it("renders the Run-to-end button when onRunToCompletion is provided", () => {
+    const onRunToCompletion = vi.fn();
+    render(<Controls {...makeProps({ onRunToCompletion })} />);
+    expect(screen.getByRole("button", { name: /Run to end/ })).toBeInTheDocument();
+  });
+
+  it("clicking Run to end fires onRunToCompletion", async () => {
+    const onRunToCompletion = vi.fn();
+    render(<Controls {...makeProps({ onRunToCompletion })} />);
+    await userEvent.click(screen.getByRole("button", { name: /Run to end/ }));
+    expect(onRunToCompletion).toHaveBeenCalledOnce();
+  });
+
+  it("Run to end is disabled when canStepForward is false", () => {
+    const onRunToCompletion = vi.fn();
+    render(<Controls {...makeProps({ canStepForward: false, onRunToCompletion })} />);
+    expect(screen.getByRole("button", { name: /Run to end/ })).toBeDisabled();
+  });
+
+  it("Run to end is disabled while status is 'playing'", () => {
+    const onRunToCompletion = vi.fn();
+    render(<Controls {...makeProps({ status: "playing", onRunToCompletion })} />);
+    expect(screen.getByRole("button", { name: /Run to end/ })).toBeDisabled();
+  });
 });
