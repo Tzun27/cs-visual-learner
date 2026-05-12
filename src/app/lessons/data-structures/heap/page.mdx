@@ -1,6 +1,7 @@
 import { HeapInsertViz } from "@/components/visualizations/HeapInsertViz";
 import { HeapifyViz } from "@/components/visualizations/HeapifyViz";
 import { HeapExtractMinViz } from "@/components/visualizations/HeapExtractMinViz";
+import { HeapDecreaseKeyViz } from "@/components/visualizations/HeapDecreaseKeyViz";
 
 export const metadata = {
   title: "Heaps & Priority Queues",
@@ -116,6 +117,53 @@ sequence of $n$ extractions sorts $n$ values in $O(n \log n)$ time. That's exact
 [heap sort](/lessons/sorting/heap-sort) is doing — except it does the sift-down in place to avoid
 an auxiliary array, and uses a _max-heap_ to extract the largest each time.
 
+## Decreasing a key
+
+The two operations above — insert and extract-min — are enough for a basic priority queue, but
+algorithms like Dijkstra need a third one: **lower the priority of an entry already in the heap**.
+When Dijkstra discovers a shorter path to a vertex, it has to update that vertex's distance and
+make sure the heap invariant still holds.
+
+Mechanically, `decrease_key` is just the second half of insert. The entry doesn't move
+horizontally in the array; we overwrite the slot with the new (smaller) value and then sift it up
+until either it's no longer smaller than its parent, or it has bubbled all the way to the root.
+
+<HeapDecreaseKeyViz />
+
+The viz runs two operations against a fixed demo heap:
+
+1. **`decrease_key(6, 2)`.** The bottom-right leaf (value 12) gets lowered to $2$. Sift-up
+   compares it against its parent at index $2$ (value $7$) — $2 < 7$, swap. Now at index $2$,
+   compare against the root (value $4$) — $2 < 4$, swap again. The new minimum sits at the root,
+   and both comparisons were made.
+2. **`decrease_key(4, 10)`.** The slot at index $4$ holds $11$; we lower it to $10$. Sift-up
+   compares against parent at index $1$ (value $9$). $10 < 9$ is false, so the loop ends after a
+   single comparison with zero swaps. The new value is valid where it is.
+
+Each operation is $O(\log n)$ — sift-up walks at most the height of the tree, just like insert.
+The interesting cost is _not_ the sift-up itself, though.
+
+### The "find the index" problem
+
+In the viz above, we just _told_ the algorithm which index to update. In a real priority queue,
+you usually don't know the index — you have an entry (a vertex, a job, a timer) and you want to
+say "lower _this entry's_ priority." A linear scan to find the index would make `decrease_key`
+$O(n)$ and ruin the asymptotic story.
+
+Production implementations solve this one of two ways:
+
+- **Index map.** Maintain a side hash table mapping entry → heap index, and update it on every
+  swap. Lookups are then $O(1)$ and the sift-up keeps the array updated. Adds a constant-factor
+  cost on every insert/swap but preserves the $O(\log n)$ bound on decrease.
+- **Lazy / duplicate-entry strategy.** Just push the entry again with its new priority and
+  ignore stale entries when they bubble to the top. When you extract, check whether the entry's
+  value matches what you currently track; if it doesn't, discard it and extract again. Simpler to
+  implement, and often faster in practice when decrease operations are rare.
+
+Dijkstra textbook implementations usually do the first; the Python `heapq` standard library uses
+the second pattern (mark stale entries on insert, skip them on pop) because there is no built-in
+index map.
+
 ## Priority queues in the wild
 
 A min-heap is the natural implementation of a priority queue when "highest priority" means
@@ -136,12 +184,9 @@ A min-heap is the natural implementation of a priority queue when "highest prior
 
 A few things this lesson skipped for clarity:
 
-- **`decrease_key`** — Dijkstra needs to lower the priority of a node already in the heap when
-  it discovers a shorter path. The textbook fix is to maintain an index map alongside the array
-  so you can find the node in $O(1)$; without that, you have to do a linear scan or just
-  re-insert and accept duplicates. Real implementations (and most production priority queues)
-  pick one of these strategies.
 - **$d$-ary and Fibonacci heaps.** Increasing the branching factor beyond 2 trades sift-down cost
   for sift-up cost — useful when inserts vastly outnumber extractions. Fibonacci heaps reduce
   `decrease_key` to amortized $O(1)$, which makes them theoretically appealing for Dijkstra but
   rarely worth it in practice due to large constants.
+- **`merge` between two heaps.** Binary heaps merge in $O(n)$ (concatenate and heapify); pairing
+  heaps and leftist heaps support $O(\log n)$ merges with simpler bookkeeping than Fibonacci.
