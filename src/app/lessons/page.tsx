@@ -113,6 +113,14 @@ const topics: readonly Topic[] = [
       },
       {
         status: "live",
+        slug: "hopscotch",
+        title: "Hash Tables: Hopscotch Hashing",
+        difficulty: "intermediate",
+        blurb:
+          "Bounded lookup via a per-slot hop bitmask. Inserts swap keys backwards to keep the H-neighborhood invariant.",
+      },
+      {
+        status: "live",
         slug: "tree-traversal",
         title: "Tree Traversal",
         difficulty: "beginner",

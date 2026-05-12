@@ -1,0 +1,162 @@
+import { HopscotchInsertViz } from "@/components/visualizations/HopscotchInsertViz";
+import { HopscotchSearchViz } from "@/components/visualizations/HopscotchSearchViz";
+
+export const metadata = {
+  title: "Hash Tables: Hopscotch Hashing",
+  description:
+    "Open addressing with a bounded probe distance. Each home slot owns a small bitmask saying which of its neighbors hold its keys — lookups become O(H), and inserts swap keys backward to keep that invariant.",
+};
+
+# Hash Tables: Hopscotch Hashing
+
+**Difficulty:** intermediate · **Category:** data structures
+
+The previous open-addressing lessons —
+[linear probing](/lessons/data-structures/linear-probing) and
+[quadratic probing](/lessons/data-structures/quadratic-probing) — both put up with one
+unfortunate property: in the worst case, looking up a key can require walking through
+arbitrarily many slots before deciding the key is or isn't there. Lookup is _amortized_
+constant time, not worst-case. As load factor climbs, the gap widens.
+
+**Hopscotch hashing** fixes that. The promise: lookup time is bounded by a small constant $H$
+(typically 32 in production code, 4 here for legibility). Every key with home slot $i$ is
+guaranteed to live within the window $[i, i + H - 1]$ — no exceptions. And each slot $i$ owns
+a small **hop bitmask** of $H$ bits saying which of the next $H$ slots hold keys that hash to
+$i$. Lookups consult one bitmask, check at most $H$ specific slots, and stop.
+
+The price: inserts have to work harder. When the nearest empty slot is too far from home, the
+algorithm doesn't just probe forward — it actively shuffles existing keys to drag the empty
+slot _backward_ until it's close enough.
+
+## Inserting with a swap chain
+
+<HopscotchInsertViz />
+
+The bottom row of each cell shows the slot's hop bitmask — four small squares. A filled square
+at position $j$ means "the slot $(i + j) \bmod c$ holds a key whose home is $i$." The viz uses
+$H = 4$, so each home has exactly four possible neighborhood slots and the bitmask fits in a
+nibble.
+
+The curated input layers in the three insert paths:
+
+- **First two keys ($0, 1$)** drop into their home slots. Each set bit 0 of its home's mask.
+- **Keys $8$ and $9$** collide with $0$ and $1$ respectively. The algorithm does a linear scan
+  forward from home looking for the nearest empty slot, lands within $H$ slots of home, and
+  places directly. Hop bit 2 of the home is now set (the key lives at home + 2). The
+  **Scans** counter ticks up; the **Swaps** counter stays at zero.
+- **Key $16$** is the headline. Its home is slot 0, and slots 0, 1, 2, 3 are all occupied —
+  the scan walks all four and finds empty at slot 4. Distance from home is exactly $H = 4$,
+  which means slot 4 is _outside_ the legal neighborhood. We need to move the empty slot
+  backwards into the window.
+
+  The swap chain inspects the candidate window $\{1, 2, 3\}$ (the slots within $H - 1$ of slot 4) looking for a key whose home is itself close enough to slot 4 that the key could legally
+  live there. Slot 1 fits: it holds key $1$ whose home is slot 1; the distance from home 1 to
+  slot 4 is 3, which is $< H$. So $1$ moves forward from slot 1 to slot 4. Hop mask of home 1
+  updates: bit 0 clears (slot 1 no longer holds a home-1 key), bit 3 sets (slot 4 does). Slot
+  1 is now empty, **and distance from home 0 to slot 1 is just 1** — well within $H$. We place
+  $16$ at slot 1. Hop mask of home 0 picks up bit 1.
+
+- **The final input is $16$ again** — a duplicate. The scan from home 0 walks past slot 0
+  (= 0, not 16), finds 16 at slot 1, aborts without modifying anything. Same duplicate path
+  as in linear and quadratic probing.
+
+After the run, look at hop\[0\] and hop\[1\]. Both have non-contiguous masks: hop\[0\] = 0111
+(bits 0, 1, 2 set — keys at slots 0, 1, 2), hop\[1\] = 1100 (bits 2, 3 set — keys at slots
+3, 4). The "neighborhood" really is a set of bits, not a contiguous range.
+
+## Why the swap chain always makes progress
+
+The swap chain runs in a loop: pull a candidate key forward, see if the new empty slot is now
+within $H$ of the inserting key's home, repeat if not. Two things have to be true for this to
+terminate:
+
+1. **There's always a candidate in the window** unless the table is structurally too full
+   (the load factor is too high to maintain the $H$ invariant). The viz throws an exception
+   in that case, since the only fix is to grow the table — a "rehash" step the lesson skips.
+2. **Each swap brings the empty closer to home** by at least 1 slot. The algorithm picks the
+   candidate at the largest offset that still fits, which maximizes progress.
+
+That's the entire correctness argument. The worst case takes $O(H)$ swaps per insert, which
+is also constant — so insert is still $O(1)$ in the worst case, just with a bigger constant
+than linear probing.
+
+## Searching: bounded by H, full stop
+
+<HopscotchSearchViz />
+
+The starting table is the end state of the insert demo: slots 0,1,2,3,4 hold 0, 16, 8, 9, 1,
+and the rest are empty.
+
+The search algorithm reads the home's hop bitmask and walks through its bits. For each set
+bit $j$, it checks whether $\text{slot}[(home + j) \bmod c]$ holds the target key. If any
+match, return found. If no set bit produces a match, return miss. **At most $H$ specific
+slots are visited regardless of how full the table is** — this is the hopscotch invariant.
+
+The four targets cover the four cases:
+
+- $\text{search}(0)$ — bit 0 set, slot 0 holds $0$ → found in one check.
+- $\text{search}(16)$ — bit 0 set (slot 0 = $0$, not 16); bit 1 set (slot 1 = $16$) → found
+  in two checks.
+- $\text{search}(9)$ — bit 0 of hop\[1\] is clear, bit 1 clear, bit 2 set (slot 3 = $9$) →
+  found in three checks. The skipped bits are the load-bearing point: the lookup doesn't
+  visit those slots, because the bitmask already says they don't hold a home-1 key.
+- $\text{search}(99)$ — home slot is 3, and hop\[3\] is zero (all bits clear). Four checks,
+  all clear, miss. Even the worst-case miss only touched 4 slot bits.
+
+Watch the **Bits checked** counter. It climbs by at most 4 per target — the bound the
+algorithm promises.
+
+## Hopscotch vs. linear/quadratic/Robin Hood
+
+|                          | Linear probing | Quadratic probing | Robin Hood (linear)  | Hopscotch ($H = 4$)            |
+| ------------------------ | -------------- | ----------------- | -------------------- | ------------------------------ |
+| Worst-case lookup        | $O(n)$         | $O(\sqrt{n})$\*   | $O(\log n)$ expected | $\mathbf{O(H)}$ — bounded      |
+| Average lookup           | $O(1)$         | $O(1)$            | $O(1)$               | $O(1)$, often $\leq 2$ checks  |
+| Insert worst case        | $O(n)$         | $O(\sqrt{n})$\*   | $O(\log n)$          | $O(H)$ swaps, may need rehash  |
+| Memory overhead per slot | 0              | 0                 | 0                    | $H$ bits for the hop mask      |
+| Cache behavior           | Best           | Worse (jumps)     | Best                 | Good — bounded local window    |
+| Maximum load factor      | $\sim 0.7$     | $\sim 0.5$        | $\sim 0.9$           | $\sim 0.8$, before rehash      |
+| Tombstones on delete?    | Yes            | Yes               | No (backshift)       | No (clear the bit, slot empty) |
+
+\* Probably tight, depends on probe distribution.
+
+The big idea behind hopscotch is that the bookkeeping cost (storing $H$ bits per slot, fixing
+up bits during swap and delete) buys you _worst-case_ bounded lookup. Linear and quadratic
+probing only give worst-case bounded lookup if you're willing to keep load factor very low.
+Robin Hood gets close to constant lookup probabilistically. Hopscotch makes the bound
+deterministic.
+
+For a deeper read on production hopscotch tables, look at the original 2008 paper
+("Hopscotch Hashing" by Herlihy, Shavit, and Tzafrir) and concurrent implementations like
+the one in `folly::F14`. They typically use $H = 32$ (one machine word for the bit mask) and
+add fancier swap heuristics for the high-load case.
+
+## Delete: just clear the bit
+
+This lesson doesn't ship a delete viz because the algorithm is the simplest of the four
+schemes we've seen. The recipe:
+
+1. Search for the key using the bit-walk above. If miss, nothing to do.
+2. Empty the slot.
+3. Clear the corresponding bit in the home's hop mask.
+
+No tombstone is needed — search only visits slots indicated by the home's bitmask, and we
+just turned off the relevant bit. Other keys aren't affected because hop masks are
+per-home, not shared.
+
+The trade-off vs. backshift: hopscotch's delete is constant time, but the table doesn't
+"compact" the way Robin Hood's backshift does, so it can get arbitrarily fragmented (high
+empty-slot count) under heavy churn. Production implementations either accept the
+fragmentation or trigger a periodic rehash to rebuild compactly.
+
+## What's next
+
+Hopscotch was the last open-addressing variant in the original "what's next" list at the end
+of the linear-probing lesson. The natural continuation if you want to keep going:
+
+- **Cuckoo hashing.** Two hash functions and two slots per key. Lookup is two random
+  accesses, period. Insert may displace a key (which displaces another, hence "cuckoo"). A
+  different kind of "fixed-cost lookup" guarantee than hopscotch.
+- **Concurrent hash tables.** Real-world systems use either chaining with per-bucket locks
+  (Java's `ConcurrentHashMap`) or lock-free open addressing (`folly::F14`, `absl::flat_hash_map`)
+  — both layer on top of one of the schemes we've covered.
