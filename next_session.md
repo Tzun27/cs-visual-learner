@@ -8,7 +8,7 @@ Quick orientation for the next agent picking up this project.
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
 - **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + five data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key) + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 350 unit + 58 Playwright e2e (incl. 9 axe-core a11y routes) — all green.
+- **Test counts at HEAD:** 370 unit + 58 Playwright e2e (incl. 14 axe-core a11y routes) — all green. Vitest 100% coverage gate now enforced for both `src/lib/algorithms/` and `src/lib/dataStructures/`.
 
 Read these before writing code:
 
@@ -25,10 +25,10 @@ Read these before writing code:
   - Insert section: `insertSequence` generator + `BSTViz`. Toggle between Balanced and Sorted insert order to see Max depth jump from 4 to 12.
   - Search section: `searchSequence` generator + `BSTSearchViz`, walking a curated mix of hits and misses against the balanced tree.
   - Delete section: `deleteSequence` generator + `BSTDeleteViz`. Curated demo deletes 6 (leaf), 38 (one child), and 50 (two children, successor walk 75 → 63 → 56) against the same balanced tree, exercising all three textbook cases. `TreeView` SVG primitive (inorder x-positioning, dynamic row height) is shared by all three vizes.
-- **Hash Tables (Separate Chaining) lesson** at `/lessons/data-structures/hash-tables` — covers add (insert), contains (search), and remove (delete) on a separate-chaining hash _set_ of capacity 8. Each section pairs a `HashTableView` SVG (8 bucket headers across the top, linked-chain ellipses dropping below) with a per-op Python snippet. The hash function is `hash(key) % capacity`, which equals `key % capacity` in Python for non-negative ints — so the displayed Python is faithful to what the generator computes.
-  - Insert section: curated input `[5, 13, 21, 4, 12, 5, 7]` makes bucket 5 collide three times, bucket 4 collide once, and the second `5` get dropped as a duplicate. `HashTableInsertViz` also feeds the view a `ghostBucketIndex` during `hash` / `probe` steps to preview where the key would land.
-  - Search section: pre-built table where bucket 1 = `[1, 9, 17]` and bucket 2 = `[2, 50]`. Targets `[1, 17, 50, 25, 3]` cover head-of-chain hit, end-of-chain hit, hit in a shorter chain, miss-after-probing-non-empty-bucket, and miss-on-empty-bucket (zero probes).
-  - Delete section: pre-built table with bucket 1 = `[1, 9, 17, 25]` and bucket 2 = `[2]`. Targets `[9, 25, 1, 99]` cover middle / new-tail / head / empty-bucket-miss.
+- **Hash Tables (Separate Chaining) lesson** at `/lessons/data-structures/hash-tables` — covers put (insert), get (search), and remove (delete) on a separate-chaining hash _map_ of capacity 8. Each section pairs a `HashTableView` SVG (8 bucket headers across the top, linked-chain ellipses dropping below, each cell rendering `k: v`) with a per-op Python snippet that walks `(k, v)` tuples in the bucket. The hash function is `hash(key) % capacity`, which equals `key % capacity` in Python for non-negative ints — so the displayed Python is faithful to what the generator computes.
+  - Insert section: curated input `[(5,100), (13,250), (21,75), (4,200), (12,90), (5,150), (7,175)]` makes bucket 5 collide three times, bucket 4 collide once, and the second `put(5, 150)` _overwrite_ the existing entry's value from 100 to 150 (map semantics, not set). `HashTableInsertViz` feeds the view a `ghostBucketIndex` during `hash` / `probe` steps to preview where the key would land. Counters: Probes / Placed / Overwrites.
+  - Search section: pre-built table where bucket 1 = `[(1,10), (9,90), (17,170)]` and bucket 2 = `[(2,20), (50,500)]` (values = 10× key for sanity-reading). Targets `[1, 17, 50, 25, 3]` cover head-of-chain hit, end-of-chain hit, hit in a shorter chain, miss-after-probing-non-empty-bucket, and miss-on-empty-bucket (zero probes). The `found` step carries `foundValue` so annotations read "Found key 17 → value 170".
+  - Delete section: pre-built table with bucket 1 = `[(1,10), (9,90), (17,170), (25,250)]` and bucket 2 = `[(2,20)]`. Targets `[9, 25, 1, 99]` cover middle / new-tail / head / empty-bucket-miss.
 - **Hash Tables (Linear Probing) lesson** at `/lessons/data-structures/linear-probing` — same hash-set semantics but open-addressing instead of chaining: a single flat array of 8 slots, each slot in one of three states (empty / occupied with a key / tombstone). The lesson is structured to make the tombstone problem unavoidable.
   - Insert section: `LinearProbeInsertViz` curated input `[5, 13, 21, 4, 23, 5]` exercises home placement, single-probe collision, double-probe collision, different-home placement, wrap-around (23 hashes to 7, wraps to 0), and duplicate detection. Counters: Probes / Placed / Duplicates.
   - Search section: `LinearProbeSearchViz` builds `[5, 13, 21, 4]` then deletes 13 to plant a tombstone at slot 6. Targets `[5, 21, 13, 12, 4]` produce 3 hits + 2 misses; the second target (21) is the lesson's hero — it probes _past_ the tombstone to find 21 at slot 7, demonstrating exactly why tombstones can't be set to empty.
@@ -144,13 +144,7 @@ User deferred this. When you do it:
 
 ### Light follow-ups
 
-- Real-device Lighthouse pass (D4 was checked off based on local Lighthouse, not field data).
-- Property-test coverage for `quickSort` is currently length-only (in-place partition has transient duplicates). The newly added stable sorts (insertion, radix) keep this constraint at the per-step level for similar reasons (transient writes); their final-array property tests do the full multiset check.
-- The smoke test relies on heading text ("Learn computer science"). If the landing copy changes, update `e2e/smoke.spec.ts` in the same commit.
-- The package.json `name` is still `addyosmani-test` from initial scaffolding — harmless but inconsistent with the repo name. Rename if/when convenient.
-- The `vitest.config.ts` 100% coverage gate currently only covers `src/lib/algorithms/`. Extending it to `src/lib/dataStructures/` would prevent the same drift in the new track — left out of the BST and hash-tables PRs to avoid bundling unrelated config tightening. With BST + hash tables both now substantial modules, this is overdue.
-- Axe-core now runs on nine routes (`/`, `/lessons`, `/lessons/sorting/bubble-sort`, `/lessons/sorting/compare`, `/lessons/data-structures/binary-search-tree`, `/lessons/data-structures/hash-tables`, `/lessons/data-structures/tree-traversal`, `/lessons/data-structures/heap`, `/lessons/data-structures/linear-probing`). The other four sort pages (`insertion-sort`, `merge-sort`, `quick-sort`, `heap-sort`, `radix-sort`) ship with `CodePanel` but aren't in the sweep. Adding them would catch any future panel-related regressions earlier — the existing routes cover the structural shape, but each algorithm has its own snippet length and could surface unique contrast/wrapping edge cases.
-- The hash-tables viz uses keys-only ("hash set") semantics. If you ever want it to behave as a hash _map_, extend `HashTableEntry` with a `value` field, update the snippets (`bucket = [(k, v), ...]`), and update `HashTableView` to render `k: v` cells. Most of the rest of the pipeline is value-agnostic.
+- **Blocked on D6 deploy:** Real-device Lighthouse pass. The D4 check was based on local Lighthouse, not field data. PageSpeed Insights / CrUX needs a public URL. Wire this up once the Vercel deploy lands.
 
 ## Things to leave alone
 
@@ -253,6 +247,34 @@ If you need to make a focused change, these are the files that matter for each s
 
 ## What changed in the most recent session
 
+This session knocked out **six of the seven light follow-ups** listed in the prior session's handoff (the seventh is blocked on D6 deploy). Eight commits landed, no new product features — pure cleanup, hardening, and one substantive refactor (hash-table set → map). The most important upshot is that `src/lib/dataStructures/` is now under the same 100% coverage gate as `src/lib/algorithms/`, so future drift in the data-structures track will be caught at CI time rather than during review.
+
+| #   | subject                                                              |
+| --- | -------------------------------------------------------------------- |
+| 1   | `chore`: rename package to cs-visual-learner                         |
+| 2   | `test(e2e)`: make smoke test independent of landing copy             |
+| 3   | `test(a11y)`: extend axe-core sweep to all 5 missing sort routes     |
+| 4   | `test(algorithms)`: strengthen quickSort property tests              |
+| 5   | `test(ds)`: add 100% coverage gate for dataStructures/               |
+| 6   | `refactor(hash-tables)`: upgrade from hash-set to hash-map semantics |
+| 7   | `docs`: refresh next_session.md after follow-up cleanup              |
+
+Narrative summary:
+
+1. **Package rename** (commit 1). `package.json` `name` was still `addyosmani-test` from initial scaffolding. Renamed to `cs-visual-learner`; `package-lock.json` re-synced.
+2. **Smoke test decoupled from copy** (commit 2). The previous version of `e2e/smoke.spec.ts` asserted exact phrases ("CS Concept Visualizer" in title, "Learn computer science" in H1). Both are editorial — they'd break the test on a hero rewrite even though the page still works. Replaced both with structural checks: any non-empty title, the H1 located by its stable `id="hero-title"` anchor with non-empty text. The CTA selectors (by accessible name) are kept verbatim because those links ARE the functional contract.
+3. **Axe sweep widened** (commit 3). Axe ran on 9 routes; the 5 sort pages other than bubble-sort (`insertion-sort`, `merge-sort`, `quick-sort`, `heap-sort`, `radix-sort`) ship with CodePanel but were uncovered. All 5 added, all pass clean — 9 → 14 routes total.
+4. **quickSort tests strengthened** (commit 4). The note flagging "length-only property tests" was stale — the file already had per-step and final-array multiset checks (proper permutation equality, not just length). Added two new properties orthogonal to the existing set: a step-count termination bound (≤ 4n² for n ≤ 50) that catches infinite-loop regressions, and a partition-invariant check that fires after each pivot-finalizing swap (values left of pivot ≤ pivot, values right > pivot — catches partition bugs that accidentally produce sorted output).
+5. **Coverage gate extended** (commit 5). `vitest.config.ts` `include` and `thresholds` now cover `src/lib/dataStructures/` as well as `src/lib/algorithms/`. Backfilled to 100% by combining three approaches: removed genuinely dead code (`succGoLeft` flag in `binarySearchTree.ts` and its ternary, which had an unreachable rightId branch; switch refactor for traversal modes to eliminate an unreachable case clause), added tests for untested defensive guards (full-walk misses in linearProbe search + delete + Robin Hood delete; Robin Hood insert table-full throw; Robin Hood insert tombstone fast-path; `isMinHeap` negative cases; `heapToTree` empty + non-empty; `loadFactor` zero-capacity), and exercised unused module wiring (`dataStructures/index.ts` bstOperations registry). Final: 100% statements / branches / functions / lines on both gated paths. Unit tests grew 350 → 368.
+6. **Hash tables: set → map** (commit 6). The previous version stored bare keys and dropped duplicate inserts (set semantics). Production hash tables are maps, so this rebuilds the entire hash-tables module around `(key, value)` pairs. `HashTableEntry` gains `value: number`; new `HashTableKV` alias for the input tuple; `insertSequence` accepts `readonly HashTableKV[]` and now emits a new `overwrite` step (replacing `duplicate`) that actually replaces the existing entry's value. `searchSequence`'s `found` step carries `foundValue` so annotations read "Found key 17 → value 170". `HashTableView` renders each cell as "k: v" (cell width bumped 22 → 28 px to fit). Snippets rewritten as Python `dict`-style: `def put(k, v):` / `def get(k):` / `def remove(k):` walking `(k, v)` tuples in each bucket. Curated demos use `value = key * 10` so the user can sanity-read returned values without external context. The insert demo's second `(5, 150)` now overwrites the first `(5, 100)` instead of being dropped — counter renamed `Duplicates` → `Overwrites`. Lesson MDX rewritten throughout: "hash set" → "hash table / map", "add/contains/remove" → "put/get/remove". 158 lines removed, 337 lines added across 13 files. Property tests now include "last value wins for duplicated keys" (load-bearing for map semantics) and "found.foundValue equals the put-stored value."
+7. **Doc refresh** (commit 7). This file. Records the cleanup pass, updates test counts (370 unit / 58 e2e / 14 axe routes), removes the six completed follow-ups from the list, leaves the one remaining (real-device Lighthouse) flagged as blocked on D6.
+
+Test counts grew from **350 unit / 57 e2e (9 axe routes)** at session start to **370 unit / 58 e2e (14 axe routes)** at HEAD (+20 unit, +1 e2e, +5 axe routes; the +1 e2e is from the hash-tables MDX-changes update).
+
+---
+
+### Previous session
+
 This session shipped **`decrease_key` on the heap lesson** — the remaining textbook heap operation called out in the prior session's "What you didn't see" list. The heap lesson now contains four viz sections (insert, heapify, extract-min, decrease-key); the "What you didn't see" copy rotates `decrease_key` out and adds heap-merge in its place. After all changes were committed and tests went green, I verified the new viz interactively in Chrome DevTools MCP — stepped through both ops, confirmed the tree mutations and highlight colors matched the algorithm trace, and confirmed zero console errors on the heap and linear-probing pages.
 
 Five commits landed:
@@ -282,7 +304,7 @@ Test counts grew from **340 unit / 57 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Previous session
+### Two sessions ago
 
 This session shipped **Robin Hood backshift deletion** as the natural counterpart to the Robin Hood insert section landed in the prior session. The linear-probing lesson now contains five viz sections (insert, search, delete, Robin Hood insert, Robin Hood delete) and the "What's next" list has rotated backshift deletion out (just shipped) and Hopscotch hashing in. Five commits landed:
 
@@ -306,7 +328,7 @@ Test counts grew from **330 unit / 56 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Two sessions ago
+### Three sessions ago
 
 The prior session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), a fourth viz section in the linear-probing lesson for **Robin Hood probing**, and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in four phases — heap (insert + extract-min), heapify as an in-place extension, linear probing as a brand-new lesson, and Robin Hood as an in-place extension to it:
 
