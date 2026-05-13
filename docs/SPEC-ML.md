@@ -406,7 +406,7 @@ Concrete, testable conditions for "v1 of the ML pillar is done":
   - [x] Animates the full sequence at the current speed for non-reduced-motion users.
   - [x] Snaps to end state for reduced-motion users without spinning the timer.
 - [x] **100% coverage on `src/lib/ml/**`** — extends the existing `algorithms/`+
- `dataStructures/` gate. CI fails without it.
+`dataStructures/` gate. CI fails without it.
 - [x] **Property tests pass** — fast-check on GD convergence, backprop gradient check,
       attention softmax invariants. 1000 runs each in CI.
 - [x] **e2e + axe sweep extended** from 17 routes to 20 (all three ML lessons), zero
