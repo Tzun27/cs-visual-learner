@@ -7,8 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + nine data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, **Hash Tables: Double Hashing insert/search/delete**, Hash Tables: Hopscotch insert + search with hop-bit lookups, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + three ML-intuitions lessons (Gradient Descent, Backpropagation, Attention) with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 600 unit + 100 Playwright e2e (incl. 21 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + nine data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Double Hashing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + **four ML-intuitions lessons (Gradient Descent, Backpropagation, Attention, Multi-Head Attention)** with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 622 unit + 105 Playwright e2e (incl. 22 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
 
 Read these before writing code:
 
@@ -46,17 +46,18 @@ Read these before writing code:
   - Heapify section: `HeapifyViz` runs the bottom-up sift-down construction over `[9, 4, 7, 1, 8, 3, 5, 2, 6]`. Exactly `floor(n/2) = 4` sift-down passes (one per internal node, indices 3 → 2 → 1 → 0). Counters: Sift-down passes / Comparisons / Swaps. The MDX section explains the $O(n)$ amortized bound (geometric decay of subtree sizes beats linear sift-down cost) and contrasts with $n$ successive inserts at $O(n \log n)$.
   - Extract section: `HeapExtractMinViz` runs four `extract_min` calls against the result of the "Mixed order" inserts above, drawing the extracted values out into an ordered list strip below the tree. Counters: Extracted / Comparisons / Sift-down swaps. The extracted list comes out `[1, 2, 3, 4]` confirming the priority-queue property.
   - decrease_key section: `HeapDecreaseKeyViz` runs two ops against a fixed demo heap `[4, 9, 7, 13, 11, 8, 12]`. The first (`decrease_key(6, 2)`) replaces leaf 12 with 2 and bubbles it all the way to the root via two swap-ups; the second (`decrease_key(4, 10)`) replaces 11 with 10 but since the parent (9) is already smaller, the loop settles after a single compare with no swap. Counters: Comparisons / Swaps / Operations. The lesson MDX includes a "find the index" subsection contrasting the side-index-map and lazy-duplicate strategies for production priority queues.
-- **ML Intuitions pillar** at `/lessons/ml/*` — three lessons (Gradient Descent, Backpropagation, Attention), each with a `<MathLevel />` toggle at the top of the MDX that swaps prose between "Intuition" and "With math" modes while the viz stays constant. Toggle state persists across the pillar via `localStorage` (`ml.mathLevel` key) using `useSyncExternalStore`, same SSR-safe shape as `useReducedMotion`. Every lesson includes a Run-to-end button on `Controls` that snaps to the terminal under reduced motion or replays via the existing auto-advance timer otherwise.
+- **ML Intuitions pillar** at `/lessons/ml/*` — four lessons (Gradient Descent, Backpropagation, Attention, Multi-Head Attention), each with a `<MathLevel />` toggle at the top of the MDX that swaps prose between "Intuition" and "With math" modes while the viz stays constant. Toggle state persists across the pillar via `localStorage` (`ml.mathLevel` key) using `useSyncExternalStore`, same SSR-safe shape as `useReducedMotion`. Every lesson includes a Run-to-end button on `Controls` that snaps to the terminal under reduced motion or replays via the existing auto-advance timer otherwise.
   - **Gradient Descent** at `/lessons/ml/gradient-descent` — vanilla GD on the asymmetric bowl loss $f(w_1, w_2) = w_1^2 + 3w_2^2$ from start `(4, -2)`. Four learning-rate options (0.05 / 0.1 / 0.15 / 0.32 oscillates); the 0.32 case is right at the $\alpha > 1/3$ threshold where $|1 - 6\alpha|$ exceeds 1 along the $w_2$ axis. `ContourView` renders seven dashed level rings (level set $\{0.5, 2, 5, 10, 16, 22, 25\}$ — fitting in $[-5, 5] \times [-3, 3]$), the trajectory polyline, the current point (filled blue), and an optional gradient arrow pointing in the descent direction. Counters: Step / Loss / ‖∇L‖.
   - **Backpropagation** at `/lessons/ml/backprop` — one forward + one backward + one weight update on a fixed 2 → 2 → 1 ReLU MLP with MSE loss. Curated inputs `(1.0, 0.5)`, target `2.0`, both ReLUs alive — but tests cover the dead-ReLU branch via a separate parameter set. Ten step kinds (begin / forward-hidden ×2 / forward-output / compute-loss / backward-output / backward-hidden ×2 / apply-update / done) with branch-level codeLines per hiddenIndex. `NetworkView` paints the network as three columns of nodes with weighted edges; per-step highlights light up the path being computed; the loss readout, target, and per-node gradient labels appear once their phase is reached. Counters: Phase / Loss / y.
   - **Attention** at `/lessons/ml/attention` — single scaled dot-product attention head over 3 tokens (`t1, t2, t3`), $d_k = d_v = 2$. Fixed projections: $W_Q$ identity, $W_K$ swap, $W_V = [[1,1],[1,-1]]$ — deterministic Q/K/V with hand-verified output $Y$ rows `(1.40, -0.20)`, `(1.40, 0.20)`, `(1.50, 0.00)`. Nine step kinds walk through Q/K/V projection → score matrix $QK^T$ → scaling by $1/\sqrt{d_k}$ → row-wise softmax → weighted sum $AV$. `AttentionView` renders embeddings X, Q/K/V matrices, the attention heatmap (orange fill-opacity = weight, text flips color above 0.5), pre-softmax scaled scores, and output $Y$. Counters: Phase / Step.
+  - **Multi-Head Attention** at `/lessons/ml/multi-head-attention` — 2 heads, 3 tokens, $d_\text{embed} = 4$, $d_k = d_v = 2$. Reuses the single-head forward pass inside an outer head loop, then emits `concat-heads` and `project-output` steps for the $W_O$ projection. Eighteen steps total (begin + 7 per head × 2 + concat + project + done). Head 1's projections are identity-like so Q⁽¹⁾=K⁽¹⁾=V⁽¹⁾=X[:, :2]; head 2 swaps the first two dims for Q⁽²⁾ and uses an asymmetric $W_V$⁽²⁾ so Y⁽²⁾ carries a different numerical signature than Y⁽¹⁾. $W_O$ is identity in the demo (so final Y equals concat; lesson copy explains real $W_O$ is learned). `MultiHeadAttentionView` SVG renders four stacked bands — shared X, Head 1, Head 2, Combine (concat · $W_O$ = Y) — with the active head's band glowing orange. Counters: Phase / Active head / Step.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML — all three pillars live; ML topic blurb mentions the math-level toggle in Unicode ∇L since the index is React, not MDX).
 - **MDX lessons** with KaTeX math, Shiki code highlighting, GFM tables.
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/` + `src/lib/dataStructures/` + `src/lib/ml/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + quadratic-probing + double-hashing + hopscotch + pairing-heap + tree-traversal 4-mode + heap insert/heapify/extract-min + ML gradient-descent / backprop / attention + axe sweep across 21 routes).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/` + `src/lib/dataStructures/` + `src/lib/ml/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + quadratic-probing + double-hashing + hopscotch + pairing-heap + tree-traversal 4-mode + heap insert/heapify/extract-min + ML gradient-descent / backprop / attention / multi-head-attention + axe sweep across 22 routes).
 
 ## Architectural load-bearing decisions
 
@@ -103,6 +104,7 @@ These are easy to miss and expensive to violate:
 39. **Robin Hood viz highlights use both `placed` and `cursor` simultaneously on `pull` and `clear` steps.** Where the linear-probing vizes only ever color one slot per step, `RobinHoodDeleteViz` paints two: on `pull`, the destination is `placed` (yellow) and the source is `cursor` (orange), so the user reads "key X arrived here, came from there"; on `clear`, the just-emptied slot is `placed` and the blocker slot is `cursor`, so the user can immediately see what stopped backshift. The `LinearProbeHighlight[]` API already supports multi-cell highlights — if you mirror this pattern for any new multi-slot operation (e.g., Hopscotch swaps), preserve the convention that `placed` is "where the active key now lives" and `cursor` is "auxiliary slot to look at."
 40. **`heapDecreaseKeySequence` throws on misuse — never silently no-ops.** The two preconditions (index in range, newValue ≤ current value) are enforced by throwing `Error` rather than yielding an empty step set. This keeps the algorithm contract honest: silent no-op would let upstream bugs hide indefinitely. The viz never triggers either throw with its curated input, and property tests funnel `newValue = Math.min(candidate, heap[i])` to stay legal. If you ever add an `increase_key` opposite, branch _by precondition_ rather than ambiguity-merging the two operations into one generator.
 41. **Double hashing reuses every linear-probe primitive end-to-end.** `doubleHash.ts` returns `LinearProbeInsertStep` / `LinearProbeSearchStep` / `LinearProbeDeleteStep` — no new step union introduced. `DoubleHash*Viz` renders via `LinearProbeView` unchanged — no new SVG primitive. The only additions are the new generator module's helpers (`doubleHashHomeFor` / `doubleHashStepFor` / `doubleHashSlotFor`) and the three viz compositions. `doubleHashStepFor` returns 1 for `capacity ≤ 1` as a defensive guard against the `c - 1` division-by-zero edge case. The search viz plants its tombstone via `doubleHashDeleteSequence` (NOT `linearProbeDeleteSequence`) because 16 lives at slot 1 via double-hashing — not adjacent to its h1, so a linear forward-walk wouldn't find it. Future open-addressing variants (cuckoo, etc.) should preserve this "reuse the snapshot, change only the probe formula" discipline as long as the three-state slot model still fits.
+42. **Multi-head attention uses a snapshot-readonly / generator-mutable split.** The public `MultiHeadHeadState` type wraps every per-head field (`q`, `k`, `v`, `scores`, `scaled`, `attention`, `output`) in `readonly` — correct for snapshot consumers, but too strict for the in-place forward-pass loop that needs to assign `head.q = matmul(...)`. The generator declares a local `MutableHeadState` (same shape, no `readonly`) for its working state, and `emit()` clones into the readonly snapshot shape on every step. Don't widen the public type to non-readonly to "fix" the assignment errors — preserve the asymmetry; the snapshot's immutability is what makes step-back replay safe. Multi-head Active-head counter is also 1-indexed for display (`head ${activeHead + 1}`) — internal index is 0-based, but users read "head 1, head 2." Any future six-head viz must continue this 1-indexing convention.
 
 ## Useful commands
 
@@ -149,10 +151,10 @@ User deferred this. When you do it:
 ### ML pillar v2 follow-ups (deferred during v1)
 
 - **Pyodide-powered live Python execution** in the code panel. Run-this-snippet button under each viz, with the result rendered inline. Adds ~10 MB to the bundle and needs a web-worker lifecycle, so the v1 deliberately ships static snippets. The dual-track + hybrid-viz pattern proved itself; this is the next-level upgrade.
-- **Multi-head attention** as a follow-up lesson, stacking 2–3 single heads in parallel + concatenation + output projection. The single-head lesson lays the groundwork.
 - **Optimizer zoo** — momentum, RMSProp, Adam — each adds a few lines to the GD viz and a counter (running mean of gradients etc.). One lesson, four optimizer toggles.
 - **Loss-landscape playground.** Let users drag the start point on the GD viz and watch the trajectory change. v1 ships curated starts only.
-- **Causal masking + positional encoding** in attention. Right now the lesson is permutation-equivariant by omission. Adding the mask + a positional-encoding bar to embeddings would close that gap.
+- **Causal masking + positional encoding** in attention. Right now the lesson is permutation-equivariant by omission. Adding the mask + a positional-encoding bar to embeddings would close that gap. The multi-head lesson's "What's next" calls this out explicitly.
+- **Encoder-decoder cross-attention** — where $Q$ comes from one sequence and $K, V$ come from another. Named in the multi-head lesson's "What's next."
 
 ### Light follow-ups
 
@@ -284,6 +286,33 @@ If you need to make a focused change, these are the files that matter for each s
 
 ## What changed in the most recent session
 
+This session shipped the **Multi-Head Attention** lesson — the obvious follow-up to the single-head attention lesson, and the first entry from the ML-pillar-v2 follow-up list. Four commits. The generator wraps the existing single-head forward pass in an outer head loop and adds `concat-heads` and `project-output` steps for the $W_O$ projection; the view is a new stacked-bands SVG that lights up whichever head's currently being computed.
+
+| #   | subject                                                          |
+| --- | ---------------------------------------------------------------- |
+| 1   | `feat(ml)`: add multi-head attention generator + snippet + tests |
+| 2   | `feat(viz)`: add MultiHeadAttentionView + MultiHeadAttentionViz  |
+| 3   | `feat(lessons)`: add multi-head attention lesson + e2e           |
+| 4   | `docs`: refresh next_session.md after multi-head rollout         |
+
+Narrative summary:
+
+1. **Generator + types + tests** (commit 1). New `multiHeadAttention.ts` reuses `matmul` / `transpose` / `rowSoftmax` from the single-head module, plus a new `concatHorizontal` helper for stitching per-head outputs. Emits 18 steps total: begin + (7 per-head × 2 heads) + concat-heads + project-output + done. The generator's internal head state is a local mutable shape (the public `MultiHeadHeadState` type wraps every field in `readonly` for snapshot consumers, which is too strict for an in-place forward-pass loop); `emit()` clones into readonly form on every step. 22 unit + property tests including hand-computed Y^(1), Y^(2), concat, and final output rows verified to 1e-3; per-head state appears only as each loop iteration progresses; `concat` / `output` are strictly undefined until their step fires; attention rows always sum to 1; scaled = raw / √d_k throughout. Coverage gate at 100%.
+2. **MultiHeadAttentionView + Viz** (commit 2). New SVG primitive with four stacked bands at fixed Y positions: shared X input (top), Head 1 panel, Head 2 panel, Combine band. Each head band is wrapped in a dashed rect that flips to a solid orange border (`--bar-swap-stroke`) when `snapshot.activeHead === idx` — visually pins which head the cursor is inside. The Combine band lights up the same way during `concat-heads` and `project-output`. ViewBox 800×840. Viz wrapper exposes three counters (Phase / Active head / Step) and the standard run-to-end button.
+3. **Lesson MDX + e2e** (commit 3). `/lessons/ml/multi-head-attention` with dual-track prose — intuition mode opens with a "the bank approved the loan" motivating example ("approved needs to track _who approved_ and _what was approved_ simultaneously"); math mode formalizes the h-head parameterization, the per-head forward pass, and the `d_k = d_embed / h` sizing trick that keeps total parameter count constant. 5 e2e specs: page render, math toggle, Run to end, active-head counter transitions from "head 1" to "head 2" at the expected step boundary, full step-forward. Route added to `a11y.spec.ts` axe sweep (21 → 22 routes), passes WCAG 2.1 AA. Single-head attention lesson's "what multi-head adds" callouts (intuition + math modes) now link the new worked example.
+4. **Doc refresh** (commit 4). This file. The ML pillar v2 follow-up list dropped multi-head attention (just shipped). Causal masking is now the highest-priority remaining ML follow-up.
+
+Test counts grew from **600 unit / 100 e2e (21 axe routes)** at session start to **622 unit / 105 e2e (22 axe routes)** at HEAD (+22 unit, +5 e2e, +1 axe route).
+
+Two small multi-head-specific decisions worth flagging for the next agent:
+
+- **Generator uses a local mutable `MutableHeadState` type, snapshot uses readonly `MultiHeadHeadState`.** The public type's `readonly` fields are correct for snapshot consumers (they shouldn't mutate the snapshot); the in-place forward-pass loop needs to assign to `head.q = matmul(...)` etc., which TS forbids on a readonly field. Don't widen the public type back to non-readonly — preserve the asymmetry. The `emit()` helper clones into the readonly shape on every step.
+- **The "Active head" counter shows `head ${activeHead + 1}` — 1-indexed, not 0-indexed.** Internal `headIndex` is 0-indexed (used in iteration); the displayed label adds 1 so users read "head 1, head 2" rather than "head 0, head 1." The e2e test pins `Active head\s*head 1` after 2 clicks (begin + project-q for head 0); a future six-head viz must continue this 1-indexing convention.
+
+---
+
+### Previous session
+
 This session shipped the **Hash Tables: Double Hashing** lesson — the fourth open-addressing variant in the data-structures track, completing the linear → quadratic → double-hashing trio. Five commits, no new product primitives — pure follow-on work that reuses the entire `LinearProbeSnapshot` / `LinearProbeView` infrastructure unchanged. The whole lesson is one new generator module + three viz compositions + one MDX page + one e2e spec.
 
 | #   | subject                                                      |
@@ -308,7 +337,7 @@ New load-bearing decision #41 (pinned above in the decisions list) captures the 
 
 ---
 
-### Previous session
+### Two sessions ago
 
 This session shipped the **ML Intuitions pillar v1** — three lessons (Gradient Descent → Backpropagation → Attention) with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button. The work followed the gated spec-driven-development flow: spec → plan → tasks → implementation. 17 implementation commits over four phases (A foundations, B GD, C backprop, D attention, E rollout) plus two fixes for a latent CSS-variable bug surfaced by Chrome DevTools MCP review.
 
@@ -358,13 +387,13 @@ A few small ML-pillar-specific decisions worth flagging for the next agent:
 
 ---
 
-### Two sessions ago
+### Three sessions ago
 
 This session knocked out **six of the seven light follow-ups** that were queued at that time (the seventh, real-device Lighthouse, was blocked on the Vercel deploy). Eight commits landed, no new product features — pure cleanup, hardening, and one substantive refactor (hash-table set → map). The most important upshot is that `src/lib/dataStructures/` came under the same 100% coverage gate as `src/lib/algorithms/`, so future drift in the data-structures track is caught at CI time rather than during review. The refactor (commit 6 of that session) rebuilt the chaining hash table around `(key, value)` pairs and changed the third counter from "Duplicates" to "Overwrites" — production hash tables are maps, not sets.
 
 ---
 
-### Three sessions ago
+### Four sessions ago
 
 This session shipped **`decrease_key` on the heap lesson** — the remaining textbook heap operation called out in the prior session's "What you didn't see" list. The heap lesson now contains four viz sections (insert, heapify, extract-min, decrease-key); the "What you didn't see" copy rotates `decrease_key` out and adds heap-merge in its place. After all changes were committed and tests went green, I verified the new viz interactively in Chrome DevTools MCP — stepped through both ops, confirmed the tree mutations and highlight colors matched the algorithm trace, and confirmed zero console errors on the heap and linear-probing pages.
 
@@ -395,7 +424,7 @@ Test counts grew from **340 unit / 57 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Four sessions ago
+### Five sessions ago
 
 This session shipped **Robin Hood backshift deletion** as the natural counterpart to the Robin Hood insert section landed in the prior session. The linear-probing lesson now contains five viz sections (insert, search, delete, Robin Hood insert, Robin Hood delete) and the "What's next" list has rotated backshift deletion out (just shipped) and Hopscotch hashing in. Five commits landed:
 
@@ -419,7 +448,7 @@ Test counts grew from **330 unit / 56 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Five sessions ago
+### Six sessions ago
 
 The prior session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), a fourth viz section in the linear-probing lesson for **Robin Hood probing**, and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in four phases — heap (insert + extract-min), heapify as an in-place extension, linear probing as a brand-new lesson, and Robin Hood as an in-place extension to it:
 
