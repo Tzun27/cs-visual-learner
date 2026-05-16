@@ -23,6 +23,7 @@ const routes = [
   "/lessons/ml/gradient-descent",
   "/lessons/ml/backprop",
   "/lessons/ml/attention",
+  "/lessons/ml/multi-head-attention",
 ] as const;
 
 for (const route of routes) {

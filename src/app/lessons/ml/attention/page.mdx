@@ -91,7 +91,8 @@ triple, real models use 8–96 of them _in parallel_, each with its own learned 
 Each head can specialize on a different kind of relationship — one might track which
 adjective modifies which noun, another might track which subject goes with which verb, and
 so on. The outputs of all heads are concatenated and projected back down. Same mechanism,
-applied many times.
+applied many times. See the [multi-head attention lesson](/lessons/ml/multi-head-attention)
+for the worked example.
 
 </IntuitionOnly>
 
@@ -110,6 +111,8 @@ A few extensions that the viz deliberately omits, for context:
   $$
     \text{MHA}(X) = \text{concat}(Y^{(1)}, \ldots, Y^{(h)}) W_O
   $$
+  See the [multi-head attention lesson](/lessons/ml/multi-head-attention) for the worked
+  example with two heads, including hand-verifiable per-head outputs.
 - **Positional information** has to be added to the embeddings explicitly (rotary
   embeddings, learned positional encodings, etc.) because raw attention is
   permutation-equivariant — it can't distinguish "the cat sat" from "sat the cat".

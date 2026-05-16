@@ -182,6 +182,14 @@ const topics: readonly Topic[] = [
         blurb:
           "Single attention head over 3 tokens, decomposed into Q, K, V — and what each one is doing.",
       },
+      {
+        status: "live",
+        slug: "multi-head-attention",
+        title: "Multi-Head Attention",
+        difficulty: "advanced",
+        blurb:
+          "Stack two attention heads in parallel, concatenate, project through W_O — the operation at the heart of every transformer block.",
+      },
     ],
   },
 ];

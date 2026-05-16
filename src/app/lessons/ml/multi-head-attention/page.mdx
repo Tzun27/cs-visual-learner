@@ -1,0 +1,173 @@
+import { MultiHeadAttentionViz } from "@/components/visualizations/MultiHeadAttentionViz";
+import { MathLevel, IntuitionOnly, MathOnly } from "@/components/mdx/MathLevel";
+
+export const metadata = {
+  title: "Multi-Head Attention",
+  description:
+    "Stack several single-head attention computations in parallel, concatenate their outputs, project with W_O. The mechanism that lets one layer track multiple relationships at once.",
+};
+
+# Multi-Head Attention
+
+**Difficulty:** advanced · **Category:** machine learning
+
+<MathLevel />
+
+<IntuitionOnly>
+
+The [single-head attention lesson](/lessons/ml/attention) walked through one Q/K/V triple
+and one weighted-sum output. That's enough to compute "which token attends to which" along
+one axis of relevance — but a real sentence has lots of axes at once.
+
+Take _"the bank approved the loan."_ At minimum:
+
+- "approved" needs to track _who approved_ (the subject, "bank").
+- "approved" also needs to track _what was approved_ (the object, "the loan").
+- "bank" itself is ambiguous — riverside or financial? — and the disambiguating signal
+  comes from "loan."
+
+If a single head has to summarize _all_ of those relationships into one weighted average,
+it has to compromise. The fix is to run several heads in parallel — each with its own
+learned Q, K, V matrices — and let each specialize. One head might learn subject-verb
+alignment, another might learn object-verb, a third might learn long-range coreference.
+
+Then **concatenate** all the per-head outputs side by side, and apply one final **W_O**
+projection that mixes them back into the original embedding dimension. The model gets to
+attend along many axes at once, and the final projection learns which combinations matter.
+
+That's the whole mechanism. The arithmetic underneath is just the single-head computation,
+run in a loop.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+A **multi-head attention layer** with $h$ heads is parameterized by $h$ triples of
+projection matrices plus one output matrix:
+
+$$
+W_Q^{(k)}, W_K^{(k)} \in \mathbb{R}^{d_{\text{embed}} \times d_k},
+\quad W_V^{(k)} \in \mathbb{R}^{d_{\text{embed}} \times d_v},
+\quad k = 1, \ldots, h
+$$
+
+$$
+W_O \in \mathbb{R}^{(h \cdot d_v) \times d_{\text{embed}}}
+$$
+
+For an input $X \in \mathbb{R}^{n \times d_{\text{embed}}}$, each head runs the standard
+scaled dot-product computation independently:
+
+$$
+Y^{(k)} = \text{softmax}\!\left( \frac{X W_Q^{(k)} (X W_K^{(k)})^\top}{\sqrt{d_k}} \right) X W_V^{(k)} \in \mathbb{R}^{n \times d_v}
+$$
+
+The per-head outputs are concatenated along the feature dimension and projected:
+
+$$
+\text{MHA}(X) = \text{concat}(Y^{(1)}, \ldots, Y^{(h)}) W_O \in \mathbb{R}^{n \times d_{\text{embed}}}
+$$
+
+Two non-obvious design choices:
+
+**Why $d_k = d_{\text{embed}} / h$ in practice?** With this sizing, the total parameter
+count of all $h$ heads' Q/K/V matrices is the same as a single head with
+$d_k = d_{\text{embed}}$. Multi-head is "the same total capacity, just sliced differently"
+— not strictly more parameters, but split into $h$ independent attention computations
+instead of one big one. The standard transformer ratio is $h = 8$ to $96$, $d_{\text{embed}}$
+in the thousands.
+
+**Why concatenate-then-project instead of summing?** Summing would force every head's output
+to live in the same $d_v$-dimensional space, throwing away the information about _which head_
+contributed _which dimension_. Concatenation preserves that information; $W_O$ then learns
+which combinations are worth keeping. In effect, $W_O$ decides "trust head 3's first dim
+when …, trust head 7's last dim when …" — a learnable router across heads.
+
+</MathOnly>
+
+<MultiHeadAttentionViz />
+
+<IntuitionOnly>
+
+The demo uses **2 heads** and **3 tokens** (so the picture stays readable). Each head's
+band lights up in orange as the step cursor enters its seven-stage forward pass. Step
+through and notice:
+
+1. **Same input X** feeds both heads (top band). They never see different data — only
+   different learned projections.
+2. **Different Q, K, V per head** (middle bands). In the demo, head 1's projections are
+   identity-like, head 2's swap dimensions and use an asymmetric $W_V$ — so the two heads
+   produce visibly different $Y$ matrices.
+3. **Concat in the bottom band** stacks $[Y^{(1)} \mid Y^{(2)}]$ horizontally — wider than
+   either head's output, but the same number of token rows.
+4. **W_O is identity** in this demo (4 × 4 with ones on the diagonal), so the final $Y$
+   equals the concat. In real models $W_O$ is _learned_ — it would mix head outputs into
+   patterns the loss function rewarded.
+
+What's the same as the single-head lesson: every head runs the exact attention mechanism
+from before — Q, K, V projections; scaled dot product; row-wise softmax; weighted sum.
+What's new: the outer loop over heads, and the final concatenate-and-project step that
+combines them.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+The demo's matrices are chosen so the arithmetic is hand-verifiable:
+
+- $X = \begin{bmatrix} 1 & 0 & 0 & 0 \\ 0 & 1 & 0 & 0 \\ 1 & 1 & 0 & 1 \end{bmatrix}$
+- $W_Q^{(1)} = W_K^{(1)} = W_V^{(1)} = \begin{bmatrix} 1 & 0 \\ 0 & 1 \\ 0 & 0 \\ 0 & 0 \end{bmatrix}$ → identity-like on the first two dims.
+- $W_Q^{(2)}$ swaps the first two dims; $W_K^{(2)}$ is identity-like; $W_V^{(2)} = \begin{bmatrix} 2 & 0 \\ 0 & -1 \\ 0 & 0 \\ 1 & 0 \end{bmatrix}$ — asymmetric so $Y^{(2)}$ differs sharply from $Y^{(1)}$.
+- $W_O = I_4$ — the final $Y$ equals the concat, so you can read either column for the
+  per-head contribution.
+
+Hand-verifying head 1: $Q^{(1)} = K^{(1)} = V^{(1)} = X_{[:, :2]} = \begin{bmatrix} 1 & 0 \\ 0 & 1 \\ 1 & 1 \end{bmatrix}$,
+so the scaled scores are
+$\begin{bmatrix} 0.707 & 0 & 0.707 \\ 0 & 0.707 & 0.707 \\ 0.707 & 0.707 & 1.414 \end{bmatrix}$,
+softmax rows are $[0.40, 0.20, 0.40]$, $[0.20, 0.40, 0.40]$, $[0.25, 0.25, 0.50]$, and
+$Y^{(1)} \approx \begin{bmatrix} 0.80 & 0.60 \\ 0.60 & 0.80 \\ 0.75 & 0.75 \end{bmatrix}$ —
+which matches what the viz shows when head 1's weighted-sum step fires.
+
+A few things the demo deliberately omits:
+
+- **Causal masking** — at training time on next-token-prediction, $S_{ij} \leftarrow -\infty$
+  for $j > i$ before softmax, so each query can only attend to keys at earlier positions.
+  Multi-head doesn't change the masking — every head gets the same mask applied
+  independently before its softmax.
+- **Positional encoding** — raw multi-head attention is still permutation-equivariant.
+  Position information is added to $X$ before the attention layer runs (rotary embeddings,
+  learned positional encodings, etc.). The mechanism is unchanged; the inputs gain a
+  position-dependent term.
+- **Layer normalization + residual connection** — in a real transformer block, the
+  MHA output is added to $X$ via a residual connection and then passed through layer norm.
+  These are "around" the attention head, not inside it.
+
+</MathOnly>
+
+## Why this matters
+
+Every transformer block in every modern language model — GPT, Claude, Gemini, Llama,
+DeepSeek — has multi-head attention as its central operation. The numbers change
+(8 heads vs 96, $d_{\text{embed}}$ of 768 vs 12 288), but the algorithm is the same one
+running in the viz above:
+
+1. Project the input through $h$ different $W_Q^{(k)} / W_K^{(k)} / W_V^{(k)}$ triples.
+2. Run scaled dot-product attention independently per head.
+3. Concatenate the per-head outputs.
+4. Project through $W_O$ back to $d_{\text{embed}}$.
+
+Stack ~30–80 of these blocks (with feed-forward layers between them), train end-to-end
+via [gradient descent](/lessons/ml/gradient-descent) using
+[backpropagation](/lessons/ml/backprop), and you have a transformer. The arithmetic
+above is the entire "transformer" idea — everything else is engineering around it.
+
+## What's next
+
+- **Causal masking** — extend this viz with a triangular mask so users can see attention
+  weights vanish above the diagonal. Same matrices, one extra step before the softmax.
+- **Positional encoding** — add rotary or sinusoidal position vectors to $X$ before the
+  forward pass. Important for explaining how transformers know token order despite the
+  permutation-equivariance of raw attention.
+- **Encoder-decoder cross-attention** — where $Q$ comes from one sequence and $K, V$ come
+  from another. The mechanism is identical except for the source split. Used in the
+  original Transformer paper for translation; not used in decoder-only LLMs like GPT.
