@@ -139,8 +139,9 @@ practice — it keeps the cache story while equalizing probe lengths.
 
 ## What's next
 
-- **Double hashing** is the natural follow-up, with a second hash function eliminating the
-  secondary clustering quadratic probing still has.
-- **Hopscotch hashing** bounds the worst-case probe distance to a small constant by allowing the
-  data structure to actively shuffle keys closer to home — a different shape of "rob from the
-  rich" than Robin Hood.
+- **[Double hashing](/lessons/data-structures/double-hashing)** is the natural follow-up: a second
+  hash function decides the probe step, so different keys with the same home walk _different_
+  paths — eliminating the secondary clustering quadratic probing still has.
+- **[Hopscotch hashing](/lessons/data-structures/hopscotch)** bounds the worst-case probe
+  distance to a small constant by allowing the data structure to actively shuffle keys closer to
+  home — a different shape of "rob from the rich" than Robin Hood.

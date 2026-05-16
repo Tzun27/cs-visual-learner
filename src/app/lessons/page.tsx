@@ -113,6 +113,14 @@ const topics: readonly Topic[] = [
       },
       {
         status: "live",
+        slug: "double-hashing",
+        title: "Hash Tables: Double Hashing",
+        difficulty: "intermediate",
+        blurb:
+          "A second hash function decides the probe step — different keys with the same home walk different paths.",
+      },
+      {
+        status: "live",
         slug: "hopscotch",
         title: "Hash Tables: Hopscotch Hashing",
         difficulty: "intermediate",

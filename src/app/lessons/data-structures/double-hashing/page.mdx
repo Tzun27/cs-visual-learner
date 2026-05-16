@@ -1,0 +1,169 @@
+import { DoubleHashInsertViz } from "@/components/visualizations/DoubleHashInsertViz";
+import { DoubleHashSearchViz } from "@/components/visualizations/DoubleHashSearchViz";
+import { DoubleHashDeleteViz } from "@/components/visualizations/DoubleHashDeleteViz";
+
+export const metadata = {
+  title: "Hash Tables: Double Hashing",
+  description:
+    "Open addressing with a second hash function as the probe step. Different keys with the same home now walk different paths — eliminating both primary and secondary clustering.",
+};
+
+# Hash Tables: Double Hashing
+
+**Difficulty:** intermediate · **Category:** data structures
+
+[Quadratic probing](/lessons/data-structures/quadratic-probing) broke up the primary clusters
+that [linear probing](/lessons/data-structures/linear-probing) suffers from, but it left a
+subtler problem in place. **Secondary clustering**: any two keys that share the same home slot
+walk the _exact same_ probe sequence afterwards. Once a few of them collide at the same home,
+they pile up along the same $i^2$ path — different geometry than linear, but the same shape of
+clustering.
+
+Double hashing fixes that by letting every key choose its own probe path. Instead of a fixed
+formula $i^2$, the step between probes is itself a hash of the key. Two keys with the same
+$h_1(k)$ but different $h_2(k)$ now walk in opposite directions.
+
+The $j$-th probe lands at $(h_1(k) + j \cdot h_2(k)) \bmod c$. Same wrap-around, same three slot
+states (empty / tombstone / occupied), same view. The only change is the formula — and a second
+hash function.
+
+## Inserting with a per-key step
+
+<DoubleHashInsertViz />
+
+The capacity is **11** (prime) and the curated input is the same one the quadratic-probing
+lesson used: $5, 16, 27, 38, 49$ — all $\equiv 5 \pmod{11}$, every key fighting for slot $5$.
+The second hash is the standard $h_2(k) = 1 + (k \bmod (c - 1))$, which guarantees a value in
+$[1, c-1]$ — and with prime $c$, that value is always coprime with $c$, so the probe sequence
+visits every slot.
+
+Watch the difference. Each key has $h_1 = 5$, but each has a _different_ step $h_2$:
+
+| Key | $h_1$ | $h_2$ | Probe sequence visited |   Lands at |
+| --: | ----: | ----: | :--------------------- | ---------: |
+|   5 |     5 |     6 | $5$                    | slot **5** |
+|  16 |     5 |     7 | $5, 1$                 | slot **1** |
+|  27 |     5 |     8 | $5, 2$                 | slot **2** |
+|  38 |     5 |     9 | $5, 3$                 | slot **3** |
+|  49 |     5 |    10 | $5, 4$                 | slot **4** |
+
+After all five inserts, the placements occupy $\{1, 2, 3, 4, 5\}$ — the keys spread out _along
+their own paths_, not packed against one another. Each placement after the first did exactly
+**one probe** at the home slot before jumping to its own empty target. **Total probes: 4.**
+
+The quadratic-probing lesson did this same insert in $0 + 1 + 2 + 3 + 4 = 10$ probes, because
+all five keys walked the same $5 \to 6 \to 9 \to 3 \to 10$ sequence and bumped into each other
+along the way. Double hashing's headline win: same hash collisions, but no shared probe path.
+
+The final insert is $27$ again, demonstrating duplicate detection. It walks $27$'s own probe
+path — slot $5$ (rejected), then jump by $h_2(27) = 8$ to slot $2$, finds $27$ already there,
+and aborts without a new placement.
+
+## Searching: same step function, every time
+
+<DoubleHashSearchViz />
+
+The same rule that made linear and quadratic search work applies here, with one extra constraint:
+$h_2$ must produce the same value for the same key on every call. The step is part of the probe
+sequence; if it drifts, the table goes invisible.
+
+The starting state reuses the insert section's end (keys at slots $5, 1, 2, 3, 4$) with $16$
+deleted — slot $1$ is now a tombstone. The four targets exercise the four cases:
+
+- $\text{search}(5)$ — home-slot hit; zero probes.
+- $\text{search}(27)$ — probe past slot $5$, jump by $h_2(27) = 8$, find $27$ at slot $2$.
+- $\text{search}(16)$ — _was_ in the table, just deleted. Probe past slot $5$, jump by
+  $h_2(16) = 7$ to slot $1$ (tombstone — keep going), jump again to slot $8$ (empty) → **miss
+  after two probes**. The tombstone played its usual role: search past it, not stop on it.
+- $\text{search}(99)$ — different home (slot $0$), immediately empty; zero probes.
+
+Notice that $\text{search}(27)$ took **one probe** here, where the quadratic lesson's equivalent
+$\text{search}(27)$ took **two** (because $27$ walked the same $5 \to 6 \to 9$ path that put
+slots $5$ and $6$ between it and slot $9$). The shorter average path is the everyday payoff of
+breaking up secondary clustering.
+
+## Removing keys: tombstones again
+
+<DoubleHashDeleteViz />
+
+Delete is search with one extra step at the end — replace the matched slot with a tombstone, not
+an empty. The same rationale as the previous two lessons: a key inserted later may have probed
+past this slot back when it was occupied, and the search for that key needs to keep going past
+the tombstone.
+
+The three targets cover:
+
+- $\text{remove}(27)$ — one probe (slot $5$ is occupied, not $27$), jump to slot $2$, find,
+  tombstone.
+- $\text{remove}(5)$ — direct hit at home, zero probes, slot $5$ becomes a tombstone.
+- $\text{remove}(99)$ — home (slot $0$) is empty; miss, zero probes.
+
+As with quadratic probing, backshift deletion isn't an option here. Backshift relies on the
+probe sequence being a contiguous walk — pulling the next element back one slot keeps its
+displacement correct. Double hashing's per-key step means "the next element in the probe order"
+isn't even at a fixed offset; it could be anywhere in the table. Tombstones are the right tool.
+
+## Choosing the second hash function
+
+The whole pedagogical claim of double hashing rests on $h_2$ producing _different_ values for
+keys that share $h_1$. If $h_2$ is constant — say $h_2(k) = 1$ for every $k$ — then double
+hashing degenerates back into linear probing. If $h_2(k)$ depends only on $h_1(k)$ — say
+$h_2(k) = h_1(k) + 1$ — then it degenerates into a deterministic probe sequence per home,
+exactly the same shape of secondary clustering quadratic probing had.
+
+Three constraints matter:
+
+1. **$h_2(k) \neq 0$**, always. A zero step would loop on the home slot forever. The standard
+   $1 + (k \bmod (c - 1))$ shifts the range to $[1, c-1]$.
+2. **$\gcd(h_2(k), c) = 1$**, always. Otherwise the probe sequence is a coset of a subgroup —
+   it only visits $c / \gcd$ slots, and may never find an empty even when one exists. Prime $c$
+   makes this automatic for any $h_2 \in [1, c-1]$.
+3. **$h_2$ should look "independent" of $h_1$.** If they're correlated, double hashing degrades
+   toward quadratic in the worst case. A common trick: use two unrelated hash functions for
+   $h_1$ and $h_2$, not the same function modulo different values.
+
+Production hash tables that use this scheme typically pair it with universal hashing for both
+$h_1$ and $h_2$, then rebuild the table on collisions if a tail event hits.
+
+## Triangular-number probing and the modern alternative
+
+The quadratic-probing lesson called out triangular-number probing — step $i$ replaced with
+$i(i+1)/2$ — as the standard fix for the "doesn't visit every slot" problem on power-of-2 sized
+tables. The trade-off is on the other axis: triangular probing is _faster_ to compute (just
+addition, no extra hash), and it preserves the fixed-formula probe sequence (so same-$h_1$ keys
+still share a path — secondary clustering survives).
+
+Modern open-addressed hash tables in production (Google's Swiss tables, Rust's `hashbrown`)
+typically use **probe groups of 16 keys at a time** plus SIMD comparison, which makes the probe
+sequence shape almost irrelevant — the dominant cost is the SIMD scan, not the number of probes.
+At that point, double hashing's win-per-probe-skipped no longer pays for its extra hash
+computation. It's the textbook reference, not the dominant production choice.
+
+## Comparing the three open-addressing variants
+
+|                    | Linear probing              | Quadratic probing                  | Double hashing                           |
+| ------------------ | --------------------------- | ---------------------------------- | ---------------------------------------- |
+| Probe step formula | $i + 1$                     | $i + j^2$                          | $i + j \cdot h_2(k)$                     |
+| Primary cluster    | High variance               | Broken up                          | Broken up                                |
+| Secondary cluster  | Yes                         | Yes (same $h_1$ → same path)       | Eliminated (different $h_2$ → diff path) |
+| Slot visitation    | Every slot                  | $(c+1)/2$ when prime; fewer if not | Every slot when prime $c$                |
+| Cache behavior     | Sequential — prefetch-happy | Skipping forward — modest misses   | Skipping by per-key step — most misses   |
+| Hash cost          | 1 hash                      | 1 hash                             | 2 hashes                                 |
+| Resize trigger     | Load $\sim 0.7$             | Load $\sim 0.5$                    | Load $\sim 0.7$                          |
+| Implementation     | Trivial                     | Trivial — just change one formula  | Mild — need a second hash function       |
+
+The big practical question is whether the lower probe count beats the second hash + worse cache
+behavior. For tables that fit in L1, double hashing wins on workloads with adversarial hash
+distributions. For very large tables where cache misses dominate, linear probing (or its Robin
+Hood variant) often wins despite the longer probe sequences.
+
+## What's next
+
+- **Cuckoo hashing** takes a different shape: every key has two possible homes (two independent
+  hash functions, two flat arrays), and on insertion any displaced key bumps to its other home.
+  Lookup is _always_ two random reads — a stricter worst-case guarantee than any of the probing
+  schemes can offer.
+- **Hopscotch hashing** ([already in the data-structures
+  track](/lessons/data-structures/hopscotch)) bounds the worst-case probe distance to a small
+  constant $H$ by allowing the data structure to actively shuffle keys closer to home. Different
+  shape of "rob from the rich" than Robin Hood.
