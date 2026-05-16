@@ -148,3 +148,78 @@ export type AttentionStep =
   | (StepBase & { kind: "softmax"; snapshot: AttentionSnapshot })
   | (StepBase & { kind: "weighted-sum"; snapshot: AttentionSnapshot })
   | (StepBase & { kind: "done"; snapshot: AttentionSnapshot });
+
+/* ------------------------------------------------------------------ *
+ * Multi-head attention                                                *
+ * ------------------------------------------------------------------ */
+
+/** Filled-in-as-we-go per-head state, mirroring AttentionSnapshot's Q/K/V/etc. fields. */
+export type MultiHeadHeadState = {
+  readonly wQ: Matrix;
+  readonly wK: Matrix;
+  readonly wV: Matrix;
+  readonly q?: Matrix;
+  readonly k?: Matrix;
+  readonly v?: Matrix;
+  readonly scores?: Matrix;
+  readonly scaled?: Matrix;
+  readonly attention?: Matrix;
+  readonly output?: Matrix;
+};
+
+export type MultiHeadPhase = "begin" | "head" | "concat" | "project-output" | "done";
+
+export type MultiHeadAttentionSnapshot = {
+  readonly embeddings: Matrix;
+  readonly tokenLabels: ReadonlyArray<string>;
+  readonly heads: ReadonlyArray<MultiHeadHeadState>;
+  readonly wO: Matrix;
+  /** Concatenated per-head outputs [Y^(1) | Y^(2) | ...], filled in once all heads finish. */
+  readonly concat?: Matrix;
+  /** Final output Y = concat · W_O. */
+  readonly output?: Matrix;
+  readonly phase: MultiHeadPhase;
+  /** Which head the current step belongs to (undefined for non-head phases). */
+  readonly activeHead?: number;
+};
+
+export type MultiHeadAttentionStep =
+  | (StepBase & { kind: "begin"; snapshot: MultiHeadAttentionSnapshot })
+  | (StepBase & {
+      kind: "project-q";
+      headIndex: number;
+      snapshot: MultiHeadAttentionSnapshot;
+    })
+  | (StepBase & {
+      kind: "project-k";
+      headIndex: number;
+      snapshot: MultiHeadAttentionSnapshot;
+    })
+  | (StepBase & {
+      kind: "project-v";
+      headIndex: number;
+      snapshot: MultiHeadAttentionSnapshot;
+    })
+  | (StepBase & {
+      kind: "compute-scores";
+      headIndex: number;
+      snapshot: MultiHeadAttentionSnapshot;
+    })
+  | (StepBase & {
+      kind: "scale-scores";
+      headIndex: number;
+      snapshot: MultiHeadAttentionSnapshot;
+    })
+  | (StepBase & {
+      kind: "softmax";
+      headIndex: number;
+      snapshot: MultiHeadAttentionSnapshot;
+    })
+  | (StepBase & {
+      kind: "weighted-sum";
+      headIndex: number;
+      snapshot: MultiHeadAttentionSnapshot;
+    })
+  | (StepBase & { kind: "concat-heads"; snapshot: MultiHeadAttentionSnapshot })
+  | (StepBase & { kind: "project-output"; snapshot: MultiHeadAttentionSnapshot })
+  | (StepBase & { kind: "done"; snapshot: MultiHeadAttentionSnapshot });
