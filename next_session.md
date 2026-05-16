@@ -7,8 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + eight data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + **three ML-intuitions lessons (Gradient Descent, Backpropagation, Attention) with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button** + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 559 unit + 95 Playwright e2e (incl. 20 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + nine data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, **Hash Tables: Double Hashing insert/search/delete**, Hash Tables: Hopscotch insert + search with hop-bit lookups, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + three ML-intuitions lessons (Gradient Descent, Backpropagation, Attention) with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 600 unit + 100 Playwright e2e (incl. 21 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
 
 Read these before writing code:
 
@@ -56,7 +56,7 @@ Read these before writing code:
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/` + `src/lib/dataStructures/` + `src/lib/ml/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + quadratic-probing + hopscotch + pairing-heap + tree-traversal 4-mode + heap insert/heapify/extract-min + ML gradient-descent / backprop / attention + axe sweep across 20 routes).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/` + `src/lib/dataStructures/` + `src/lib/ml/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + quadratic-probing + double-hashing + hopscotch + pairing-heap + tree-traversal 4-mode + heap insert/heapify/extract-min + ML gradient-descent / backprop / attention + axe sweep across 21 routes).
 
 ## Architectural load-bearing decisions
 
@@ -102,6 +102,7 @@ These are easy to miss and expensive to violate:
 38. **`robinHoodDeleteSequence` never emits a tombstone — backshift is the deletion contract.** The generator stops the pull loop on either an empty slot or an occupied slot whose key is already at its home (displacement 0). The `clear` step carries both the cleared index and the blocker index plus a `blockerReason: "empty" | "at-home"` field, so the viz can highlight what stopped the chain. There is no `tombstone` step variant on `RobinHoodDeleteStep` — if you find yourself adding one, you're mixing strategies and should re-read decision 37; a real Robin Hood table commits to one of "backshift everywhere" or "tombstones everywhere," not both. The property test "after full deletion every slot is `empty`" pins this invariant.
 39. **Robin Hood viz highlights use both `placed` and `cursor` simultaneously on `pull` and `clear` steps.** Where the linear-probing vizes only ever color one slot per step, `RobinHoodDeleteViz` paints two: on `pull`, the destination is `placed` (yellow) and the source is `cursor` (orange), so the user reads "key X arrived here, came from there"; on `clear`, the just-emptied slot is `placed` and the blocker slot is `cursor`, so the user can immediately see what stopped backshift. The `LinearProbeHighlight[]` API already supports multi-cell highlights — if you mirror this pattern for any new multi-slot operation (e.g., Hopscotch swaps), preserve the convention that `placed` is "where the active key now lives" and `cursor` is "auxiliary slot to look at."
 40. **`heapDecreaseKeySequence` throws on misuse — never silently no-ops.** The two preconditions (index in range, newValue ≤ current value) are enforced by throwing `Error` rather than yielding an empty step set. This keeps the algorithm contract honest: silent no-op would let upstream bugs hide indefinitely. The viz never triggers either throw with its curated input, and property tests funnel `newValue = Math.min(candidate, heap[i])` to stay legal. If you ever add an `increase_key` opposite, branch _by precondition_ rather than ambiguity-merging the two operations into one generator.
+41. **Double hashing reuses every linear-probe primitive end-to-end.** `doubleHash.ts` returns `LinearProbeInsertStep` / `LinearProbeSearchStep` / `LinearProbeDeleteStep` — no new step union introduced. `DoubleHash*Viz` renders via `LinearProbeView` unchanged — no new SVG primitive. The only additions are the new generator module's helpers (`doubleHashHomeFor` / `doubleHashStepFor` / `doubleHashSlotFor`) and the three viz compositions. `doubleHashStepFor` returns 1 for `capacity ≤ 1` as a defensive guard against the `c - 1` division-by-zero edge case. The search viz plants its tombstone via `doubleHashDeleteSequence` (NOT `linearProbeDeleteSequence`) because 16 lives at slot 1 via double-hashing — not adjacent to its h1, so a linear forward-walk wouldn't find it. Future open-addressing variants (cuckoo, etc.) should preserve this "reuse the snapshot, change only the probe formula" discipline as long as the three-state slot model still fits.
 
 ## Useful commands
 
@@ -139,8 +140,7 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **Double hashing** as the fourth open-addressing variant. The quadratic-probing lesson's "What's next" names it explicitly. Uses a second hash function as the step size, so different keys with the same home probe along different paths — eliminates the secondary clustering that quadratic probing still has.
-- **Cuckoo hashing.** Two hash functions, two slots per key, displaced keys cuckoo each other out. Lookup is always two random reads — a different shape of "fixed-cost lookup" guarantee than hopscotch. Named in the hopscotch lesson's "What's next."
+- **Cuckoo hashing.** Two hash functions, two slots per key, displaced keys cuckoo each other out. Lookup is always two random reads — a different shape of "fixed-cost lookup" guarantee than hopscotch. Named in both the hopscotch and double-hashing lessons' "What's next."
 - **Fibonacci heap** as the third heap-merge variant. Same lazy-merge idea as pairing, more bookkeeping, $O(1)$ amortized decrease-key. Often quoted in Dijkstra/MST analysis. The pairing-heap lesson's "What's next" mentions it.
 - **Leftist or skew heap.** Lighter-weight than Fibonacci, similar merge-first design. Either fits in a single lesson page.
 - **Language toggle on the code panel.** All snippets are Python today. Adding TypeScript (the actual generator source) or another teaching language would re-tokenize on toggle and roughly double the snippet-authoring work per algorithm. The pieces are in place: `CodePanel` already accepts a `language` prop and Shiki supports many languages — what's missing is a per-algorithm registry of `{ python: source, typescript: source }` and matching line-number maps.
@@ -178,6 +178,7 @@ src/app/                            App Router routes
     hash-tables/page.mdx            Separate-chaining hash table (add / contains / remove)
     linear-probing/page.mdx         Open-addressing hash table with linear probing + tombstones + Robin Hood
     quadratic-probing/page.mdx      Open-addressing hash table with i² probe sequence
+    double-hashing/page.mdx         Open-addressing hash table with a second hash function as the probe step
     hopscotch/page.mdx              Open-addressing hash table with bounded-H hop bitmask
     tree-traversal/page.mdx         Preorder / inorder / postorder / level-order
     heap/page.mdx                   Min-heap insert (siftUp) + heapify + extract-min + decrease-key + interactive playground
@@ -211,6 +212,9 @@ src/components/
     QuadraticProbeInsertViz.tsx     Quadratic-probing insert composition (i² spread + dup)
     QuadraticProbeSearchViz.tsx     Quadratic-probing search composition (tombstone walk along i²)
     QuadraticProbeDeleteViz.tsx     Quadratic-probing delete composition (probed delete + direct + miss)
+    DoubleHashInsertViz.tsx         Double-hash insert composition (per-key h2 step spread + dup)
+    DoubleHashSearchViz.tsx         Double-hash search composition (probes-past-tombstone via h2 path)
+    DoubleHashDeleteViz.tsx         Double-hash delete composition (probed delete + direct + miss)
     HopscotchView.tsx               SVG presentational for hopscotch — slot row + hop-info bitmask row
     HopscotchInsertViz.tsx          Hopscotch insert composition (linear scan + swap chain + dup)
     HopscotchSearchViz.tsx          Hopscotch search composition (per-bit check, bounded by H)
@@ -241,6 +245,7 @@ src/lib/
     heap.ts                         Min-heap heapInsertSequence + heapifySequence + heapExtractMinSequence + heapDecreaseKeySequence + buildHeap + isMinHeap + heapToTree
     linearProbe.ts                  Linear-probing insertSequence + searchSequence + deleteSequence + buildLinearProbeTable + emptyTable + slotIndexFor + liveKeys + loadFactor
     quadraticProbe.ts               Quadratic-probing {insert,search,delete}Sequence + buildQuadraticProbeTable + quadraticHomeFor + quadraticSlotFor (reuses LinearProbeSnapshot)
+    doubleHash.ts                   Double-hashing {insert,search,delete}Sequence + buildDoubleHashTable + doubleHashHomeFor + doubleHashStepFor + doubleHashSlotFor (reuses LinearProbeSnapshot)
     hopscotch.ts                    Hopscotch {insert,search}Sequence + buildHopscotchTable + emptyHopscotchTable + HOPSCOTCH_NEIGHBORHOOD + hopscotchHomeFor
     pairingHeap.ts                  Pairing-heap {merge,deleteMin}Sequence + buildPairingHeap + pairingHeapDepths + emptyPairingHeap
     robinHood.ts                    Robin Hood robinHoodInsertSequence + robinHoodDeleteSequence + buildRobinHoodTable + displacementOf + maxDisplacement
@@ -252,6 +257,7 @@ src/lib/
     heapify.snippet.ts                               Python source + named line-number constants (heapify)
     linearProbe{Insert,Search,Delete}.snippet.ts     Python source + named line-number constants (linear probing)
     quadraticProbe{Insert,Search,Delete}.snippet.ts  Python source + named line-number constants (quadratic probing)
+    doubleHash{Insert,Search,Delete}.snippet.ts      Python source + named line-number constants (double hashing)
     hopscotch{Insert,Search}.snippet.ts              Python source + named line-number constants (hopscotch)
     pairingHeap{Merge,DeleteMin}.snippet.ts          Python source + named line-number constants (pairing heap)
     robinHood{Insert,Delete}.snippet.ts              Python source + named line-number constants (Robin Hood)
@@ -277,6 +283,32 @@ If you need to make a focused change, these are the files that matter for each s
 - **Touch the LinearProbeView SVG:** `src/components/visualizations/LinearProbeView.tsx`. Different layout philosophy from `HashTableView`: single horizontal row of fixed-size cells (no chains), each cell has three visual states (empty=dashed, tombstone=× marks, occupied=key). Four viz compositions consume it (`LinearProbe{Insert,Search,Delete}Viz` and `RobinHoodInsertViz`). The ×-mark glyph for tombstones is constructed from two SVG lines, not a Unicode character — don't replace with `<text>✗</text>` without checking the centering math. The `showDisplacements` prop renders a small "+N" badge below each key — only the Robin Hood viz turns it on.
 
 ## What changed in the most recent session
+
+This session shipped the **Hash Tables: Double Hashing** lesson — the fourth open-addressing variant in the data-structures track, completing the linear → quadratic → double-hashing trio. Five commits, no new product primitives — pure follow-on work that reuses the entire `LinearProbeSnapshot` / `LinearProbeView` infrastructure unchanged. The whole lesson is one new generator module + three viz compositions + one MDX page + one e2e spec.
+
+| #   | subject                                                      |
+| --- | ------------------------------------------------------------ |
+| 1   | `feat(ds)`: add double-hashing generators + snippets + tests |
+| 2   | `feat(viz)`: add DoubleHashInsertViz + SearchViz + DeleteViz |
+| 3   | `feat(lessons)`: add double-hashing lesson + index entry     |
+| 4   | `test(e2e)`: cover double-hashing lesson + add to axe sweep  |
+| 5   | `docs`: refresh next_session.md after double-hashing rollout |
+
+Narrative summary:
+
+1. **Double-hashing generator** (commit 1). New `doubleHash.ts` module with `doubleHashInsertSequence` / `searchSequence` / `deleteSequence`, mirroring `quadraticProbe.ts` structurally — same `LinearProbeSnapshot` shape, same `LinearProbeInsertStep` / etc. unions, only the probe formula changes. Two new helpers: `doubleHashHomeFor(k, c) = ((k % c) + c) % c` (same as the others) and `doubleHashStepFor(k, c) = 1 + ((k mod (c-1) + (c-1)) mod (c-1))` — the standard $1 + (k \bmod (c-1))$ second hash, shifted to $[1, c-1]$. Three matching `.snippet.ts` files. 41 unit + property tests covering home/step/slot helpers, all three sequences, tombstone handling, duplicate detection on the key's own probe path (not the table-walk path), and a property comparing probe counts against the quadratic-probing baseline on the curated same-h1 input.
+2. **Three viz compositions** (commit 2). `DoubleHashInsertViz` / `DoubleHashSearchViz` / `DoubleHashDeleteViz`, each mirroring its `QuadraticProbe*Viz` sibling. Reuses `LinearProbeView` unchanged. Each viz computes h2 separately and surfaces it in the annotation: `"Inserting 16 (h1=5, h2=7)"`, `"Probe 1 → slot 5 occupied (5) — jump by h2=7"`. This is the load-bearing pedagogical move — the user sees a different step number per key on the very first annotation, before any probe even fires.
+3. **Lesson MDX + index entry** (commit 3). `/lessons/data-structures/double-hashing` page walks through insert → search → delete on the same `[5, 16, 27, 38, 49]` input the quadratic lesson uses, then computes the probe-count difference inline: quadratic does it in 10 probes (`0+1+2+3+4`), double-hashing does it in 4 (one per same-h1 collision). Three-column comparison table (linear / quadratic / double) at the end, followed by a section on choosing $h_2$ (must be non-zero, coprime with $c$, and independent of $h_1$). "What's next" names cuckoo hashing as the obvious follow-up. The quadratic-probing lesson's "What's next" got rewritten to link the now-shipped lesson instead of teasing it.
+4. **E2E + a11y** (commit 4). New `e2e/double-hashing.spec.ts` with 5 specs: region presence + toolbar, insert full-run (5 placed + 1 dup + 5 probes), insert reset, search full-run (2 found + 2 misses + 3 probes), delete full-run (2 removed + 1 miss + 1 probe) + reset. Route added to `a11y.spec.ts` axe sweep (20 → 21 routes). All green.
+5. **Doc refresh** (commit 5). This file. The "Suggested next features" list dropped double hashing (just shipped) — the highest-priority remaining open-addressing variant in that list is now cuckoo hashing.
+
+Test counts grew from **559 unit / 95 e2e (20 axe routes)** at session start to **600 unit / 100 e2e (21 axe routes)** at HEAD (+41 unit, +5 e2e, +1 axe route). The unit growth is the new double-hash module tests with 100% coverage on the new `doubleHash.ts` and its three snippets.
+
+New load-bearing decision #41 (pinned above in the decisions list) captures the no-new-types / no-new-views / `doubleHashStepFor(_, c≤1) === 1` / use-`doubleHashDeleteSequence`-not-linear-for-tombstone-planting contracts in one place.
+
+---
+
+### Previous session
 
 This session shipped the **ML Intuitions pillar v1** — three lessons (Gradient Descent → Backpropagation → Attention) with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button. The work followed the gated spec-driven-development flow: spec → plan → tasks → implementation. 17 implementation commits over four phases (A foundations, B GD, C backprop, D attention, E rollout) plus two fixes for a latent CSS-variable bug surfaced by Chrome DevTools MCP review.
 
@@ -326,13 +358,13 @@ A few small ML-pillar-specific decisions worth flagging for the next agent:
 
 ---
 
-### Previous session
+### Two sessions ago
 
 This session knocked out **six of the seven light follow-ups** that were queued at that time (the seventh, real-device Lighthouse, was blocked on the Vercel deploy). Eight commits landed, no new product features — pure cleanup, hardening, and one substantive refactor (hash-table set → map). The most important upshot is that `src/lib/dataStructures/` came under the same 100% coverage gate as `src/lib/algorithms/`, so future drift in the data-structures track is caught at CI time rather than during review. The refactor (commit 6 of that session) rebuilt the chaining hash table around `(key, value)` pairs and changed the third counter from "Duplicates" to "Overwrites" — production hash tables are maps, not sets.
 
 ---
 
-### Two sessions ago
+### Three sessions ago
 
 This session shipped **`decrease_key` on the heap lesson** — the remaining textbook heap operation called out in the prior session's "What you didn't see" list. The heap lesson now contains four viz sections (insert, heapify, extract-min, decrease-key); the "What you didn't see" copy rotates `decrease_key` out and adds heap-merge in its place. After all changes were committed and tests went green, I verified the new viz interactively in Chrome DevTools MCP — stepped through both ops, confirmed the tree mutations and highlight colors matched the algorithm trace, and confirmed zero console errors on the heap and linear-probing pages.
 
@@ -363,7 +395,7 @@ Test counts grew from **340 unit / 57 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Three sessions ago
+### Four sessions ago
 
 This session shipped **Robin Hood backshift deletion** as the natural counterpart to the Robin Hood insert section landed in the prior session. The linear-probing lesson now contains five viz sections (insert, search, delete, Robin Hood insert, Robin Hood delete) and the "What's next" list has rotated backshift deletion out (just shipped) and Hopscotch hashing in. Five commits landed:
 
@@ -387,7 +419,7 @@ Test counts grew from **330 unit / 56 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Four sessions ago
+### Five sessions ago
 
 The prior session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), a fourth viz section in the linear-probing lesson for **Robin Hood probing**, and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in four phases — heap (insert + extract-min), heapify as an in-place extension, linear probing as a brand-new lesson, and Robin Hood as an in-place extension to it:
 
