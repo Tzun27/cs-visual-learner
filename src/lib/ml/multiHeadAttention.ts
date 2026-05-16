@@ -1,11 +1,6 @@
 import { matmul, rowSoftmax, transpose } from "./attention";
 import { multiHeadAttentionLines } from "./multiHeadAttention.snippet";
-import type {
-  Matrix,
-  MultiHeadAttentionSnapshot,
-  MultiHeadAttentionStep,
-  MultiHeadHeadState,
-} from "./types";
+import type { Matrix, MultiHeadAttentionSnapshot, MultiHeadAttentionStep } from "./types";
 
 export type MultiHeadAttentionParams = {
   readonly embeddings: Matrix;
@@ -64,8 +59,22 @@ export function* multiHeadAttentionSequence(
   const dk = wK[0][0].length;
   const scaleFactor = 1 / Math.sqrt(dk);
 
-  // Initialize head states with just the projection matrices populated.
-  const heads: MultiHeadHeadState[] = wQ.map((wQh, h) => ({
+  // Working state with mutable fields — the public MultiHeadHeadState wraps each
+  // field in `readonly`, which is the right contract for snapshot consumers but
+  // too strict inside the generator's loop. We clone into readonly form on emit.
+  type MutableHeadState = {
+    wQ: Matrix;
+    wK: Matrix;
+    wV: Matrix;
+    q?: Matrix;
+    k?: Matrix;
+    v?: Matrix;
+    scores?: Matrix;
+    scaled?: Matrix;
+    attention?: Matrix;
+    output?: Matrix;
+  };
+  const heads: MutableHeadState[] = wQ.map((wQh, h) => ({
     wQ: cloneMatrix(wQh),
     wK: cloneMatrix(wK[h]),
     wV: cloneMatrix(wV[h]),
