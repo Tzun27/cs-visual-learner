@@ -7,8 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + ten data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Double Hashing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, **Hash Tables: Cuckoo Hashing insert/search/delete with eviction cascades**, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + **four ML-intuitions lessons (Gradient Descent, Backpropagation, Attention, Multi-Head Attention)** with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 659 unit + 113 Playwright e2e (incl. 23 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + eleven data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Double Hashing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, Hash Tables: Cuckoo Hashing insert/search/delete with eviction cascades, **Cuckoo Filter insert/contains/delete with fingerprints + the XOR-trick alternate**, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + **four ML-intuitions lessons (Gradient Descent, Backpropagation, Attention, Multi-Head Attention)** with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 701 unit + 119 Playwright e2e (incl. 24 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
 
 Read these before writing code:
 
@@ -40,6 +40,10 @@ Read these before writing code:
   - Insert section: `CuckooInsertViz` with curated input `[5, 0, 12, 14, 5]`. The first two inserts hit empty $T_A$ slots directly. The third (`12`) triggers a single eviction (5 moves from $T_A[5]$ to $T_B[0]$). The fourth (`14`) is the lesson's hero — a three-step cascade: 14 displaces 0 in $T_A[0]$, 0 displaces 5 in $T_B[0]$, 5 displaces 12 in $T_A[5]$, 12 lands cleanly in $T_B[1]$. The fifth insert is the duplicate `5` which the T_A dedup-check catches before the loop runs. Counters: Placed / Evictions / Duplicates (4 / 4 / 1 at completion).
   - Search section: `CuckooSearchViz` against the post-insert end state. Targets `[5, 12, 0, 99]` exercise: one-read hit at $T_A[5]$, two-read hit at $T_B[1]$, two-read hit at $T_B[0]$, two-read miss. Counters: Lookups / Found / Misses (7 / 3 / 1 — note that 12, 0, and 99 each take two reads while 5 takes one).
   - Delete section: `CuckooDeleteViz` against the same end state. Targets `[14, 12, 99]` cover: one-read direct hit + remove, two-read miss-then-hit + remove, two-read miss-then-miss. No tombstones generated — verified by a property test that `liveCuckooKeys` is empty after deleting every inserted key. Counters: Lookups / Removed / Misses (5 / 2 / 1).
+- **Cuckoo Filter lesson** at `/lessons/data-structures/cuckoo-filter` — probabilistic set membership built on cuckoo hashing. Single table of $8$ slots holding $4$-bit fingerprints (range $[1, 7]$, $0$ reserved for empty) instead of full keys. The load-bearing trick is the symmetric XOR-derived alternate: $\text{alt}(s, \text{fp}) = s \oplus \text{hashFp}(\text{fp})$, which lets the eviction cascade compute a displaced fingerprint's other home WITHOUT knowing the original key. New `CuckooFilterView` SVG primitive (single horizontal row of cells, each labeled "fp" stacked over the fingerprint value); takes the same `(slotIndex, kind)` highlights as `LinearProbeView`. Three viz sections.
+  - Insert section: `CuckooFilterInsertViz` with curated input `[5, 0, 7, 13]`. First three keys place directly via the home-check path. The fourth (`13`) hits both candidate slots occupied → 2-step eviction cascade: 13's fp=7 evicts T[5]'s fp=6, which lands on T[7] evicting fp=1, which finally lands at empty T[4]. Final: `T = [1, _, _, _, 1, 7, _, 6]` — note fp=1 appears twice (once from inserting 0, once from cascade-displaced 7). Counters: Placed / Evictions (4 / 2 at completion).
+  - Contains section: `CuckooFilterSearchViz` with targets `[13, 5, 0, 35, 99]`. The lesson's hero target is `35` — never inserted, but fp(35)=1 matches T[0]'s fingerprint, so the algorithm reports it as found. This is a **false positive**. The viz uses a hardcoded ACTUALLY_INSERTED set to label each found-step as true positive or false positive; false-positive matches render in red instead of yellow, and a dedicated `False+` counter ticks separately from `Found`. Counters: Lookups / Found / False+ / Misses (8 / 4 / 1 / 1 at completion — the False+ overlaps with Found since both fire on the same step).
+  - Delete section: `CuckooFilterDeleteViz` with targets `[13, 99]`. `13` is found at home and cleared (no tombstone). `99` misses on both candidates. Counters: Lookups / Removed / Misses (3 / 1 / 1). The lesson's MDX has a dedicated "delete-safety pitfall" section warning that deleting a never-inserted key whose fp collides can silently clear a real entry (deleting `35` would clear T[0] and silently lose 0).
 - **Tree Traversal lesson** at `/lessons/data-structures/tree-traversal` — single viz with a four-button mode toggle (preorder / inorder / postorder / level-order) over the same balanced demo tree from the BST lesson (`buildTree([4, 2, 6, 1, 3, 5, 7])` — 7 nodes, depth 3). Each visit step appends one value to an "Output sequence" strip below the tree, and the CodePanel swaps Python source per mode so the position of `visit(node)` is visibly different across the three DFS orders. One parameterized `traversalSequence(tree, mode)` generator covers all four orderings; DFS uses inner recursion, level-order uses an explicit queue, matching the displayed snippets. Expected outputs on the demo tree:
   - **Preorder:** `[4, 2, 1, 3, 6, 5, 7]` (root → left subtree → right subtree)
   - **Inorder:** `[1, 2, 3, 4, 5, 6, 7]` (left → root → right — sorted, because this is a BST)
@@ -61,7 +65,7 @@ Read these before writing code:
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/` + `src/lib/dataStructures/` + `src/lib/ml/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + quadratic-probing + double-hashing + hopscotch + cuckoo-hashing + pairing-heap + tree-traversal 4-mode + heap insert/heapify/extract-min + ML gradient-descent / backprop / attention / multi-head-attention + axe sweep across 23 routes).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/` + `src/lib/dataStructures/` + `src/lib/ml/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + quadratic-probing + double-hashing + hopscotch + cuckoo-hashing + cuckoo-filter + pairing-heap + tree-traversal 4-mode + heap insert/heapify/extract-min + ML gradient-descent / backprop / attention / multi-head-attention + axe sweep across 24 routes).
 
 ## Architectural load-bearing decisions
 
@@ -113,6 +117,9 @@ These are easy to miss and expensive to violate:
 44. **Cuckoo insert's `evict` step carries `nextSide` + `nextSlotIndex` so the viz can dual-highlight the placed slot AND the slot the displaced key is headed to.** Follows the `placed` = "where the active key now lives" / `cursor` = "auxiliary slot to look at" convention from decision 39. The generator computes `hashFor(displacedKey, otherSide(side), capacity)` before yielding the step so the viz never has to recompute hashes. Don't simplify the evict step by dropping the `next*` fields — the user needs to see the cascade _direction_ on each beat, not just where the swap happened.
 45. **Cuckoo delete generates no tombstones — slots return to `state: "empty"`.** This is structural, not a simplification: cuckoo lookups never walk _past_ a slot (they check exactly two specific positions), so an empty slot in a candidate position is unambiguously "not here." If you add a `cuckooDelete` variant that needs tombstones for some reason (e.g., concurrent delete + insert), you're solving a different problem and need a different generator. Property tests pin this: after deleting every inserted key in any order, every slot in both tables is `state: "empty"`.
 46. **`cuckooHash2(k, c) = (((⌊k/c⌋ mod c) + c) mod c)` uses `Math.floor`, not JS's truncating `/`.** Plain integer division in JS (`(k / c) | 0`) truncates toward zero, which gives the wrong residue for negative keys (`-1 / 7` truncates to 0, then `0 % 7 = 0`, but the floor-divide convention says `⌊-1/7⌋ = -1`, then `((-1 % 7) + 7) % 7 = 6`). The truncating form would yield `h2(-1) = 0`, which collides with every key whose `k % 49` is `0` — quietly clustering all negative keys at $T_B[0]$. The viz never feeds negative keys, but the hash function is exported and the test suite includes negative-key cases for forward-compat.
+47. **Cuckoo filter is structurally a hash-based set but pedagogically a different category — single table, fingerprints not keys, symmetric XOR alternate.** Lives in `src/lib/dataStructures/cuckooFilter.ts` with its own `CuckooFilterSnapshot` (single `slots` array, two-state slots), four new step unions, and a `CuckooFilterView` SVG primitive (single horizontal row, cells labeled "fp" stacked over the fingerprint value to visually reinforce that the original key isn't stored). The XOR-trick invariant `alt(alt(s, fp), fp) === s` is enforced by a dedicated property test — if you ever change `cuckooFilterHashFp` to a non-bijective mapping, that test fails. The `(fp * 3) % 8` mapping was deliberately picked because 3 is coprime to 8: every fingerprint gets a distinct non-zero XOR offset, so no fingerprint's `alt(slot, fp) === slot`. **Critical**: `hashFp` must always be non-zero — a zero offset means a fingerprint has no alternate, breaking the two-candidates guarantee.
+48. **Cuckoo filter `contains` and the false-positive label live in the viz layer, not the generator.** The generator emits a `found` step on any fingerprint match — it has no concept of "true positive" vs "false positive" because the original key isn't stored. The viz wraps the curated `INSERT_SEQUENCE` in `ACTUALLY_INSERTED = new Set<number>(INSERT_SEQUENCE)` and uses that to label each `found` step: targets in the set get the `placed` (yellow) highlight, targets outside get `duplicate` (red), and a dedicated `False+` counter ticks separately from `Found`. Any future filter viz (e.g., Bloom filter) must follow the same pattern — the algorithm reports yes/no, the demo provides ground truth, and the viz reconciles them for pedagogical clarity.
+49. **Cuckoo filter delete is intentionally unsafe-by-default — the lesson MDX warns explicitly that deleting a never-inserted key whose fingerprint collides will silently clear a real entry.** The viz's curated delete demo (`[13, 99]`) only exercises safe cases; the unsafe `delete(35)` scenario is discussed in prose with a worked example showing T[0] would be cleared and `contains(0)` would subsequently return false. This is the load-bearing semantic difference from a hash-set delete: the operation is "clear any slot matching this fp," not "clear the slot holding this key." Don't add a "delete-safety check" to the generator that consults ground truth — that defeats the data structure (you'd be storing keys after all). Real systems either maintain a separate "currently resident" set, or use a counting Bloom filter when delete safety matters more than memory.
 
 ## Useful commands
 
@@ -150,8 +157,9 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **Cuckoo filter** (probabilistic set membership built on cuckoo hashing). Natural follow-up to the just-shipped cuckoo lesson — store fingerprints instead of full keys, support delete (unlike Bloom filters), accept a small false-positive rate. The cuckoo lesson's "What's next" already names it.
-- **Bucketized / $d$-way cuckoo.** The just-shipped lesson notes that pure 2-way 1-key-per-slot cuckoo caps out at ~50% load factor; $d = 4$ raises it to ~95%, and packing $b$ keys per slot makes a single cache line hold the entire candidate bucket. Would be a follow-on viz on the same lesson page, not a new lesson.
+- **Bloom filter** (probabilistic set, no delete support). The direct point of comparison for the just-shipped cuckoo filter. Multi-hash design, false-positive rate tunable via filter size + hash count, the classic baseline that cuckoo filters explicitly improve on. Named in both the cuckoo-hashing and cuckoo-filter "What's next."
+- **Counting Bloom filter.** Bloom filter with delete support, at the cost of using counters instead of bits. Different shape of the same trade-off cuckoo filters made. One lesson page, two viz sections (count-up insert + count-down delete).
+- **Bucketized / $d$-way cuckoo.** The cuckoo-hashing lesson notes that pure 2-way 1-key-per-slot caps out at ~50% load factor; $d = 4$ raises it to ~95%, and packing $b$ keys per slot makes a single cache line hold the entire candidate bucket. Would be a follow-on viz on the same lesson page, not a new lesson.
 - **Fibonacci heap** as the third heap-merge variant. Same lazy-merge idea as pairing, more bookkeeping, $O(1)$ amortized decrease-key. Often quoted in Dijkstra/MST analysis. The pairing-heap lesson's "What's next" mentions it.
 - **Leftist or skew heap.** Lighter-weight than Fibonacci, similar merge-first design. Either fits in a single lesson page.
 - **Language toggle on the code panel.** All snippets are Python today. Adding TypeScript (the actual generator source) or another teaching language would re-tokenize on toggle and roughly double the snippet-authoring work per algorithm. The pieces are in place: `CodePanel` already accepts a `language` prop and Shiki supports many languages — what's missing is a per-algorithm registry of `{ python: source, typescript: source }` and matching line-number maps.
@@ -192,6 +200,7 @@ src/app/                            App Router routes
     double-hashing/page.mdx         Open-addressing hash table with a second hash function as the probe step
     hopscotch/page.mdx              Open-addressing hash table with bounded-H hop bitmask
     cuckoo-hashing/page.mdx         Two-table cuckoo with eviction cascades: insert + search + delete
+    cuckoo-filter/page.mdx          Probabilistic set: fingerprints + XOR-trick alternate + the false-positive demo
     tree-traversal/page.mdx         Preorder / inorder / postorder / level-order
     heap/page.mdx                   Min-heap insert (siftUp) + heapify + extract-min + decrease-key + interactive playground
     pairing-heap/page.mdx           Multi-way-tree min-heap: O(1) merge + two-pass delete-min
@@ -234,6 +243,10 @@ src/components/
     CuckooInsertViz.tsx             Cuckoo insert composition (dedup-check + alternating-table eviction cascade)
     CuckooSearchViz.tsx             Cuckoo search composition (always at most two slot reads)
     CuckooDeleteViz.tsx             Cuckoo delete composition (just clear the slot — no tombstones)
+    CuckooFilterView.tsx            SVG presentational for cuckoo filter — single row, fingerprint labels
+    CuckooFilterInsertViz.tsx       Cuckoo filter insert composition (XOR-trick alternate + cascade)
+    CuckooFilterSearchViz.tsx       Cuckoo filter contains composition (curated false-positive demo + False+ counter)
+    CuckooFilterDeleteViz.tsx       Cuckoo filter delete composition (just clear — see prose for delete-safety pitfall)
     TreeTraversalViz.tsx            Tree traversal composition (4-mode toggle + output sequence strip)
     HeapInsertViz.tsx               Min-heap insert composition (siftUp; 2-sequence toggle)
     HeapifyViz.tsx                  Min-heap heapify composition (bottom-up siftDown; single curated input)
@@ -254,7 +267,7 @@ src/lib/
     {bubble,heap,insertion,         Python source + named line-number constants
      merge,quick,radix}Sort.snippet.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep / HeapDecreaseKeyStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step + RobinHoodInsertStep + RobinHoodDeleteStep + HopscotchSlot / HopscotchSnapshot / Hopscotch{Insert,Search}Step + CuckooSlot / CuckooSide / CuckooSnapshot / Cuckoo{Insert,Search,Delete}Step + PairingHeapNode / PairingHeapSnapshot / PairingHeap{Merge,DeleteMin}Step
+    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep / HeapDecreaseKeyStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step + RobinHoodInsertStep + RobinHoodDeleteStep + HopscotchSlot / HopscotchSnapshot / Hopscotch{Insert,Search}Step + CuckooSlot / CuckooSide / CuckooSnapshot / Cuckoo{Insert,Search,Delete}Step + CuckooFilterSlot / CuckooFilterSnapshot / CuckooFilterCheckPhase / CuckooFilter{Insert,Search,Delete}Step + PairingHeapNode / PairingHeapSnapshot / PairingHeap{Merge,DeleteMin}Step
     binarySearchTree.ts             BST insertSequence + searchSequence + deleteSequence + buildTree
     hashTable.ts                    Hash table insertSequence + searchSequence + deleteSequence + buildHashTable + bucketIndexFor + liveKeys + loadFactor
     traversal.ts                    Parameterized traversalSequence(tree, mode) + TRAVERSAL_MODES + labels
@@ -264,6 +277,7 @@ src/lib/
     doubleHash.ts                   Double-hashing {insert,search,delete}Sequence + buildDoubleHashTable + doubleHashHomeFor + doubleHashStepFor + doubleHashSlotFor (reuses LinearProbeSnapshot)
     hopscotch.ts                    Hopscotch {insert,search}Sequence + buildHopscotchTable + emptyHopscotchTable + HOPSCOTCH_NEIGHBORHOOD + hopscotchHomeFor
     cuckoo.ts                       Cuckoo {insert,search,delete}Sequence + buildCuckooTable + emptyCuckooTable + cuckooHash1 + cuckooHash2 + liveCuckooKeys + CUCKOO_MAX_ITERATIONS
+    cuckooFilter.ts                 Cuckoo filter {insert,search,delete}Sequence + buildCuckooFilter + emptyCuckooFilter + cuckooFilterFingerprint + cuckooFilterHome + cuckooFilterHashFp + cuckooFilterAlt + cuckooFilterContains + liveCuckooFilterFingerprints + CUCKOO_FILTER_{FP_RANGE,MAX_ITERATIONS}
     pairingHeap.ts                  Pairing-heap {merge,deleteMin}Sequence + buildPairingHeap + pairingHeapDepths + emptyPairingHeap
     robinHood.ts                    Robin Hood robinHoodInsertSequence + robinHoodDeleteSequence + buildRobinHoodTable + displacementOf + maxDisplacement
     index.ts                        BST operation registry + labels (insert only — search/delete have a different signature)
@@ -277,6 +291,7 @@ src/lib/
     doubleHash{Insert,Search,Delete}.snippet.ts      Python source + named line-number constants (double hashing)
     hopscotch{Insert,Search}.snippet.ts              Python source + named line-number constants (hopscotch)
     cuckoo{Insert,Search,Delete}.snippet.ts          Python source + named line-number constants (cuckoo hashing)
+    cuckooFilter{Insert,Search,Delete}.snippet.ts    Python source + named line-number constants (cuckoo filter)
     pairingHeap{Merge,DeleteMin}.snippet.ts          Python source + named line-number constants (pairing heap)
     robinHood{Insert,Delete}.snippet.ts              Python source + named line-number constants (Robin Hood)
   hooks/
@@ -302,6 +317,36 @@ If you need to make a focused change, these are the files that matter for each s
 
 ## What changed in the most recent session
 
+This session shipped the **Cuckoo Filter** lesson — the natural follow-on to last session's cuckoo-hashing lesson and the top entry in the previous "Suggested next features" list. Five commits. The cuckoo filter is the first **probabilistic** data structure in the project — it stores small fingerprints instead of full keys, accepting a tunable false-positive rate in exchange for a memory footprint roughly 4-10× smaller than storing keys. The load-bearing teaching moment is the symmetric XOR trick: `alt(slot, fp) = slot ⊕ hashFp(fp)` lets the eviction cascade compute a displaced fingerprint's other home from the fingerprint alone, no original-key bookkeeping needed.
+
+| #   | subject                                                     |
+| --- | ----------------------------------------------------------- |
+| 1   | `feat(ds)`: add cuckoo filter generators + snippets + tests |
+| 2   | `feat(viz)`: add CuckooFilterView + 3 viz compositions      |
+| 3   | `feat(lessons)`: add cuckoo filter lesson + index entry     |
+| 4   | `test(e2e)`: cover cuckoo-filter lesson + add to axe sweep  |
+| 5   | `docs`: refresh next_session.md after cuckoo filter rollout |
+
+Narrative summary:
+
+1. **Cuckoo filter generators + types + tests** (commit 1). New `cuckooFilter.ts` module with `cuckooFilterInsertSequence` / `cuckooFilterSearchSequence` / `cuckooFilterDeleteSequence`, plus `cuckooFilterFingerprint` / `cuckooFilterHome` / `cuckooFilterHashFp` / `cuckooFilterAlt` (the XOR trick) / `cuckooFilterContains` (pure-function oracle for tests) / `emptyCuckooFilter` / `buildCuckooFilter` / `liveCuckooFilterFingerprints` helpers plus the `CUCKOO_FILTER_FP_RANGE = 7` and `CUCKOO_FILTER_MAX_ITERATIONS = 8` constants. Four new step unions in `types.ts` (`CuckooFilterInsertStep`, `SearchStep`, `DeleteStep`, plus the `CheckPhase` discriminator) and the two-state `CuckooFilterSlot` / `CuckooFilterSnapshot` shape. The check step in all three operations carries `phase: "home" | "alt" | "cascade"` so the viz annotation can be context-aware without tracking state across steps. 42 unit + property tests at 100% coverage, including hand-traced verification of the `[5, 0, 7, 13]` curated 2-step cascade, the XOR-trick symmetry invariant (`alt(alt(s, fp), fp) === s` for all slot/fp pairs), the canonical false-positive case (key 35 reports as found because fp(35)=1 matches T[0]), and the delete-safety pitfall (deleting 35 silently clears T[0] and breaks `contains(0)`). Also wrapped three pre-existing cuckoo-hashing property tests in `try/catch` for the cycle branch — adversarial unique triples like `[0, 49, 98]` all share `(h1, h2) = (0, 0)` and the 14-slot demo capacity can't accommodate them, so the property tests now skip cycle counterexamples; the cycle branch has dedicated unit-test coverage.
+2. **CuckooFilterView + 3 viz compositions** (commit 2). Brand-new SVG primitive (`CuckooFilterView`) — single horizontal row of 8 cells, each occupied cell labeled "fp" (small) stacked over the fingerprint value (large). The two-line label is the load-bearing visual reinforcement that the original key isn't stored — a viewer reading the cell sees a tiny number with an "fp" prefix, not a full integer. Three viz wrappers (`CuckooFilterInsertViz` / `CuckooFilterSearchViz` / `CuckooFilterDeleteViz`) follow the standard hash-table layout. The search viz is novel: it adds a fourth counter "False+" alongside the existing Lookups / Found / Misses, and it uses a hardcoded `ACTUALLY_INSERTED = new Set<number>(INSERT_SEQUENCE)` to label each found-step as true positive (placed/yellow highlight) or false positive (duplicate/red highlight). The algorithm itself has no way to know — only the demo can tell.
+3. **Lesson MDX + index entry** (commit 3). `/lessons/data-structures/cuckoo-filter` MDX with all three vizes interleaved with prose. Opens with the XOR-trick explanation as the conceptual hinge, walks through insert → contains → delete on the curated inputs, then has a dedicated "The delete-safety pitfall" section warning that `delete(35)` would clear T[0] and silently lose 0. Closes with a comparison table vs Bloom filters (memory, delete support, max load factor, cache behavior) and a variants section covering bucketized + $d$-way for production. The lesson is positioned between cuckoo-hashing and tree-traversal in the data-structures index. The cuckoo-hashing lesson's "What's next" got both its Cuckoo-filters variant bullet and its top "What's next" item updated to link the now-shipped lesson.
+4. **E2E + axe sweep** (commit 4). New `e2e/cuckoo-filter.spec.ts` with 5 specs: region presence, insert full-run (4 placed + 2 evictions), insert reset, contains full-run (4 found + 1 false-positive + 1 miss on the `[13, 5, 0, 35, 99]` targets), delete full-run (1 removed + 1 miss + 3 lookups + reset). Route added to `a11y.spec.ts` axe sweep (23 → 24 routes). All green.
+5. **Doc refresh** (commit 5). This file. The "Suggested next features" list dropped cuckoo filter (just shipped) — the top two entries are now **Bloom filter** (the direct point of comparison; named in both cuckoo-hashing and cuckoo-filter "What's next") and **Counting Bloom filter** (Bloom + delete support, the other half of the trade-off cuckoo filters made).
+
+Test counts grew from **659 unit / 113 e2e (23 axe routes)** at session start to **701 unit / 119 e2e (24 axe routes)** at HEAD (+42 unit, +6 e2e, +1 axe route).
+
+Three cuckoo-filter-specific load-bearing decisions worth flagging for the next agent (pinned above in the decisions list as #47–49):
+
+- **Cuckoo filter has its own snapshot, view, and step unions — distinct from cuckoo hashing.** Same family but pedagogically a different category (probabilistic vs exact). Don't try to share types between `cuckoo.ts` and `cuckooFilter.ts` — the slot semantics differ (fingerprints vs keys), the table count differs (single vs two), and the eviction cascade uses the XOR trick rather than a precomputed alternate.
+- **The "False+" labeling lives in the viz, not the generator.** Generator emits `found`; viz consults `ACTUALLY_INSERTED` to label true vs false positive. Any future probabilistic-set viz must follow the same pattern. The XOR-trick invariant `alt(alt(s, fp), fp) === s` is enforced by a dedicated property test — don't change `cuckooFilterHashFp` to a non-bijective mapping without updating it.
+- **Cuckoo filter delete is unsafe-by-default and the lesson MDX warns explicitly.** The delete viz's curated targets `[13, 99]` only show safe cases. The pitfall (`delete(35)` clearing T[0] and silently losing 0) is documented in prose with a worked example. Don't add a safety check to the generator — that would defeat the data structure (you'd be storing keys after all).
+
+---
+
+### Previous session
+
 This session shipped the **Hash Tables: Cuckoo Hashing** lesson — the headline open-addressing follow-up named in both the hopscotch and double-hashing lessons' "What's next," and the first hash-table lesson with a fundamentally different table layout. Five commits. Unlike quadratic / double / hopscotch which all reused `LinearProbeSnapshot` / `LinearProbeView`, cuckoo needed a brand-new snapshot type (two parallel `slotsA` / `slotsB` arrays, no tombstone state), a new step union (carrying a `CuckooSide` discriminator), and a new SVG primitive (`CuckooView` — two stacked rows with side labels).
 
 | #   | subject                                                      |
@@ -314,24 +359,17 @@ This session shipped the **Hash Tables: Cuckoo Hashing** lesson — the headline
 
 Narrative summary:
 
-1. **Cuckoo generators + types + tests** (commit 1). New `cuckoo.ts` module with `cuckooInsertSequence` / `cuckooSearchSequence` / `cuckooDeleteSequence`, plus `cuckooHash1` / `cuckooHash2` / `emptyCuckooTable` / `buildCuckooTable` / `liveCuckooKeys` helpers and a `CUCKOO_MAX_ITERATIONS = 8` constant. Three new step unions in `types.ts` (`CuckooInsertStep` / `SearchStep` / `DeleteStep`) plus the `CuckooSlot` / `CuckooSide` / `CuckooSnapshot` shape. Insert is the most involved: emits begin → hash → dedup-check (T_A) → optional duplicate-A → dedup-check (T_B) → optional duplicate-B → eviction loop of (check → place | evict)\*. The `evict` step carries `placedKey`, `evictedKey`, `side`, `slotIndex` AND `nextSide`, `nextSlotIndex` so the viz can dual-highlight where the swap landed and where the displaced key is headed next. 37 unit + property tests with 100% coverage, including hand-traced verification of the [5, 0, 12, 14, 5] curated cascade (3-step eviction chain when 14 is inserted), both A-side and B-side dedup paths, and a cycle test using keys 0/49/98 which all share (h1, h2) = (0, 0).
-2. **CuckooView + 3 viz compositions** (commit 2). Brand-new SVG primitive (`CuckooView`) rendering two horizontal rows with `T_A (h₁)` and `T_B (h₂)` side labels in the left gutter; each cell is `empty` (dashed border) or `occupied` (key text). Highlights take `(side, slotIndex)` and use the same `cursor` / `placed` / `duplicate` palette as `LinearProbeView`. Three viz wrappers (`CuckooInsertViz` / `CuckooSearchViz` / `CuckooDeleteViz`) follow the same layout pattern as the other hash-table vizes: SVG on the left, `CodePanel` on the right at `md+`, three counters below, playback toolbar at the bottom. Insert dual-highlights on every evict step per decision 39's convention.
-3. **Lesson MDX + index entry** (commit 3). `/lessons/data-structures/cuckoo-hashing` MDX with all three vizes interleaved with prose. Opens by contrasting cuckoo with the four probing-based hash-table lessons: same problem (place keys, look them up), structurally different shape (two tables instead of one, fixed candidate slots instead of a probe sequence). Includes a dedicated section on the cycle / saturation failure mode, the recovery options (rehash, $d$-way cuckoo), a comparison table summarizing trade-offs vs the probing schemes, and a variants section covering bucketized + $d$-way + cuckoo filters. The index entry lands between hopscotch and tree-traversal in the data-structures topic. The "What's next" sections in the double-hashing and hopscotch lessons got their cuckoo-hashing line updated to link the now-shipped lesson.
-4. **E2E + axe sweep** (commit 4). New `e2e/cuckoo-hashing.spec.ts` with 5 specs: region presence, insert full-run (4 placed + 1 duplicate + 4 evictions), insert reset, search full-run (3 found + 1 miss + 7 lookups — 5 takes one read, 12/0/99 each take two), delete full-run (2 removed + 1 miss + 5 lookups + reset). Route added to `a11y.spec.ts` axe sweep (22 → 23 routes). All green.
-5. **Doc refresh** (commit 5). This file. The "Suggested next features" list dropped cuckoo hashing (just shipped) — the top entry is now the **cuckoo filter** as the natural follow-on, with **bucketized / $d$-way cuckoo** as a same-lesson-page extension.
+1. **Cuckoo generators + types + tests** (commit 1). New `cuckoo.ts` module with `cuckooInsertSequence` / `cuckooSearchSequence` / `cuckooDeleteSequence`, plus `cuckooHash1` / `cuckooHash2` / `emptyCuckooTable` / `buildCuckooTable` / `liveCuckooKeys` helpers and a `CUCKOO_MAX_ITERATIONS = 8` constant. Three new step unions in `types.ts` (`CuckooInsertStep` / `SearchStep` / `DeleteStep`) plus the `CuckooSlot` / `CuckooSide` / `CuckooSnapshot` shape. The `evict` step carries `placedKey`, `evictedKey`, `side`, `slotIndex` AND `nextSide`, `nextSlotIndex` so the viz can dual-highlight where the swap landed and where the displaced key is headed next. 37 unit + property tests with 100% coverage, including hand-traced verification of the [5, 0, 12, 14, 5] curated cascade (3-step eviction chain when 14 is inserted), both A-side and B-side dedup paths, and a cycle test using keys 0/49/98 which all share (h1, h2) = (0, 0).
+2. **CuckooView + 3 viz compositions** (commit 2). Brand-new SVG primitive rendering two horizontal rows with `T_A (h₁)` and `T_B (h₂)` side labels in the left gutter. Highlights take `(side, slotIndex)` and use the same palette as `LinearProbeView`. Three viz wrappers follow the standard hash-table layout; insert dual-highlights on every evict step.
+3. **Lesson MDX + index entry** (commit 3). `/lessons/data-structures/cuckoo-hashing` MDX with all three vizes, dedicated section on cycle / saturation recovery options, comparison table vs probing schemes, variants section. The "What's next" sections in the double-hashing and hopscotch lessons got their cuckoo-hashing line updated to link the now-shipped lesson.
+4. **E2E + axe sweep** (commit 4). 5 specs; route added to axe sweep (22 → 23 routes).
+5. **Doc refresh** (commit 5). Established decisions #43–46.
 
-Test counts grew from **622 unit / 105 e2e (22 axe routes)** at session start to **659 unit / 113 e2e (23 axe routes)** at HEAD (+37 unit, +8 e2e, +1 axe route).
-
-Four cuckoo-specific load-bearing decisions worth flagging for the next agent (pinned above in the decisions list as #43–46):
-
-- **Cuckoo breaks the "reuse `LinearProbeSnapshot`" pattern.** Unlike quadratic / double-hashing (decision 41), cuckoo's two-table layout and two-state slot model both differ enough that the snapshot, view, and step unions are new. If you ever add a third hash-table variant that needs both a different table layout AND a different slot-state set, follow cuckoo's pattern — don't try to shoehorn it into `LinearProbeSnapshot`.
-- **Insert's `evict` step is the dual-highlight beat.** `placed` = where the active key now lives (post-swap); `cursor` = next slot the displaced key will inspect. Don't drop the `nextSide` / `nextSlotIndex` fields to "simplify" the step — the user reads the cascade direction off the dual highlight, not just the placement.
-- **Cuckoo delete produces no tombstones.** Slots return to `state: "empty"`. This isn't a simplification — it's structural to cuckoo's lookup model (always checks exactly two specific slots). Property test "after deleting every inserted key in any order, every slot is `empty`" pins this.
-- **`cuckooHash2` uses `Math.floor`, not JS's truncating `/`.** Plain `(k / c) | 0` truncates toward zero, which gives the wrong residue for negative keys. The viz never feeds negatives but the hash function is exported and the tests exercise negative-key paths — keep `Math.floor`.
+Test counts grew from **622 unit / 105 e2e (22 axe routes)** at session start to **659 unit / 113 e2e (23 axe routes)** at HEAD.
 
 ---
 
-### Previous session
+### Two sessions ago
 
 This session shipped the **Multi-Head Attention** lesson — the obvious follow-up to the single-head attention lesson, and the first entry from the ML-pillar-v2 follow-up list. Four commits. The generator wraps the existing single-head forward pass in an outer head loop and adds `concat-heads` and `project-output` steps for the $W_O$ projection; the view is a new stacked-bands SVG that lights up whichever head's currently being computed.
 
@@ -358,7 +396,7 @@ Two small multi-head-specific decisions worth flagging for the next agent:
 
 ---
 
-### Two sessions ago
+### Three sessions ago
 
 This session shipped the **Hash Tables: Double Hashing** lesson — the fourth open-addressing variant in the data-structures track, completing the linear → quadratic → double-hashing trio. Five commits, no new product primitives — pure follow-on work that reuses the entire `LinearProbeSnapshot` / `LinearProbeView` infrastructure unchanged. The whole lesson is one new generator module + three viz compositions + one MDX page + one e2e spec.
 
@@ -384,7 +422,7 @@ New load-bearing decision #41 (pinned above in the decisions list) captures the 
 
 ---
 
-### Three sessions ago
+### Four sessions ago
 
 This session shipped the **ML Intuitions pillar v1** — three lessons (Gradient Descent → Backpropagation → Attention) with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button. The work followed the gated spec-driven-development flow: spec → plan → tasks → implementation. 17 implementation commits over four phases (A foundations, B GD, C backprop, D attention, E rollout) plus two fixes for a latent CSS-variable bug surfaced by Chrome DevTools MCP review.
 
@@ -434,13 +472,13 @@ A few small ML-pillar-specific decisions worth flagging for the next agent:
 
 ---
 
-### Four sessions ago
+### Five sessions ago
 
 This session knocked out **six of the seven light follow-ups** that were queued at that time (the seventh, real-device Lighthouse, was blocked on the Vercel deploy). Eight commits landed, no new product features — pure cleanup, hardening, and one substantive refactor (hash-table set → map). The most important upshot is that `src/lib/dataStructures/` came under the same 100% coverage gate as `src/lib/algorithms/`, so future drift in the data-structures track is caught at CI time rather than during review. The refactor (commit 6 of that session) rebuilt the chaining hash table around `(key, value)` pairs and changed the third counter from "Duplicates" to "Overwrites" — production hash tables are maps, not sets.
 
 ---
 
-### Five sessions ago
+### Six sessions ago
 
 This session shipped **`decrease_key` on the heap lesson** — the remaining textbook heap operation called out in the prior session's "What you didn't see" list. The heap lesson now contains four viz sections (insert, heapify, extract-min, decrease-key); the "What you didn't see" copy rotates `decrease_key` out and adds heap-merge in its place. After all changes were committed and tests went green, I verified the new viz interactively in Chrome DevTools MCP — stepped through both ops, confirmed the tree mutations and highlight colors matched the algorithm trace, and confirmed zero console errors on the heap and linear-probing pages.
 
@@ -471,7 +509,7 @@ Test counts grew from **340 unit / 57 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Six sessions ago
+### Seven sessions ago
 
 This session shipped **Robin Hood backshift deletion** as the natural counterpart to the Robin Hood insert section landed in the prior session. The linear-probing lesson now contains five viz sections (insert, search, delete, Robin Hood insert, Robin Hood delete) and the "What's next" list has rotated backshift deletion out (just shipped) and Hopscotch hashing in. Five commits landed:
 
@@ -495,7 +533,7 @@ Test counts grew from **330 unit / 56 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Seven sessions ago
+### Eight sessions ago
 
 The prior session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), a fourth viz section in the linear-probing lesson for **Robin Hood probing**, and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in four phases — heap (insert + extract-min), heapify as an in-place extension, linear probing as a brand-new lesson, and Robin Hood as an in-place extension to it:
 
