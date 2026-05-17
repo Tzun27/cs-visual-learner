@@ -235,10 +235,17 @@ describe("cuckooInsertSequence", () => {
         // Keep load low enough to avoid cycles on the small 14-slot capacity.
         fc.uniqueArray(fc.integer({ min: 0, max: 200 }), { minLength: 0, maxLength: 5 }),
         (vals) => {
-          const final = buildCuckooTable(CAP, vals);
-          expect([...liveCuckooKeys(final)].sort((a, b) => a - b)).toEqual(
-            [...vals].sort((a, b) => a - b),
-          );
+          try {
+            const final = buildCuckooTable(CAP, vals);
+            expect([...liveCuckooKeys(final)].sort((a, b) => a - b)).toEqual(
+              [...vals].sort((a, b) => a - b),
+            );
+          } catch (e) {
+            // Adversarial triples sharing (h1, h2) can cycle on this 14-slot
+            // demo (e.g., [0, 49, 98] all hash to (0, 0)). Skip those — the
+            // unit tests for the cycle branch live separately.
+            if (!(e as Error).message.match(/cycle/)) throw e;
+          }
         },
       ),
     );
@@ -249,12 +256,16 @@ describe("cuckooInsertSequence", () => {
       fc.property(
         fc.uniqueArray(fc.integer({ min: 0, max: 200 }), { minLength: 0, maxLength: 5 }),
         (vals) => {
-          const final = buildCuckooTable(CAP, vals);
-          for (let i = 0; i < CAP; i++) {
-            const a = final.slotsA[i];
-            if (a.state === "occupied") expect(cuckooHash1(a.key, CAP)).toBe(i);
-            const b = final.slotsB[i];
-            if (b.state === "occupied") expect(cuckooHash2(b.key, CAP)).toBe(i);
+          try {
+            const final = buildCuckooTable(CAP, vals);
+            for (let i = 0; i < CAP; i++) {
+              const a = final.slotsA[i];
+              if (a.state === "occupied") expect(cuckooHash1(a.key, CAP)).toBe(i);
+              const b = final.slotsB[i];
+              if (b.state === "occupied") expect(cuckooHash2(b.key, CAP)).toBe(i);
+            }
+          } catch (e) {
+            if (!(e as Error).message.match(/cycle/)) throw e;
           }
         },
       ),
@@ -338,7 +349,13 @@ describe("cuckooSearchSequence", () => {
         fc.uniqueArray(fc.integer({ min: 0, max: 200 }), { minLength: 0, maxLength: 5 }),
         fc.array(fc.integer({ min: 0, max: 200 }), { minLength: 0, maxLength: 10 }),
         (vals, targets) => {
-          const table = buildCuckooTable(CAP, vals);
+          let table;
+          try {
+            table = buildCuckooTable(CAP, vals);
+          } catch (e) {
+            if (!(e as Error).message.match(/cycle/)) throw e;
+            return;
+          }
           const steps = [...cuckooSearchSequence(table, targets)];
           let checksThisTarget = 0;
           for (const s of steps) {
@@ -435,7 +452,13 @@ describe("cuckooDeleteSequence", () => {
       fc.property(
         fc.uniqueArray(fc.integer({ min: 0, max: 200 }), { minLength: 0, maxLength: 5 }),
         (vals) => {
-          const filled = buildCuckooTable(CAP, vals);
+          let filled;
+          try {
+            filled = buildCuckooTable(CAP, vals);
+          } catch (e) {
+            if (!(e as Error).message.match(/cycle/)) throw e;
+            return;
+          }
           const after = [...cuckooDeleteSequence(filled, vals)].at(-1)!.table;
           for (const slot of [...after.slotsA, ...after.slotsB]) {
             expect(slot.state).toBe("empty");

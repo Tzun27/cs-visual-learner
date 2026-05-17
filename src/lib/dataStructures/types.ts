@@ -996,3 +996,167 @@ export type CuckooDeleteStep =
       targetKey: number;
     })
   | (StepBase & { kind: "done"; table: CuckooSnapshot });
+
+// Cuckoo filter: probabilistic set membership built on cuckoo hashing.
+// Stores small fingerprints (a few bits each) instead of full keys. The
+// XOR trick — alt(slot, fp) = slot ⊕ hashFp(fp) — lets you compute the
+// alternate slot for a displaced fingerprint WITHOUT knowing the
+// original key, which is the load-bearing property that makes the
+// eviction cascade work on fingerprints alone. False positives are
+// possible (two keys can share a fingerprint); false negatives are not.
+// Delete is safe ONLY for items previously inserted — clearing a slot
+// that happens to hold a matching fingerprint can silently evict
+// another item that shared the fingerprint.
+export type CuckooFilterSlot =
+  | { readonly state: "empty" }
+  | { readonly state: "occupied"; readonly fingerprint: number };
+
+export type CuckooFilterSnapshot = {
+  readonly capacity: number;
+  readonly slots: readonly CuckooFilterSlot[];
+};
+
+// Disambiguates which inspection phase a `check` step belongs to so
+// the viz can annotate without tracking state across steps.
+export type CuckooFilterCheckPhase = "home" | "alt" | "cascade";
+
+export type CuckooFilterInsertStep =
+  | (StepBase & { kind: "begin"; table: CuckooFilterSnapshot; insertingKey: number })
+  | (StepBase & {
+      kind: "fingerprint";
+      table: CuckooFilterSnapshot;
+      insertingKey: number;
+      fingerprint: number;
+    })
+  | (StepBase & {
+      kind: "hash";
+      table: CuckooFilterSnapshot;
+      insertingKey: number;
+      fingerprint: number;
+      home: number;
+      alt: number;
+    })
+  | (StepBase & {
+      kind: "check";
+      table: CuckooFilterSnapshot;
+      activeFingerprint: number;
+      slotIndex: number;
+      phase: CuckooFilterCheckPhase;
+    })
+  | (StepBase & {
+      kind: "place";
+      table: CuckooFilterSnapshot;
+      placedFingerprint: number;
+      slotIndex: number;
+      phase: CuckooFilterCheckPhase;
+    })
+  | (StepBase & {
+      kind: "evict";
+      // Post-swap state: placedFingerprint sits at slotIndex,
+      // evictedFingerprint is in the air, headed for nextSlotIndex
+      // (= slotIndex XOR hashFp(evictedFingerprint)).
+      table: CuckooFilterSnapshot;
+      placedFingerprint: number;
+      evictedFingerprint: number;
+      slotIndex: number;
+      nextSlotIndex: number;
+    })
+  | (StepBase & {
+      kind: "cycle";
+      table: CuckooFilterSnapshot;
+      insertingKey: number;
+    })
+  | (StepBase & { kind: "done"; table: CuckooFilterSnapshot });
+
+// Membership query. The algorithm itself just returns true/false on
+// matching fingerprint — it can't tell a true positive from a false
+// positive. The viz uses a curated "actually inserted" set to label
+// each found-step as one or the other for the user.
+export type CuckooFilterSearchStep =
+  | (StepBase & { kind: "begin"; table: CuckooFilterSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "fingerprint";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+    })
+  | (StepBase & {
+      kind: "hash";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+      home: number;
+      alt: number;
+    })
+  | (StepBase & {
+      kind: "check";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+      slotIndex: number;
+      phase: "home" | "alt";
+    })
+  | (StepBase & {
+      kind: "found";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+      slotIndex: number;
+      phase: "home" | "alt";
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+    })
+  | (StepBase & { kind: "done"; table: CuckooFilterSnapshot });
+
+export type CuckooFilterDeleteStep =
+  | (StepBase & { kind: "begin"; table: CuckooFilterSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "fingerprint";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+    })
+  | (StepBase & {
+      kind: "hash";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+      home: number;
+      alt: number;
+    })
+  | (StepBase & {
+      kind: "check";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+      slotIndex: number;
+      phase: "home" | "alt";
+    })
+  | (StepBase & {
+      kind: "found";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+      slotIndex: number;
+      phase: "home" | "alt";
+    })
+  | (StepBase & {
+      kind: "remove";
+      // Post-removal: matched slot is now empty.
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+      slotIndex: number;
+      phase: "home" | "alt";
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: CuckooFilterSnapshot;
+      targetKey: number;
+      fingerprint: number;
+    })
+  | (StepBase & { kind: "done"; table: CuckooFilterSnapshot });
