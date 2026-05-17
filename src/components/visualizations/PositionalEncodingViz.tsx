@@ -1,82 +1,59 @@
 "use client";
 
 import { useMemo } from "react";
-import { attentionSequence, type AttentionParams } from "@/lib/ml/attention";
-import { attentionPython } from "@/lib/ml/attention.snippet";
-import type { AttentionStep } from "@/lib/ml/types";
+import {
+  positionalEncodingSequence,
+  type PositionalEncodingParams,
+} from "@/lib/ml/positionalEncoding";
+import { positionalEncodingPython } from "@/lib/ml/positionalEncoding.snippet";
+import type { PositionalEncodingStep } from "@/lib/ml/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
-import { AttentionView } from "./AttentionView";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
+import { PositionalEncodingView } from "./PositionalEncodingView";
 
-const DEMO_PARAMS: AttentionParams = {
+// Same X as the main attention demo, so users can mentally connect
+// "here is what gets added to X before Q/K/V projection."
+const DEMO_PARAMS: PositionalEncodingParams = {
   embeddings: [
     [1, 0],
     [0, 1],
     [1, 1],
   ],
   tokenLabels: ["t1", "t2", "t3"],
-  wQ: [
-    [1, 0],
-    [0, 1],
-  ],
-  wK: [
-    [0, 1],
-    [1, 0],
-  ],
-  wV: [
-    [1, 1],
-    [1, -1],
-  ],
 };
 
-function annotationFor(step: AttentionStep | undefined): string {
+function annotationFor(step: PositionalEncodingStep | undefined): string {
   if (!step) return "Idle — press step forward or run to end.";
   switch (step.kind) {
     case "begin":
-      return `Three tokens (${DEMO_PARAMS.tokenLabels.join(", ")}) with their embeddings X. Projection matrices W_Q, W_K, W_V are fixed.`;
-    case "project-q":
-      return "Project each token's embedding through W_Q → Q";
-    case "project-k":
-      return "Project each token's embedding through W_K → K";
-    case "project-v":
-      return "Project each token's embedding through W_V → V";
-    case "compute-scores":
-      return "Scores S = Q · Kᵀ — each row is one query token's affinity with every key";
-    case "scale-scores":
-      return "Scale by 1/√d_k to keep the softmax sharp but not saturated";
-    case "mask-scores":
-      // Non-causal demo never emits this kind; the branch exists for
-      // exhaustiveness now that the step union includes it.
-      return "Masked";
-    case "softmax":
-      return "Row-wise softmax → each row sums to 1; this is the attention matrix";
-    case "weighted-sum":
-      return "Y = A · V — each output is a convex combination of V rows weighted by attention";
+      return "X is the token embeddings. PE will be a same-shape matrix filled row-by-row with sin/cos of the position.";
+    case "compute-pe-row":
+      return `Row ${step.rowIndex}: PE[${step.rowIndex}, 0] = sin(${step.rowIndex}), PE[${step.rowIndex}, 1] = cos(${step.rowIndex})`;
+    case "add":
+      return "X′ = X + PE — each row now carries a unique 'position fingerprint' that attention can read.";
     case "done":
-      return "Done — one full pass through a single attention head";
+      return "Done. X′ is what feeds into the Q/K/V projection inside attention.";
   }
 }
 
 const phaseLabels: Record<string, string> = {
   begin: "begin",
-  "project-q": "project Q",
-  "project-k": "project K",
-  "project-v": "project V",
-  scores: "raw scores",
-  scaled: "scaled scores",
-  softmax: "softmax",
-  output: "output",
+  "compute-pe": "compute PE",
+  add: "add to X",
   done: "done",
 };
 
-export type AttentionVizProps = {
+export type PositionalEncodingVizProps = {
   initialSpeedMs?: number;
 };
 
-export function AttentionViz({ initialSpeedMs = 700 }: AttentionVizProps) {
-  const steps = useMemo<readonly AttentionStep[]>(() => [...attentionSequence(DEMO_PARAMS)], []);
+export function PositionalEncodingViz({ initialSpeedMs = 700 }: PositionalEncodingVizProps) {
+  const steps = useMemo<readonly PositionalEncodingStep[]>(
+    () => [...positionalEncodingSequence(DEMO_PARAMS)],
+    [],
+  );
 
   const reducedMotion = useReducedMotion();
   const playback = useStepThrough(steps, {
@@ -88,23 +65,24 @@ export function AttentionViz({ initialSpeedMs = 700 }: AttentionVizProps) {
   const snapshot = currentStep?.snapshot ?? steps[0].snapshot;
   const annotation = annotationFor(currentStep);
   const phase = phaseLabels[snapshot.phase] ?? snapshot.phase;
+  const revealedRows = snapshot.revealedRows ?? 0;
 
   return (
     <section
-      aria-label="Attention head visualization"
+      aria-label="Positional encoding visualization"
       className="not-prose flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
     >
       <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Single attention head · 3 tokens · d_k = d_v = 2
+        Sinusoidal positional encoding · 3 tokens · d_embed = 2
       </p>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
-        <AttentionView snapshot={snapshot} className="w-full" />
+        <PositionalEncodingView snapshot={snapshot} className="w-full" />
         <CodePanel
-          source={attentionPython}
+          source={positionalEncodingPython}
           highlightedLines={currentStep?.codeLines}
           language="python"
-          ariaLabel="Attention pseudocode"
+          ariaLabel="Positional encoding pseudocode"
         />
       </div>
 
@@ -115,10 +93,16 @@ export function AttentionViz({ initialSpeedMs = 700 }: AttentionVizProps) {
         {annotation}
       </p>
 
-      <dl className="grid grid-cols-2 gap-3 text-sm">
+      <dl className="grid grid-cols-3 gap-3 text-sm">
         <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
           <dt className="text-xs text-zinc-500">Phase</dt>
           <dd className="font-mono text-lg">{phase}</dd>
+        </div>
+        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
+          <dt className="text-xs text-zinc-500">PE rows ready</dt>
+          <dd className="font-mono text-lg">
+            {revealedRows} / {DEMO_PARAMS.embeddings.length}
+          </dd>
         </div>
         <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
           <dt className="text-xs text-zinc-500">Step</dt>
