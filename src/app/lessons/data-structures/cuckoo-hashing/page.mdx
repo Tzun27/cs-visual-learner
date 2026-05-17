@@ -1,0 +1,180 @@
+import { CuckooInsertViz } from "@/components/visualizations/CuckooInsertViz";
+import { CuckooSearchViz } from "@/components/visualizations/CuckooSearchViz";
+import { CuckooDeleteViz } from "@/components/visualizations/CuckooDeleteViz";
+
+export const metadata = {
+  title: "Hash Tables: Cuckoo Hashing",
+  description:
+    "Two tables, two hash functions, two possible homes per key. Lookups are always at most two reads — and deletes leave no tombstones. The cost is a swap cascade on insert.",
+};
+
+# Hash Tables: Cuckoo Hashing
+
+**Difficulty:** intermediate · **Category:** data structures
+
+[Linear](/lessons/data-structures/linear-probing), [quadratic](/lessons/data-structures/quadratic-probing),
+[double hashing](/lessons/data-structures/double-hashing), and
+[hopscotch](/lessons/data-structures/hopscotch) all share a common shape: one flat array, one hash
+function, a _probe sequence_ that walks slots until something fits. They differ in the formula
+for "next slot," but they all share the same worst case — a long probe through a hot cluster.
+
+**Cuckoo hashing** is a different design altogether. Instead of one array, there are two. Each
+key has _two_ possible homes: one in $T_A$ at index $h_1(k)$, one in $T_B$ at index $h_2(k)$. A
+lookup checks exactly those two slots — and stops. **Search is constant work in the worst case,
+not just on average.** That's a guarantee no probing scheme can give without arbitrary bounds.
+
+The trade-off shows up on insert. When you try to place a key and both of its homes are taken,
+something has to move. Cuckoo hashing's answer: kick out one of the current residents, put the
+new key in its slot, and let the displaced key fly to _its_ alternate home. If that slot is also
+taken, the cascade continues. Named after the bird that pushes other birds' eggs out of the
+nest.
+
+## Inserting with eviction cascades
+
+<CuckooInsertViz />
+
+The lesson uses **two tables of $7$ slots each**, $14$ slots in total. The hash functions are
+$h_1(k) = k \bmod 7$ (low bits) and $h_2(k) = \lfloor k / 7 \rfloor \bmod 7$ (next 3 bits up).
+For keys in $[0, 49)$, every $(h_1, h_2)$ pair is unique — making the cascade demos legible
+without prime-arithmetic tricks. (Real implementations pair independent universal hash
+functions; the modular arithmetic here is purely for teachability.)
+
+The curated input is $[5, 0, 12, 14, 5]$. Each key's two possible homes:
+
+| Key | $h_1$ (in $T_A$) | $h_2$ (in $T_B$) |
+| --: | ---------------: | ---------------: |
+|   5 |            **5** |                0 |
+|   0 |            **0** |                0 |
+|  12 |                5 |                1 |
+|  14 |                0 |                2 |
+|   5 |                5 |                0 |
+
+The first two inserts ($5$ and $0$) hit empty $T_A$ slots and place directly — no cascade. The
+third insert ($12$) collides with $5$ at $T_A[5]$: cuckoo overwrites $T_A[5]$ with $12$, kicks
+$5$ over to its alternate $T_B[h_2(5)] = T_B[0]$, which happens to be empty. **One swap, two
+keys repositioned.**
+
+The fourth insert ($14$) is the lesson's hero — a **three-step cascade**:
+
+1. $14$ wants $T_A[0]$. It's occupied by $0$. Swap: $T_A[0] = 14$, displaced key is $0$.
+2. $0$ tries its alternate $T_B[h_2(0)] = T_B[0]$. It's occupied by $5$. Swap: $T_B[0] = 0$,
+   displaced key is $5$.
+3. $5$ tries its alternate $T_A[h_1(5)] = T_A[5]$. It's occupied by $12$. Swap: $T_A[5] = 5$,
+   displaced key is $12$.
+4. $12$ tries its alternate $T_B[h_2(12)] = T_B[1]$. Empty — placed. Cascade stops.
+
+Final state after the cascade: $T_A = [14, \_, \_, \_, \_, 5, \_]$,
+$T_B = [0, 12, \_, \_, \_, \_, \_]$. Four insertions, three keys ended up in their _alternate_
+home — and the cascade was bounded: each swap moved exactly one key, and the chain stopped the
+moment any displaced key found an empty alternate.
+
+The fifth insert is the duplicate $5$. Cuckoo's dedup-check (the same two-slot check that drives
+search) catches it before the eviction loop even starts: $T_A[5]$ already holds $5$, so abort
+immediately.
+
+## What if the cascade never terminates?
+
+A cascade can fail. If every key in some cycle has its alternate slot occupied by another key in
+the same cycle, the eviction loop walks forever. The classic example: three keys whose
+$(h_1, h_2)$ pairs are identical and all conflict on the same pair of slots.
+
+The implementation runs the loop for a bounded number of iterations (the demo uses $8$, real
+systems use $\lceil \log n \rceil$ or so) and on overflow declares the table _saturated_ — at
+which point the algorithm has two recovery options:
+
+1. **Rehash** with fresh hash functions. Pick new $h_1, h_2$ from a universal family, walk every
+   live key, re-insert. Cycle-free if the load factor stays below the theoretical limit (about
+   $50\%$ for 2-way cuckoo).
+2. **Add a third table**. $d$-way cuckoo with $d = 3$ or $4$ raises the safe load factor to
+   $90\%$+, at the cost of one extra hash and one extra slot read per lookup.
+
+The viz uses inputs that never cycle. But the cycle case is real, and constraining cuckoo to
+$\sim 50\%$ load factor is the price for the two-reads-on-lookup guarantee.
+
+## Searching: always two reads, never more
+
+<CuckooSearchViz />
+
+This is where cuckoo earns its keep. There are exactly two possible homes for any key, so any
+search either finds it in one of those two slots or correctly reports a miss after two checks.
+**No tombstones to walk past. No clusters to scan.** The four targets exercise every outcome:
+
+- $\text{search}(5)$ — check $T_A[5] = 5$. **Hit in one read.**
+- $\text{search}(12)$ — check $T_A[5] = 5$ (no match), then $T_B[1] = 12$. **Hit in two reads.**
+- $\text{search}(0)$ — check $T_A[0] = 14$ (no match), then $T_B[0] = 0$. **Hit in two reads.**
+- $\text{search}(99)$ — check $T_A[1]$ (empty), then $T_B[0] = 0$ (no match). **Miss after two
+  reads.**
+
+Compare this with the linear-probing search section: a key buried in a long cluster could take
+$5$ or $10$ probes. In cuckoo, _every_ lookup costs at most two slot reads — for found keys and
+for missed keys alike. The constant cost is what makes cuckoo attractive for hardware where
+predictable latency matters more than the lowest possible average.
+
+The cache story is the flip side. Two reads, but they're at unrelated slots in unrelated tables.
+Linear probing reads adjacent memory; a single cache line covers the next several slots. Cuckoo
+issues two random reads — two cache misses in the worst case. On a hot dataset that fits in L1,
+cuckoo's reads are essentially free; on a cold dataset, each lookup costs two trips to memory.
+
+## Removing keys: no tombstones needed
+
+<CuckooDeleteViz />
+
+This is the other place cuckoo cleans up after its probing cousins. **Delete is just clear the
+slot.** No tombstone bookkeeping, no backshift logic. The reason is structural: cuckoo lookups
+never walk _past_ a slot. They check exactly two well-defined positions for every key, and an
+empty slot in either position means "this key is not here" — never "this key might be further
+along the probe sequence."
+
+The three targets cover the meaningful cases:
+
+- $\text{remove}(14)$ — direct hit at $T_A[0]$; clear it.
+- $\text{remove}(12)$ — miss at $T_A[5]$ (holds $5$), hit at $T_B[1]$; clear $T_B[1]$.
+- $\text{remove}(99)$ — miss at both candidate slots; nothing to remove.
+
+After a delete, the slot is `empty` — fully indistinguishable from a slot that was never
+occupied. Subsequent searches behave correctly without any special "this used to be a key"
+state. Open-addressing's tombstone tax disappears.
+
+## Comparing cuckoo with the probing variants
+
+|                | Probing schemes                         | Cuckoo hashing                         |
+| -------------- | --------------------------------------- | -------------------------------------- |
+| Tables         | One                                     | Two (or more for $d$-way)              |
+| Hash functions | One                                     | Two                                    |
+| Lookup cost    | $O(1)$ amortized; worst case unbounded  | $O(1)$ **worst case** (always 2 reads) |
+| Lookup cache   | Sequential / nearby                     | Two random reads (often two misses)    |
+| Insert cost    | $O(1)$ amortized; worst case unbounded  | $O(1)$ amortized; worst case = cycle   |
+| Delete         | Tombstones (or backshift in Robin Hood) | Just clear the slot                    |
+| Max load       | $0.7$ – $0.9$ depending on variant      | $\sim 0.5$ for 2-way; $0.9$+ for $d=4$ |
+| Reasonable for | Most workloads where average wins       | Read-heavy with strict latency SLOs    |
+
+The "constant-cost lookup" guarantee is the marquee property — and the reason cuckoo shows up in
+real systems with hard tail-latency requirements: network packet routing (Cuckoo Filter, used in
+some L3 switches), GPU hash tables (every lane runs the same two reads in lockstep), and a few
+key-value stores that need predictable read paths under heavy concurrency.
+
+## Variants and extensions
+
+The basic two-table cuckoo above is the textbook starting point. The variants that matter in
+practice all relax the strict "one slot per table per key" rule:
+
+- **$d$-way cuckoo** with $d \in \{3, 4\}$ raises the max load factor dramatically (theory and
+  practice both put $d = 4$ near $97\%$) at the cost of one extra slot read per lookup.
+- **Bucketized cuckoo** packs $b$ keys into each "slot," so a single cache line holds the entire
+  candidate bucket. This is the production-grade form — Memcached used variants of this for a
+  while.
+- **Cuckoo filters** are a Bloom-filter-style approximate set built on cuckoo hashing: store
+  small fingerprints instead of full keys, allow deletion (Bloom filters can't), and accept a
+  small false-positive rate.
+
+The bucketized + $d$-way combination is what makes cuckoo competitive on real workloads — pure
+2-way cuckoo with single-key slots is mostly a teaching scheme. The shape stays the same: every
+key has a small, fixed set of candidate positions, and insertion may cascade-evict to make room.
+
+## What's next
+
+- **Bloom filters and counting Bloom filters** — adjacent territory. Probabilistic set
+  membership with no false negatives. Cuckoo filters are the direct evolution.
+- **Concurrent hash tables** — split open-addressing into per-segment locks (Java's
+  `ConcurrentHashMap`) or use cuckoo's two-reads structure for lock-free reads (libcuckoo). A
+  different layer of design built on top of the basic schemes shown across these lessons.

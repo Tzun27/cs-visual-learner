@@ -129,6 +129,14 @@ const topics: readonly Topic[] = [
       },
       {
         status: "live",
+        slug: "cuckoo-hashing",
+        title: "Hash Tables: Cuckoo Hashing",
+        difficulty: "intermediate",
+        blurb:
+          "Two tables, two hash functions, constant-cost lookups. Inserts evict and cascade until a key finds an empty slot.",
+      },
+      {
+        status: "live",
         slug: "tree-traversal",
         title: "Tree Traversal",
         difficulty: "beginner",

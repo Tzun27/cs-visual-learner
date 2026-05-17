@@ -154,9 +154,10 @@ fragmentation or trigger a periodic rehash to rebuild compactly.
 Hopscotch was the last open-addressing variant in the original "what's next" list at the end
 of the linear-probing lesson. The natural continuation if you want to keep going:
 
-- **Cuckoo hashing.** Two hash functions and two slots per key. Lookup is two random
-  accesses, period. Insert may displace a key (which displaces another, hence "cuckoo"). A
-  different kind of "fixed-cost lookup" guarantee than hopscotch.
+- **Cuckoo hashing** ([already in the data-structures
+  track](/lessons/data-structures/cuckoo-hashing)). Two hash functions and two slots per key.
+  Lookup is two random accesses, period. Insert may displace a key (which displaces another,
+  hence "cuckoo"). A different kind of "fixed-cost lookup" guarantee than hopscotch.
 - **Concurrent hash tables.** Real-world systems use either chaining with per-bucket locks
   (Java's `ConcurrentHashMap`) or lock-free open addressing (`folly::F14`, `absl::flat_hash_map`)
   — both layer on top of one of the schemes we've covered.

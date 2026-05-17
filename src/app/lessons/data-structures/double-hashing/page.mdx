@@ -159,10 +159,11 @@ Hood variant) often wins despite the longer probe sequences.
 
 ## What's next
 
-- **Cuckoo hashing** takes a different shape: every key has two possible homes (two independent
-  hash functions, two flat arrays), and on insertion any displaced key bumps to its other home.
-  Lookup is _always_ two random reads — a stricter worst-case guarantee than any of the probing
-  schemes can offer.
+- **Cuckoo hashing** ([already in the data-structures
+  track](/lessons/data-structures/cuckoo-hashing)) takes a different shape: every key has two
+  possible homes (two independent hash functions, two flat arrays), and on insertion any
+  displaced key bumps to its other home. Lookup is _always_ two random reads — a stricter
+  worst-case guarantee than any of the probing schemes can offer.
 - **Hopscotch hashing** ([already in the data-structures
   track](/lessons/data-structures/hopscotch)) bounds the worst-case probe distance to a small
   constant $H$ by allowing the data structure to actively shuffle keys closer to home. Different
