@@ -846,3 +846,153 @@ export type BstDeleteStep =
       deleteCase: BstDeleteCase;
     })
   | (StepBase & { kind: "done"; tree: BstSnapshot });
+
+// Cuckoo hashing: two equal-sized tables T_A and T_B with independent
+// hash functions h1 and h2. Every key lives in exactly one of
+// T_A[h1(k)] or T_B[h2(k)] — lookups and deletes touch at most two
+// slots (always constant work). Inserts may run an eviction cascade:
+// placing X at T_A[h1(X)] displaces the resident, who tries T_B[h2(.)];
+// if that slot is occupied, the cascade continues, alternating tables,
+// until either an empty slot is found or a max-iteration cap is hit
+// (signalling a near-100%-load-factor cycle requiring a rehash, which
+// the lesson's curated input never triggers). Unlike open-addressing
+// with tombstones, deletion just clears the slot — searches still
+// touch the same two well-defined positions for every key.
+export type CuckooSlot =
+  | { readonly state: "empty" }
+  | { readonly state: "occupied"; readonly key: number };
+
+export type CuckooSide = "A" | "B";
+
+export type CuckooSnapshot = {
+  readonly capacity: number;
+  readonly slotsA: readonly CuckooSlot[];
+  readonly slotsB: readonly CuckooSlot[];
+};
+
+export type CuckooInsertStep =
+  | (StepBase & { kind: "begin"; table: CuckooSnapshot; insertingKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: CuckooSnapshot;
+      insertingKey: number;
+      home1: number;
+      home2: number;
+    })
+  | (StepBase & {
+      kind: "dedup-check";
+      table: CuckooSnapshot;
+      insertingKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "duplicate";
+      table: CuckooSnapshot;
+      insertingKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "check";
+      table: CuckooSnapshot;
+      activeKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "place";
+      table: CuckooSnapshot;
+      placedKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "evict";
+      // Snapshot AFTER the swap: placedKey now sits in T_side[slotIndex],
+      // evictedKey is in the air, headed for nextSide[nextSlotIndex].
+      // Carrying the next destination lets the viz dual-highlight both
+      // the just-filled slot (placed) and the next slot to inspect
+      // (cursor) before the following "check" step lands.
+      table: CuckooSnapshot;
+      placedKey: number;
+      evictedKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+      nextSide: CuckooSide;
+      nextSlotIndex: number;
+    })
+  | (StepBase & {
+      kind: "cycle";
+      table: CuckooSnapshot;
+      insertingKey: number;
+    })
+  | (StepBase & { kind: "done"; table: CuckooSnapshot });
+
+export type CuckooSearchStep =
+  | (StepBase & { kind: "begin"; table: CuckooSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: CuckooSnapshot;
+      targetKey: number;
+      home1: number;
+      home2: number;
+    })
+  | (StepBase & {
+      kind: "check";
+      table: CuckooSnapshot;
+      targetKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "found";
+      table: CuckooSnapshot;
+      targetKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: CuckooSnapshot;
+      targetKey: number;
+    })
+  | (StepBase & { kind: "done"; table: CuckooSnapshot });
+
+export type CuckooDeleteStep =
+  | (StepBase & { kind: "begin"; table: CuckooSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "hash";
+      table: CuckooSnapshot;
+      targetKey: number;
+      home1: number;
+      home2: number;
+    })
+  | (StepBase & {
+      kind: "check";
+      table: CuckooSnapshot;
+      targetKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "found";
+      table: CuckooSnapshot;
+      targetKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "remove";
+      // Post-removal snapshot: the matched slot is now empty.
+      table: CuckooSnapshot;
+      targetKey: number;
+      side: CuckooSide;
+      slotIndex: number;
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: CuckooSnapshot;
+      targetKey: number;
+    })
+  | (StepBase & { kind: "done"; table: CuckooSnapshot });
