@@ -1,5 +1,8 @@
 import { attentionLines } from "./attention.snippet";
+import { causalAttentionLines } from "./causalAttention.snippet";
 import type { AttentionSnapshot, AttentionStep, Matrix } from "./types";
+
+export type AttentionMask = "none" | "causal";
 
 export type AttentionParams = {
   readonly embeddings: Matrix;
@@ -7,7 +10,22 @@ export type AttentionParams = {
   readonly wQ: Matrix;
   readonly wK: Matrix;
   readonly wV: Matrix;
+  // Default "none" preserves the original behavior — no mask step is
+  // emitted and the existing AttentionViz keeps working unchanged.
+  // "causal" inserts a mask-scores step between scale-scores and softmax
+  // and uses the causal snippet's code-line map.
+  readonly mask?: AttentionMask;
 };
+
+/**
+ * Returns a fresh matrix with -Infinity in every cell where the column
+ * index strictly exceeds the row index (the upper triangle, excluding
+ * the diagonal). After softmax, those entries become 0 — implementing
+ * the "position i can only attend to positions ≤ i" rule.
+ */
+export function applyCausalMask(scaled: Matrix): number[][] {
+  return scaled.map((row, i) => row.map((v, j) => (j > i ? -Infinity : v)));
+}
 
 /** Standard matrix multiply, returning a fresh mutable result. Assumes non-empty inputs. */
 export function matmul(a: Matrix, b: Matrix): number[][] {
@@ -60,9 +78,12 @@ function scaleMatrix(a: Matrix, factor: number): number[][] {
  * step-back replay can't mutate any earlier state.
  */
 export function* attentionSequence(params: AttentionParams): Generator<AttentionStep, void, void> {
-  const { embeddings, tokenLabels, wQ, wK, wV } = params;
+  const { embeddings, tokenLabels, wQ, wK, wV, mask = "none" } = params;
   const dk = wK[0].length;
   const scaleFactor = 1 / Math.sqrt(dk);
+  // Causal mode swaps in the masked snippet so highlighted lines line up
+  // with the displayed source for either variant.
+  const lines = mask === "causal" ? causalAttentionLines : attentionLines;
 
   // Accumulator object — fields appear as the forward pass proceeds. Holding state
   // in a const object (rather than seven let bindings) sidesteps a prefer-const lint
@@ -73,6 +94,7 @@ export function* attentionSequence(params: AttentionParams): Generator<Attention
     v?: Matrix;
     scores?: Matrix;
     scaled?: Matrix;
+    masked?: Matrix;
     attention?: Matrix;
     output?: Matrix;
   } = {};
@@ -88,43 +110,58 @@ export function* attentionSequence(params: AttentionParams): Generator<Attention
     v: state.v ? cloneMatrix(state.v) : undefined,
     scores: state.scores ? cloneMatrix(state.scores) : undefined,
     scaled: state.scaled ? cloneMatrix(state.scaled) : undefined,
+    masked: state.masked ? cloneMatrix(state.masked) : undefined,
     attention: state.attention ? cloneMatrix(state.attention) : undefined,
     output: state.output ? cloneMatrix(state.output) : undefined,
     phase,
   });
 
-  yield { kind: "begin", snapshot: emit("begin"), codeLines: attentionLines.begin };
+  yield { kind: "begin", snapshot: emit("begin"), codeLines: lines.begin };
 
   state.q = matmul(embeddings, wQ);
-  yield { kind: "project-q", snapshot: emit("project-q"), codeLines: attentionLines.projectQ };
+  yield { kind: "project-q", snapshot: emit("project-q"), codeLines: lines.projectQ };
 
   state.k = matmul(embeddings, wK);
-  yield { kind: "project-k", snapshot: emit("project-k"), codeLines: attentionLines.projectK };
+  yield { kind: "project-k", snapshot: emit("project-k"), codeLines: lines.projectK };
 
   state.v = matmul(embeddings, wV);
-  yield { kind: "project-v", snapshot: emit("project-v"), codeLines: attentionLines.projectV };
+  yield { kind: "project-v", snapshot: emit("project-v"), codeLines: lines.projectV };
 
   state.scores = matmul(state.q, transpose(state.k));
   yield {
     kind: "compute-scores",
     snapshot: emit("scores"),
-    codeLines: attentionLines.scores,
+    codeLines: lines.scores,
   };
 
   state.scaled = scaleMatrix(state.scores, scaleFactor);
-  yield { kind: "scale-scores", snapshot: emit("scaled"), codeLines: attentionLines.scale };
+  yield { kind: "scale-scores", snapshot: emit("scaled"), codeLines: lines.scale };
 
-  state.attention = rowSoftmax(state.scaled);
-  yield { kind: "softmax", snapshot: emit("softmax"), codeLines: attentionLines.softmax };
+  // The softmax input depends on whether masking ran. In non-causal mode
+  // softmax consumes `state.scaled` directly; in causal mode it consumes
+  // the post-mask matrix (with -Infinity in the upper triangle).
+  let softmaxInput: Matrix = state.scaled;
+  if (mask === "causal") {
+    state.masked = applyCausalMask(state.scaled);
+    softmaxInput = state.masked;
+    yield {
+      kind: "mask-scores",
+      snapshot: emit("masked"),
+      codeLines: causalAttentionLines.mask,
+    };
+  }
+
+  state.attention = rowSoftmax(softmaxInput);
+  yield { kind: "softmax", snapshot: emit("softmax"), codeLines: lines.softmax };
 
   state.output = matmul(state.attention, state.v);
   yield {
     kind: "weighted-sum",
     snapshot: emit("output"),
-    codeLines: attentionLines.weightedSum,
+    codeLines: lines.weightedSum,
   };
 
-  yield { kind: "done", snapshot: emit("done"), codeLines: attentionLines.done };
+  yield { kind: "done", snapshot: emit("done"), codeLines: lines.done };
 }
 
 function cloneMatrix(m: Matrix): number[][] {

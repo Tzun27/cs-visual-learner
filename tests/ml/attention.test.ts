@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import {
+  applyCausalMask,
   attentionSequence,
   matmul,
   rowSoftmax,
@@ -8,6 +9,7 @@ import {
   type AttentionParams,
 } from "@/lib/ml/attention";
 import { attentionPython } from "@/lib/ml/attention.snippet";
+import { causalAttentionPython } from "@/lib/ml/causalAttention.snippet";
 import type { AttentionStep, Matrix } from "@/lib/ml/types";
 
 // Curated demo: 3 tokens, d_embed = 2, d_k = d_v = 2.
@@ -261,5 +263,179 @@ describe("attentionSequence — property-based", () => {
       ),
       { numRuns: 100 },
     );
+  });
+});
+
+describe("attentionSequence — causal mask", () => {
+  function runCausal(p: AttentionParams = DEMO_PARAMS): readonly AttentionStep[] {
+    return [...attentionSequence({ ...p, mask: "causal" })];
+  }
+
+  it("emits exactly one mask-scores step between scale-scores and softmax", () => {
+    const kinds = runCausal().map((s) => s.kind);
+    expect(kinds).toEqual([
+      "begin",
+      "project-q",
+      "project-k",
+      "project-v",
+      "compute-scores",
+      "scale-scores",
+      "mask-scores",
+      "softmax",
+      "weighted-sum",
+      "done",
+    ]);
+  });
+
+  it("non-causal (default) still emits the original nine-step sequence", () => {
+    const kinds = [...attentionSequence(DEMO_PARAMS)].map((s) => s.kind);
+    expect(kinds).not.toContain("mask-scores");
+    expect(kinds).toHaveLength(9);
+  });
+
+  it("masked snapshot's upper triangle is -Infinity, diagonal and lower keep their values", () => {
+    const masked = runCausal().find((s) => s.kind === "mask-scores");
+    if (masked?.kind !== "mask-scores") throw new Error("expected mask-scores");
+    const m = masked.snapshot.masked as Matrix;
+    expect(m).toBeDefined();
+    for (let i = 0; i < m.length; i++) {
+      for (let j = 0; j < m[i].length; j++) {
+        if (j > i) {
+          expect(m[i][j]).toBe(-Infinity);
+        } else {
+          // Below + on the diagonal: equal to the pre-mask scaled value.
+          const scaled = masked.snapshot.scaled as Matrix;
+          expect(m[i][j]).toBe(scaled[i][j]);
+        }
+      }
+    }
+  });
+
+  it("attention matrix is lower triangular: row i has zeros in columns j > i", () => {
+    const last = runCausal().at(-1);
+    const a = last?.snapshot.attention as Matrix;
+    for (let i = 0; i < a.length; i++) {
+      for (let j = 0; j < a[i].length; j++) {
+        if (j > i) expect(a[i][j]).toBe(0);
+      }
+    }
+  });
+
+  it("row 0 attention is [1, 0, 0] — token 0 can only attend to itself", () => {
+    const last = runCausal().at(-1);
+    const a = last?.snapshot.attention as Matrix;
+    expect(a[0][0]).toBeCloseTo(1, 10);
+    expect(a[0][1]).toBe(0);
+    expect(a[0][2]).toBe(0);
+  });
+
+  it("every causal-attention row still sums to 1 within fp tolerance", () => {
+    const last = runCausal().at(-1);
+    const a = last?.snapshot.attention as Matrix;
+    for (const row of a) {
+      const sum = row.reduce((s, x) => s + x, 0);
+      expect(sum).toBeCloseTo(1, 10);
+    }
+  });
+
+  it("causal Y[0] equals V[0] exactly — token 0's output is its own value, no mixing", () => {
+    const last = runCausal().at(-1);
+    const y = last?.snapshot.output as Matrix;
+    const v = last?.snapshot.v as Matrix;
+    expect(y[0]).toEqual(v[0]);
+  });
+
+  it("scaled snapshot on the mask-scores step still holds the un-masked values (audit trail)", () => {
+    const masked = runCausal().find((s) => s.kind === "mask-scores");
+    if (masked?.kind !== "mask-scores") throw new Error("expected mask-scores");
+    // The pre-mask scaled scores are preserved so the viz can render
+    // "before/after" comparisons.
+    const scaled = masked.snapshot.scaled as Matrix;
+    for (const row of scaled) {
+      for (const v of row) expect(Number.isFinite(v)).toBe(true);
+    }
+  });
+
+  it("non-causal output differs from causal output on the same params", () => {
+    const causalY = [...attentionSequence({ ...DEMO_PARAMS, mask: "causal" })].at(-1)?.snapshot
+      .output as Matrix;
+    const plainY = [...attentionSequence(DEMO_PARAMS)].at(-1)?.snapshot.output as Matrix;
+    // Y[0] differs (causal can only see V[0]; plain mixes all three).
+    expect(causalY[0]).not.toEqual(plainY[0]);
+  });
+
+  it("every causal-attention step's codeLines fall within the causal snippet's source", () => {
+    const lineCount = causalAttentionPython.split("\n").length;
+    for (const s of runCausal()) {
+      for (const ln of s.codeLines ?? []) {
+        expect(ln).toBeGreaterThanOrEqual(1);
+        expect(ln).toBeLessThanOrEqual(lineCount);
+      }
+    }
+  });
+
+  it("non-causal mode never sets masked on any snapshot", () => {
+    for (const s of [...attentionSequence(DEMO_PARAMS)]) {
+      expect(s.snapshot.masked).toBeUndefined();
+    }
+  });
+
+  it("property: causal attention rows always sum to 1 and are zero in the upper triangle", () => {
+    const finite = () => fc.double({ min: -2, max: 2, noNaN: true });
+    const row = () => fc.tuple(finite(), finite());
+    fc.assert(
+      fc.property(
+        fc.tuple(row(), row(), row()),
+        fc.tuple(row(), row()),
+        fc.tuple(row(), row()),
+        fc.tuple(row(), row()),
+        (X, wQ, wK, wV) => {
+          const last = [
+            ...attentionSequence({
+              embeddings: X.map((r) => [...r]),
+              tokenLabels: ["t1", "t2", "t3"],
+              wQ: wQ.map((r) => [...r]),
+              wK: wK.map((r) => [...r]),
+              wV: wV.map((r) => [...r]),
+              mask: "causal",
+            }),
+          ].at(-1);
+          const a = last?.snapshot.attention as Matrix;
+          for (let i = 0; i < a.length; i++) {
+            const sum = a[i].reduce((s, x) => s + x, 0);
+            expect(sum).toBeCloseTo(1, 8);
+            for (let j = i + 1; j < a[i].length; j++) {
+              expect(a[i][j]).toBe(0);
+            }
+          }
+        },
+      ),
+      { numRuns: 50 },
+    );
+  });
+});
+
+describe("applyCausalMask", () => {
+  it("sets every j>i entry to -Infinity and leaves j<=i unchanged", () => {
+    const out = applyCausalMask([
+      [1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9],
+    ]);
+    expect(out).toEqual([
+      [1, -Infinity, -Infinity],
+      [4, 5, -Infinity],
+      [7, 8, 9],
+    ]);
+  });
+
+  it("returns a fresh array — input is not mutated", () => {
+    const input = [
+      [1, 2],
+      [3, 4],
+    ];
+    const snapshot = JSON.parse(JSON.stringify(input));
+    applyCausalMask(input);
+    expect(input).toEqual(snapshot);
   });
 });

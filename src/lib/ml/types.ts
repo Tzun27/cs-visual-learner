@@ -114,6 +114,7 @@ export type AttentionPhase =
   | "project-v"
   | "scores"
   | "scaled"
+  | "masked"
   | "softmax"
   | "output"
   | "done";
@@ -133,6 +134,9 @@ export type AttentionSnapshot = {
   readonly v?: Matrix;
   readonly scores?: Matrix;
   readonly scaled?: Matrix;
+  // Post-mask scaled scores; entries above the diagonal are -Infinity in
+  // causal mode. Undefined in non-causal mode (no mask step is emitted).
+  readonly masked?: Matrix;
   readonly attention?: Matrix;
   readonly output?: Matrix;
   readonly phase: AttentionPhase;
@@ -145,9 +149,43 @@ export type AttentionStep =
   | (StepBase & { kind: "project-v"; snapshot: AttentionSnapshot })
   | (StepBase & { kind: "compute-scores"; snapshot: AttentionSnapshot })
   | (StepBase & { kind: "scale-scores"; snapshot: AttentionSnapshot })
+  // Only emitted when `mask: "causal"` is passed. Sets upper-triangle
+  // entries of scaled scores to -Infinity so softmax assigns them 0.
+  | (StepBase & { kind: "mask-scores"; snapshot: AttentionSnapshot })
   | (StepBase & { kind: "softmax"; snapshot: AttentionSnapshot })
   | (StepBase & { kind: "weighted-sum"; snapshot: AttentionSnapshot })
   | (StepBase & { kind: "done"; snapshot: AttentionSnapshot });
+
+/* ------------------------------------------------------------------ *
+ * Positional encoding                                                 *
+ * ------------------------------------------------------------------ */
+
+export type PositionalEncodingPhase = "begin" | "compute-pe" | "add" | "done";
+
+export type PositionalEncodingSnapshot = {
+  readonly embeddings: Matrix;
+  readonly tokenLabels: ReadonlyArray<string>;
+  // PE matrix (rows × d_embed). Computed row-by-row; rows beyond
+  // `revealedRows` are undefined / not yet rendered by the viz.
+  readonly pe?: Matrix;
+  // Index of the last PE row computed (0-indexed). When the generator is
+  // mid-walk this is the row most recently emitted; the viz uses it to
+  // highlight which row just appeared.
+  readonly revealedRows?: number;
+  // X + PE; only present after the add step.
+  readonly combined?: Matrix;
+  readonly phase: PositionalEncodingPhase;
+};
+
+export type PositionalEncodingStep =
+  | (StepBase & { kind: "begin"; snapshot: PositionalEncodingSnapshot })
+  | (StepBase & {
+      kind: "compute-pe-row";
+      snapshot: PositionalEncodingSnapshot;
+      rowIndex: number;
+    })
+  | (StepBase & { kind: "add"; snapshot: PositionalEncodingSnapshot })
+  | (StepBase & { kind: "done"; snapshot: PositionalEncodingSnapshot });
 
 /* ------------------------------------------------------------------ *
  * Multi-head attention                                                *
