@@ -1,0 +1,195 @@
+import { CuckooFilterInsertViz } from "@/components/visualizations/CuckooFilterInsertViz";
+import { CuckooFilterSearchViz } from "@/components/visualizations/CuckooFilterSearchViz";
+import { CuckooFilterDeleteViz } from "@/components/visualizations/CuckooFilterDeleteViz";
+
+export const metadata = {
+  title: "Cuckoo Filter",
+  description:
+    "A probabilistic set built on cuckoo hashing — stores tiny fingerprints instead of full keys. Constant-cost lookups, supports delete (unlike Bloom filters), accepts a small false-positive rate.",
+};
+
+# Cuckoo Filter
+
+**Difficulty:** intermediate · **Category:** data structures
+
+The [cuckoo hashing](/lessons/data-structures/cuckoo-hashing) lesson stores full keys in two
+tables: every lookup checks at most two slots. **The cuckoo filter takes that same shape and
+swaps full keys for tiny fingerprints** — a few bits each, just enough to distinguish most pairs
+of items. The filter still answers "is this item in the set?" in constant time, but instead of
+returning the original item it returns yes/no — with a small false-positive rate baked in.
+
+Why give up exactness? Two reasons that matter in practice:
+
+- **Memory.** A filter holding $n$ items uses roughly $n \cdot b$ bits where $b$ is the
+  fingerprint width — typically 4 to 16 bits per item. A real key (16 bytes, 64 bytes, ...) is
+  10-100× larger. Bloom filters made this trade famous; cuckoo filters do the same trade with
+  one key advantage.
+- **Delete.** Bloom filters can't delete (each item sets multiple bits; clearing one would
+  affect any item sharing that bit). Cuckoo filters _can_ — each item touches one slot, so
+  clearing that slot only removes one item. With a caveat the lesson will get to.
+
+## The XOR trick that makes it all work
+
+Cuckoo hashing computes the two candidate slots from the original key. But the cuckoo _filter_
+has thrown the original key away — once a fingerprint is stored, the key it came from is gone.
+So how does the eviction cascade compute a displaced fingerprint's alternate slot?
+
+The answer is a beautifully clever XOR trick:
+
+$$
+\text{alt}(\text{slot}, \text{fp}) = \text{slot} \oplus \text{hash}(\text{fp})
+$$
+
+This relation is _symmetric_: applying it twice gets you back where you started.
+$\text{alt}(\text{alt}(s, \text{fp}), \text{fp}) = s$ because $s \oplus h \oplus h = s$. So from
+_either_ candidate slot, knowing only the fingerprint, you can derive the other. **Eviction no
+longer needs to know the original key.**
+
+That's the whole reason this scheme works. Drop the XOR trick and you'd need to store something
+that links every fingerprint back to its key — defeating the memory savings.
+
+## Inserting a fingerprint
+
+<CuckooFilterInsertViz />
+
+The viz uses a tiny demo: capacity $8$ slots, fingerprints in $[1, 7]$ (four bits with $0$
+reserved for "empty"). The hash functions are deliberately readable:
+$\text{fingerprint}(k) = (k \bmod 7) + 1$, $h_1(k) = k \bmod 8$,
+$\text{hashFp}(\text{fp}) = (3 \cdot \text{fp}) \bmod 8$. The factor of 3 is coprime with 8 so
+no two fingerprints share an XOR offset, which keeps alternate slots well-spread.
+
+The curated input is $[5, 0, 7, 13]$. The first three each land in their home slot directly:
+$5 \to T[5]$ stores $\text{fp}=6$, $0 \to T[0]$ stores $\text{fp}=1$, $7 \to T[7]$ stores
+$\text{fp}=1$. (Yes, $0$ and $7$ have the same fingerprint — different keys can collide on
+fingerprints. That's expected.)
+
+The fourth insert is the lesson's hero. $13$ has $\text{fp}=7$, $h_1=5$, $\text{alt}=0$. Both
+candidate slots are occupied — the **eviction cascade** fires:
+
+1. Evict $T[5]$ (was $\text{fp}=6$). Store $\text{fp}=7$ there. The displaced $\text{fp}=6$ now
+   needs its alternate, which is $5 \oplus \text{hashFp}(6) = 5 \oplus 2 = 7$. Try $T[7]$.
+2. $T[7]$ is occupied (holds $\text{fp}=1$). Evict, store $\text{fp}=6$. Displaced
+   $\text{fp}=1$'s alternate is $7 \oplus \text{hashFp}(1) = 7 \oplus 3 = 4$. Try $T[4]$.
+3. $T[4]$ is empty. Place $\text{fp}=1$. Cascade ends.
+
+Final table: $T = [1, \_, \_, \_, 1, 7, \_, 6]$. **The fingerprint $1$ now appears at two
+slots** — once from $0$'s original placement, once from $7$'s cascade-displaced re-home. The
+filter can't tell which came from which key (and doesn't need to).
+
+## Searching: always at most two reads
+
+<CuckooFilterSearchViz />
+
+The contains query computes the fingerprint, then checks $T[h_1]$ and $T[\text{alt}]$. If
+either holds the fingerprint, return true. **Two slot reads, no probing, no walking.** The
+viz exercises five outcomes:
+
+- $\text{contains}(13)$ — $\text{fp}=7$, hit at home slot $T[5]$. _True positive_, 1 read.
+- $\text{contains}(5)$ — $\text{fp}=6$, miss at $T[5]$ (now holds 7 after the cascade), hit at
+  alt $T[7]$. _True positive_, 2 reads. The cascade moved $5$'s fingerprint to its
+  alternate — and the alt check finds it there.
+- $\text{contains}(0)$ — $\text{fp}=1$, hit at home $T[0]$. _True positive_, 1 read.
+- $\text{contains}(35)$ — $\text{fp}=35 \bmod 7 + 1 = 1$, $h_1 = 35 \bmod 8 = 3$,
+  $\text{alt} = 3 \oplus 3 = 0$. $T[3]$ empty, $T[0]$ holds $\text{fp}=1$ → **the algorithm
+  reports found**. But $35$ was never inserted. **This is a false positive.** The viz colors
+  the matched slot red to flag the disagreement, and the False+ counter ticks.
+- $\text{contains}(99)$ — $\text{fp}=2$, $h_1=3$, $\text{alt}=5$. $T[3]$ empty, $T[5]$ holds
+  $\text{fp}=7 \neq 2$. _True negative_, 2 reads.
+
+The false positive on $35$ is the heart of the data structure. The filter can't distinguish
+between "the matching fingerprint came from the key you asked about" and "the matching
+fingerprint came from a different key with the same fingerprint." It just reports the match.
+
+The false-positive rate is tunable. With $b$-bit fingerprints, the per-query false-positive
+rate is roughly $\epsilon \approx \frac{2 \cdot n_{\text{candidates}}}{2^b}$ — for the demo
+($b = 3$ effective, since fingerprints span 7 values) every query has roughly a $2/7 \approx
+29\%$ chance of false-positive on a populated filter. Real-world cuckoo filters use 8-16 bit
+fingerprints with bucketized slots (4 fingerprints per bucket), driving $\epsilon$ down to
+$0.001$ or lower — comparable to a tuned Bloom filter, with the bonus of being able to delete.
+
+## Deleting: just clear the slot
+
+<CuckooFilterDeleteViz />
+
+Delete is search with one extra line: when the matching fingerprint is found, write `EMPTY` to
+the slot. The viz exercises two cases:
+
+- $\text{delete}(13)$ — $\text{fp}=7$, hit at $T[5]$. Clear it. Slot returns to `empty` — no
+  tombstone needed (just like cuckoo hashing).
+- $\text{delete}(99)$ — $\text{fp}=2$, miss at both candidate slots. Nothing to remove.
+
+Trivial enough. But it comes with a sharp footgun.
+
+### The delete-safety pitfall
+
+Bloom filters _can't_ delete because clearing the bits an item set would also clear bits other
+items share. Cuckoo filters _can_ delete — but only if you have permission to do so. The
+algorithm clears any slot whose fingerprint matches, with no way to verify that the matching
+fingerprint actually came from the item you're trying to delete.
+
+Consider what would happen if you called $\text{delete}(35)$ against the post-insert state.
+$35$ was never inserted — but its fingerprint $1$ matches what $0$'s insert placed at $T[0]$.
+The algorithm would dutifully clear $T[0]$, reporting success. **And the next
+$\text{contains}(0)$ would return false.** Without knowing it, you've silently lost a real
+item.
+
+The textbook rule: **only delete items you previously inserted into the filter**. If your
+application can guarantee that (e.g., a manifest of currently-resident items lives elsewhere),
+delete is safe. If you can't, prefer a Bloom filter or counting Bloom filter — the false-
+positive coupling is gone, but so is the ability to clear stale state.
+
+## Why fingerprints work at all
+
+A natural worry: if two keys can share a fingerprint, doesn't the false-positive rate
+compound? Each insert lands at one of two specific slots — a key with the same fingerprint
+that hashes to the _same_ candidate set will collide. But other fingerprint matches at
+unrelated slots aren't visible to a contains query for a different key. The query only checks
+$T[h_1(k)]$ and $T[\text{alt}(h_1(k), \text{fp}(k))]$.
+
+So the false positives come from one very specific cause: another key's fingerprint happens
+to match yours _and_ landed (or got cascaded to) one of your two candidate slots. With small
+enough fingerprints and high enough load, this collision is non-negligible — but with $b$
+bits, the per-slot collision probability is $\approx 2^{-b}$, and the per-query rate is
+roughly twice that.
+
+## Comparing with Bloom filters
+
+|                     | Bloom filter                           | Cuckoo filter                                            |
+| ------------------- | -------------------------------------- | -------------------------------------------------------- |
+| Storage shape       | Bit array, $k$ hash functions per item | Fingerprint table, two slots per item                    |
+| Insert touches      | $k$ bits                               | 1 slot (+ cascade on collision)                          |
+| Contains touches    | $k$ bits                               | 2 slots                                                  |
+| Delete              | Not supported (without counting)       | Supported (caveat above)                                 |
+| Max load            | $\approx 50\%$ filled bits             | $\approx 50\%$ for 2-way; $95\%+$ for $d$-way bucketized |
+| False-positive rate | $(1 - e^{-kn/m})^k$                    | $\approx 2 \cdot 2^{-b}$                                 |
+| Cache behavior      | $k$ random bit reads                   | 2 random slot reads                                      |
+
+For roughly equivalent false-positive rates, cuckoo filters typically use **less memory than
+Bloom filters** (the Fan et al. 2014 paper measured 30-40% less). The delete capability is the
+other practical edge. Where Bloom filters still win: very high false-positive tolerance (you
+can use a tiny Bloom filter when the rate doesn't matter) or extreme load factor (Bloom can run
+close to its limit without spilling).
+
+## Variants used in production
+
+The minimal scheme above (one fingerprint per slot, 2-way cuckoo) is the teaching version. Real
+implementations stack two well-known enhancements on top:
+
+- **Bucketized slots.** Each "slot" actually holds $b$ fingerprints (typically 4). The contains
+  query scans the $b$ fingerprints in each candidate bucket and matches in parallel via SIMD —
+  one cache line per bucket, near-zero extra cost vs single-fingerprint cuckoo. This is what
+  raises the safe load factor from $\sim 50\%$ to $\sim 95\%$.
+- **$d$-way cuckoo.** Three or four hash functions instead of two. Each insert has more options
+  before triggering a cascade; the filter packs tighter at the same false-positive rate.
+
+The Fan et al. 2014 paper combines both ($d=2$ with 4-key buckets). That's the cuckoo filter
+deployed today in routing tables, deduplication services, and a number of OLAP indexes.
+
+## What's next
+
+- **Bloom filter** — the prototype probabilistic set. Direct comparison case to the cuckoo
+  filter; would form a natural pair on the same conceptual track.
+- **Counting Bloom filter** — Bloom filter with delete support, at the cost of using counters
+  instead of bits. Different shape of the same trade-off cuckoo filters made.
+- **HyperLogLog** — probabilistic count-distinct rather than set membership. A different
+  question from the same family.

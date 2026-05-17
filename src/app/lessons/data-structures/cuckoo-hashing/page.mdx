@@ -163,9 +163,10 @@ practice all relax the strict "one slot per table per key" rule:
 - **Bucketized cuckoo** packs $b$ keys into each "slot," so a single cache line holds the entire
   candidate bucket. This is the production-grade form — Memcached used variants of this for a
   while.
-- **Cuckoo filters** are a Bloom-filter-style approximate set built on cuckoo hashing: store
-  small fingerprints instead of full keys, allow deletion (Bloom filters can't), and accept a
-  small false-positive rate.
+- **Cuckoo filters** ([already in the data-structures
+  track](/lessons/data-structures/cuckoo-filter)) are a Bloom-filter-style approximate set
+  built on cuckoo hashing: store small fingerprints instead of full keys, allow deletion (Bloom
+  filters can't), and accept a small false-positive rate.
 
 The bucketized + $d$-way combination is what makes cuckoo competitive on real workloads — pure
 2-way cuckoo with single-key slots is mostly a teaching scheme. The shape stays the same: every
@@ -173,8 +174,11 @@ key has a small, fixed set of candidate positions, and insertion may cascade-evi
 
 ## What's next
 
+- **Cuckoo filter** ([already in the data-structures
+  track](/lessons/data-structures/cuckoo-filter)) — the direct evolution. Same two-candidates
+  shape, fingerprints instead of full keys, probabilistic membership at constant cost.
 - **Bloom filters and counting Bloom filters** — adjacent territory. Probabilistic set
-  membership with no false negatives. Cuckoo filters are the direct evolution.
+  membership with no false negatives. The direct point of comparison for the cuckoo filter.
 - **Concurrent hash tables** — split open-addressing into per-segment locks (Java's
   `ConcurrentHashMap`) or use cuckoo's two-reads structure for lock-free reads (libcuckoo). A
   different layer of design built on top of the basic schemes shown across these lessons.

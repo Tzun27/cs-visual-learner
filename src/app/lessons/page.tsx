@@ -137,6 +137,14 @@ const topics: readonly Topic[] = [
       },
       {
         status: "live",
+        slug: "cuckoo-filter",
+        title: "Cuckoo Filter",
+        difficulty: "intermediate",
+        blurb:
+          "Probabilistic set built on cuckoo hashing — stores fingerprints, not keys. Constant-cost contains + supports delete (caveat included).",
+      },
+      {
+        status: "live",
         slug: "tree-traversal",
         title: "Tree Traversal",
         difficulty: "beginner",
