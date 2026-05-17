@@ -19,6 +19,7 @@ const routes = [
   "/lessons/data-structures/quadratic-probing",
   "/lessons/data-structures/double-hashing",
   "/lessons/data-structures/hopscotch",
+  "/lessons/data-structures/cuckoo-hashing",
   "/lessons/data-structures/pairing-heap",
   "/lessons/ml/gradient-descent",
   "/lessons/ml/backprop",
