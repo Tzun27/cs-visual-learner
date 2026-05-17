@@ -196,7 +196,7 @@ const topics: readonly Topic[] = [
         title: "Attention",
         difficulty: "advanced",
         blurb:
-          "Single attention head over 3 tokens, decomposed into Q, K, V — and what each one is doing.",
+          "Single attention head over 3 tokens, decomposed into Q, K, V — plus positional encoding and causal masking, the two pieces every real transformer adds.",
       },
       {
         status: "live",

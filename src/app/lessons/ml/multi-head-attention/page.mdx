@@ -130,14 +130,15 @@ which matches what the viz shows when head 1's weighted-sum step fires.
 
 A few things the demo deliberately omits:
 
-- **Causal masking** — at training time on next-token-prediction, $S_{ij} \leftarrow -\infty$
-  for $j > i$ before softmax, so each query can only attend to keys at earlier positions.
-  Multi-head doesn't change the masking — every head gets the same mask applied
-  independently before its softmax.
-- **Positional encoding** — raw multi-head attention is still permutation-equivariant.
-  Position information is added to $X$ before the attention layer runs (rotary embeddings,
-  learned positional encodings, etc.). The mechanism is unchanged; the inputs gain a
-  position-dependent term.
+- **Causal masking** ([covered in the attention lesson](/lessons/ml/attention)) — at
+  training time on next-token-prediction, $S_{ij} \leftarrow -\infty$ for $j > i$ before
+  softmax, so each query can only attend to keys at earlier positions. Multi-head doesn't
+  change the masking — every head gets the same mask applied independently before its
+  softmax.
+- **Positional encoding** ([covered in the attention lesson](/lessons/ml/attention)) —
+  raw multi-head attention is still permutation-equivariant. Position information is
+  added to $X$ before the attention layer runs (rotary embeddings, learned positional
+  encodings, etc.). The mechanism is unchanged; the inputs gain a position-dependent term.
 - **Layer normalization + residual connection** — in a real transformer block, the
   MHA output is added to $X$ via a residual connection and then passed through layer norm.
   These are "around" the attention head, not inside it.
@@ -163,11 +164,10 @@ above is the entire "transformer" idea — everything else is engineering around
 
 ## What's next
 
-- **Causal masking** — extend this viz with a triangular mask so users can see attention
-  weights vanish above the diagonal. Same matrices, one extra step before the softmax.
-- **Positional encoding** — add rotary or sinusoidal position vectors to $X$ before the
-  forward pass. Important for explaining how transformers know token order despite the
-  permutation-equivariance of raw attention.
+- **Causal masking + positional encoding** — both now covered in the
+  [attention lesson](/lessons/ml/attention). The mechanism inside multi-head is
+  unchanged: every head gets the same mask applied before its softmax, and the same
+  position vectors added to $X$ before the per-head projections run.
 - **Encoder-decoder cross-attention** — where $Q$ comes from one sequence and $K, V$ come
   from another. The mechanism is identical except for the source split. Used in the
   original Transformer paper for translation; not used in decoder-only LLMs like GPT.

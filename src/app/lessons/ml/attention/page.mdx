@@ -1,4 +1,6 @@
 import { AttentionViz } from "@/components/visualizations/AttentionViz";
+import { CausalAttentionViz } from "@/components/visualizations/CausalAttentionViz";
+import { PositionalEncodingViz } from "@/components/visualizations/PositionalEncodingViz";
 import { MathLevel, IntuitionOnly, MathOnly } from "@/components/mdx/MathLevel";
 
 export const metadata = {
@@ -98,29 +100,163 @@ for the worked example.
 
 <MathOnly>
 
-A few extensions that the viz deliberately omits, for context:
+[Multi-head attention](/lessons/ml/multi-head-attention) is the natural next extension —
+running $h$ heads in parallel with their own $W_Q^{(k)}, W_K^{(k)}, W_V^{(k)}$ matrices,
+concatenating the per-head outputs, and projecting:
 
-- **Causal masking** — at training time on next-token-prediction tasks, the score matrix
-  is masked so position $i$ can only attend to positions $j \leq i$. Implemented as
-  $S_{ij} \leftarrow -\infty$ for $j > i$ before softmax. This is what lets a transformer
-  process the whole sequence in parallel during training while still predicting tokens
-  causally at inference.
-- **Multi-head attention** generalizes by running $h$ heads in parallel with their own
-  $W_Q^{(k)}, W_K^{(k)}, W_V^{(k)}$ matrices, concatenating the per-head outputs, and
-  projecting:
-  $$
-    \text{MHA}(X) = \text{concat}(Y^{(1)}, \ldots, Y^{(h)}) W_O
-  $$
-  See the [multi-head attention lesson](/lessons/ml/multi-head-attention) for the worked
-  example with two heads, including hand-verifiable per-head outputs.
-- **Positional information** has to be added to the embeddings explicitly (rotary
-  embeddings, learned positional encodings, etc.) because raw attention is
-  permutation-equivariant — it can't distinguish "the cat sat" from "sat the cat".
+$$
+\text{MHA}(X) = \text{concat}(Y^{(1)}, \ldots, Y^{(h)}) W_O
+$$
 
-The KQV matrices in real transformers are usually low-rank decompositions:
-$d_k = d_{\text{embed}} / h$ for $h$ heads. The total parameter count is the same as a
-single head with $d_k = d_{\text{embed}}$, but spread across more independent attention
-computations.
+See that lesson for the worked example with two heads, including hand-verifiable per-head
+outputs. In real transformers the KQV matrices are low-rank decompositions:
+$d_k = d_{\text{embed}} / h$ for $h$ heads, so the total parameter count is the same as a
+single head with $d_k = d_{\text{embed}}$, just spread across more independent attention
+computations. The next two sections cover the other two pieces of every real transformer
+attention layer: positional encoding and causal masking.
+
+</MathOnly>
+
+## Why order matters: positional encoding
+
+<PositionalEncodingViz />
+
+<IntuitionOnly>
+
+Stare at the attention computation above and you'll notice something weird: **it has no
+notion of token order**. The matrix multiplications $QK^\top$ and $AV$ don't care which
+row came first. If you shuffled the input tokens, attention would shuffle the output rows
+in exactly the same way — but never produce a fundamentally different result.
+
+That's a problem. "The cat sat on the mat" and "the mat sat on the cat" use the same
+words. A language model has to tell them apart. Without something that injects position
+into the embeddings, no amount of attention training will produce a model that knows
+"subject before verb" vs "verb before subject."
+
+The fix is comically simple: **add a position-dependent vector to every embedding before
+sending it into Q, K, V**. The position vector is engineered (or learned) to be unique
+per position, so once it's added, two tokens with identical embeddings but different
+positions now have different inputs to the projections.
+
+The viz shows the most common engineered choice — sinusoidal encoding. Every position
+gets a vector built from sines and cosines at varying frequencies. Position 0 always maps
+to $[\sin(0), \cos(0)] = [0, 1]$; position 1 to $[\sin(1), \cos(1)]$; and so on. The sin
+and cos pair guarantees uniqueness, and the multi-frequency design (when $d_{\text{embed}}$
+is larger than 2) gives the model a smooth scale of "how far apart are these two
+positions" via the dot product of their PE vectors.
+
+After the add, every row of $X^\prime = X + \text{PE}$ carries a unique position
+fingerprint. The exact same attention math runs from there — but now the network has
+something to grip when it needs to express "look at the token two before me."
+
+</IntuitionOnly>
+
+<MathOnly>
+
+Vanilla attention is **permutation-equivariant**: for any permutation matrix $P$,
+$\text{Attn}(P X) = P \cdot \text{Attn}(X)$. The output rows track the input rows. Two
+sequences that differ only in token order produce outputs that differ only in row order
+— and after collapsing them with the next layer's average or readout, they may become
+indistinguishable. Order is invisible.
+
+To break this, Vaswani et al. 2017 § 3.5 add a fixed sinusoidal positional encoding to
+the embeddings before any projection:
+
+$$
+\text{PE}(pos, 2i)   = \sin\!\left(\frac{pos}{10000^{2i / d_{\text{model}}}}\right),
+\quad
+\text{PE}(pos, 2i+1) = \cos\!\left(\frac{pos}{10000^{2i / d_{\text{model}}}}\right)
+$$
+
+Then $X^\prime = X + \text{PE}$ feeds into Q, K, V. Two pleasant properties fall out of
+the design:
+
+- **Bounded.** Each PE component lies in $[-1, 1]$, so adding it doesn't dominate the
+  embedding signal.
+- **Linear position offsets.** For any fixed offset $k$, $\text{PE}(pos + k)$ is a linear
+  function of $\text{PE}(pos)$ — the model can in principle learn to express
+  "$k$ positions ahead" with a single fixed linear transformation, even at positions it
+  never saw during training. (Whether attention layers in practice exploit this is
+  another question; the property is at least available.)
+
+The demo uses $d_{\text{embed}} = 2$, which collapses the formula to
+$\text{PE}(pos) = [\sin(pos), \cos(pos)]$. For positions $0, 1, 2$:
+
+| pos | PE                                       |
+| --: | :--------------------------------------- |
+|   0 | $[0, 1]$                                 |
+|   1 | $[\sin 1, \cos 1] \approx [0.84, 0.54]$  |
+|   2 | $[\sin 2, \cos 2] \approx [0.91, -0.42]$ |
+
+Modern transformers replace fixed sinusoidal PE with learned positional embeddings or
+rotary position embeddings (RoPE), but the high-level role is the same — give the
+attention head something position-dependent to work with.
+
+</MathOnly>
+
+## Causal attention: predicting the next token
+
+<CausalAttentionViz />
+
+<IntuitionOnly>
+
+When a language model is trained to predict the next token, it can't be allowed to
+"cheat" by looking at later tokens. If position 3's job is to predict what comes at
+position 4, then position 3's attention must only see positions $\leq 3$.
+
+The trick is a **causal mask** applied to the score matrix right before softmax. Every
+entry above the diagonal — every "this position is looking at a future position" entry —
+gets set to $-\infty$. Since $e^{-\infty} = 0$, those positions contribute exactly zero
+to the softmax sum, and the attention matrix ends up lower-triangular.
+
+The viz uses the same fixed projection matrices and inputs as the plain attention demo,
+but with `mask: "causal"`. Watch the mask step turn the upper triangle red, then watch
+the softmax produce zeros where the mask was applied. **Row 0 of the attention matrix
+ends up as $[1, 0, 0]$** — token 0 can only attend to itself, so its weight on itself is
+forced to 1. The output $Y[0]$ therefore equals $V[0]$ exactly, no mixing.
+
+This is what lets a transformer process the entire sequence in **one parallel forward
+pass** during training (faster than walking the sequence token-by-token), while still
+matching the autoregressive next-token-prediction objective. Train on all positions
+simultaneously, just with this triangular mask preventing leakage from the future. At
+inference time the model still generates one token at a time, but no separate code path
+is needed — the mask makes the training-time forward pass behave the same way.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+The causal mask modifies attention as:
+
+$$
+S_{ij} \leftarrow \begin{cases} S_{ij} & j \leq i \\ -\infty & j > i \end{cases}
+\quad\text{(applied to the scaled scores, just before softmax)}
+$$
+
+After row-wise softmax, $A_{ij} = 0$ for $j > i$ (because $e^{-\infty} = 0$ and the
+remaining entries still normalize to 1 across the unmasked positions in the row). The
+attention matrix is **lower-triangular**, and the output becomes:
+
+$$
+Y_i = \sum_{j=0}^{i} A_{ij} V_j
+$$
+
+— position $i$'s output is a convex combination of values $V_0, \ldots, V_i$ only. The
+viz's row 0 illustrates the extreme case: $A_{0,*} = [1, 0, 0]$, so $Y_0 = V_0$ exactly,
+no mixing.
+
+**Why this preserves training efficiency:** without the mask, generating $n$ tokens
+autoregressively requires $n$ separate forward passes (each one re-running attention on
+the growing prefix). With the mask, a single forward pass over the full sequence
+produces the next-token logits for **every** position simultaneously — the mask
+guarantees position $i$'s logit only depends on positions $\leq i$, so the loss against
+position $i+1$ is well-defined for every $i < n$. Training compute drops from
+$\Theta(n^2)$ matmuls (one per position) to $\Theta(1)$ matmuls of size $n \times n$.
+
+In production decoder-only LMs (GPT family, Llama, Claude's underlying architecture)
+every attention layer is causal-masked. In encoder-decoder models (translation,
+summarization), the encoder layers use the un-masked attention from the previous section
+while the decoder layers use causal masking.
 
 </MathOnly>
 
