@@ -1,4 +1,4 @@
-import { emptyTable } from "./linearProbe";
+import { emptyTable, snapshot, TOMBSTONE } from "./linearProbe";
 import { quadraticProbeDeleteLines } from "./quadraticProbeDelete.snippet";
 import { quadraticProbeInsertLines } from "./quadraticProbeInsert.snippet";
 import { quadraticProbeSearchLines } from "./quadraticProbeSearch.snippet";
@@ -19,12 +19,6 @@ import type {
 // guarantees an empty slot at load factor < 0.5 with prime capacity. We use
 // capacity 11 (prime) for the curated demos so the probe sequence is
 // well-defined and the "no clustering" pedagogy lands cleanly.
-
-const TOMBSTONE: LinearProbeSlot = { state: "tombstone" };
-
-function snapshot(slots: readonly LinearProbeSlot[], capacity: number): LinearProbeSnapshot {
-  return { capacity, slots: slots.map((s) => ({ ...s })) };
-}
 
 // Probe i (0-indexed) lands at (home + i*i) mod capacity. Double-mod
 // handles negative inputs symmetrically with slotIndexFor's contract.

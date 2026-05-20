@@ -10,13 +10,16 @@ import type {
 } from "./types";
 
 const EMPTY: LinearProbeSlot = { state: "empty" };
-const TOMBSTONE: LinearProbeSlot = { state: "tombstone" };
+
+/** Shared by every open-addressing probe strategy that reuses this snapshot. */
+export const TOMBSTONE: LinearProbeSlot = { state: "tombstone" };
 
 function emptySlots(capacity: number): LinearProbeSlot[] {
   return Array.from({ length: capacity }, () => EMPTY);
 }
 
-function snapshot(slots: readonly LinearProbeSlot[], capacity: number): LinearProbeSnapshot {
+/** Deep-copies the slot array into a fresh, step-back-safe snapshot. */
+export function snapshot(slots: readonly LinearProbeSlot[], capacity: number): LinearProbeSnapshot {
   return { capacity, slots: slots.map((s) => ({ ...s })) };
 }
 

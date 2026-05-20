@@ -1,4 +1,4 @@
-import { slotIndexFor } from "./linearProbe";
+import { slotIndexFor, snapshot } from "./linearProbe";
 import { robinHoodDeleteLines } from "./robinHoodDelete.snippet";
 import { robinHoodInsertLines } from "./robinHoodInsert.snippet";
 import type {
@@ -7,10 +7,6 @@ import type {
   RobinHoodDeleteStep,
   RobinHoodInsertStep,
 } from "./types";
-
-function snapshot(slots: readonly LinearProbeSlot[], capacity: number): LinearProbeSnapshot {
-  return { capacity, slots: slots.map((s) => ({ ...s })) };
-}
 
 // Probe distance of an occupied slot from its home: how many forward
 // steps the key had to take to land there. For Robin Hood this is the

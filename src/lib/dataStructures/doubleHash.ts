@@ -1,7 +1,7 @@
 import { doubleHashDeleteLines } from "./doubleHashDelete.snippet";
 import { doubleHashInsertLines } from "./doubleHashInsert.snippet";
 import { doubleHashSearchLines } from "./doubleHashSearch.snippet";
-import { emptyTable } from "./linearProbe";
+import { emptyTable, snapshot, TOMBSTONE } from "./linearProbe";
 import type {
   LinearProbeDeleteStep,
   LinearProbeInsertStep,
@@ -22,12 +22,6 @@ import type {
 // For different keys with the same h1(k), h2(k) differs almost always —
 // which is exactly what eliminates the secondary clustering that quadratic
 // probing leaves on the table.
-
-const TOMBSTONE: LinearProbeSlot = { state: "tombstone" };
-
-function snapshot(slots: readonly LinearProbeSlot[], capacity: number): LinearProbeSnapshot {
-  return { capacity, slots: slots.map((s) => ({ ...s })) };
-}
 
 export function doubleHashHomeFor(key: number, capacity: number): number {
   return (((key % capacity) + capacity) % capacity) | 0;
