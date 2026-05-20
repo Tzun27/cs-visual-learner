@@ -1,4 +1,5 @@
 import type { Matrix, PositionalEncodingSnapshot } from "@/lib/ml/types";
+import { fmt } from "./svgPrimitives";
 
 export type PositionalEncodingViewProps = {
   snapshot: PositionalEncodingSnapshot;
@@ -17,10 +18,6 @@ const COL = {
   pe: 250,
   combined: 460,
 } as const;
-
-function fmt(v: number): string {
-  return Number.isFinite(v) ? v.toFixed(2) : "—";
-}
 
 function MatrixPanel({
   label,

@@ -1,4 +1,5 @@
 import type { BackpropPhase, BackpropSnapshot } from "@/lib/ml/types";
+import { fmt } from "./svgPrimitives";
 
 export type NetworkHighlightKind = "active" | "current" | "updated";
 
@@ -48,11 +49,6 @@ const edgeSpecs: readonly EdgeSpec[] = [
   { id: "v1", from: "h1", to: "y", weightKey: "v1" },
   { id: "v2", from: "h2", to: "y", weightKey: "v2" },
 ];
-
-function fmt(value: number | undefined, digits = 2): string {
-  if (value === undefined) return "—";
-  return value.toFixed(digits);
-}
 
 function nodeValueLabel(snapshot: BackpropSnapshot, id: NetworkNodeId): string {
   const a = snapshot.activations;

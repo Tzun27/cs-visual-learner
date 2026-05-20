@@ -1,6 +1,8 @@
 import type { CuckooSide, CuckooSnapshot } from "@/lib/dataStructures/types";
+import { SlotRect, cuckooKindLabel } from "./svgPrimitives";
+import type { SlotCellKind } from "./svgPrimitives";
 
-export type CuckooCellKind = "cursor" | "placed" | "duplicate";
+export type CuckooCellKind = SlotCellKind;
 
 export type CuckooHighlight = {
   readonly side: CuckooSide;
@@ -23,17 +25,7 @@ const CELL_HEIGHT = 56;
 const ROW_GAP = 20;
 const VIEWBOX_HEIGHT = PADDING_Y * 2 + (INDEX_LABEL_HEIGHT + CELL_HEIGHT) * 2 + ROW_GAP;
 
-const palette: Record<CuckooCellKind, { fill: string; stroke: string }> = {
-  cursor: { fill: "var(--bar-compare)", stroke: "var(--bar-compare-stroke)" },
-  placed: { fill: "var(--bar-swap)", stroke: "var(--bar-swap-stroke)" },
-  duplicate: { fill: "var(--bar-pivot)", stroke: "var(--bar-pivot-stroke)" },
-};
-
-const kindLabel: Record<CuckooCellKind, string> = {
-  cursor: "being inspected",
-  placed: "matched",
-  duplicate: "duplicate match",
-};
+const kindLabel = cuckooKindLabel;
 
 const sideLabel: Record<CuckooSide, string> = {
   A: "T_A (h₁)",
@@ -108,27 +100,17 @@ export function CuckooView({ table, highlights = [], className }: CuckooViewProp
       ))}
       {slots.map((slot, i) => {
         const x = xOfSlot(i);
-        const w = slotWidth - 2;
         const kind = highlightByKey.get(bandKey(side, i));
-        const colors = kind ? palette[kind] : undefined;
         const isEmpty = slot.state === "empty";
-        const fill = colors?.fill ?? (isEmpty ? "transparent" : "var(--background)");
-        const stroke = colors?.stroke ?? "var(--bar-default)";
-        const strokeWidth = kind ? 2.5 : 1.5;
-        const dashArray = isEmpty && !kind ? "4 3" : undefined;
         return (
           <g key={`slot-${side}-${i}`}>
-            <rect
-              x={x + 1}
-              y={cellY + 2}
-              width={w}
-              height={CELL_HEIGHT - 4}
-              rx={6}
-              ry={6}
-              fill={fill}
-              stroke={stroke}
-              strokeWidth={strokeWidth}
-              strokeDasharray={dashArray}
+            <SlotRect
+              x={x}
+              y={cellY}
+              width={slotWidth}
+              height={CELL_HEIGHT}
+              kind={kind}
+              isEmpty={isEmpty}
             />
             {slot.state === "occupied" && (
               <text

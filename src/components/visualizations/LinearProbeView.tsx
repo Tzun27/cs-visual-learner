@@ -1,7 +1,9 @@
 import { slotIndexFor } from "@/lib/dataStructures/linearProbe";
 import type { LinearProbeSnapshot } from "@/lib/dataStructures/types";
+import { SlotRect } from "./svgPrimitives";
+import type { SlotCellKind } from "./svgPrimitives";
 
-export type LinearProbeCellKind = "cursor" | "placed" | "duplicate";
+export type LinearProbeCellKind = SlotCellKind;
 
 export type LinearProbeHighlight = {
   readonly slotIndex: number;
@@ -24,12 +26,6 @@ const PADDING_Y = 16;
 const INDEX_LABEL_HEIGHT = 22;
 const CELL_HEIGHT = 56;
 const VIEWBOX_HEIGHT = PADDING_Y * 2 + INDEX_LABEL_HEIGHT + CELL_HEIGHT;
-
-const palette: Record<LinearProbeCellKind, { fill: string; stroke: string }> = {
-  cursor: { fill: "var(--bar-compare)", stroke: "var(--bar-compare-stroke)" },
-  placed: { fill: "var(--bar-swap)", stroke: "var(--bar-swap-stroke)" },
-  duplicate: { fill: "var(--bar-pivot)", stroke: "var(--bar-pivot-stroke)" },
-};
 
 const kindLabel: Record<LinearProbeCellKind, string> = {
   cursor: "being probed",
@@ -98,28 +94,18 @@ export function LinearProbeView({
 
       {slots.map((slot, i) => {
         const x = xOfSlot(i);
-        const w = slotWidth - 2;
         const kind = highlightBySlot.get(i);
-        const colors = kind ? palette[kind] : undefined;
         const isEmpty = slot.state === "empty";
         const isTombstone = slot.state === "tombstone";
-        const fill = colors?.fill ?? (isEmpty ? "transparent" : "var(--background)");
-        const stroke = colors?.stroke ?? "var(--bar-default)";
-        const strokeWidth = kind ? 2.5 : 1.5;
-        const dashArray = isEmpty && !kind ? "4 3" : undefined;
         return (
           <g key={`slot-${i}`}>
-            <rect
-              x={x + 1}
-              y={cellY + 2}
-              width={w}
-              height={CELL_HEIGHT - 4}
-              rx={6}
-              ry={6}
-              fill={fill}
-              stroke={stroke}
-              strokeWidth={strokeWidth}
-              strokeDasharray={dashArray}
+            <SlotRect
+              x={x}
+              y={cellY}
+              width={slotWidth}
+              height={CELL_HEIGHT}
+              kind={kind}
+              isEmpty={isEmpty}
             />
             {slot.state === "occupied" && (
               <>
