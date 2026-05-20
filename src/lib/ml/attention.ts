@@ -67,7 +67,8 @@ export function rowSoftmax(a: Matrix): number[][] {
   });
 }
 
-function scaleMatrix(a: Matrix, factor: number): number[][] {
+/** Scales every entry of a matrix by a constant, returning a fresh result. */
+export function scaleMatrix(a: Matrix, factor: number): number[][] {
   return a.map((row) => row.map((v) => v * factor));
 }
 

@@ -157,6 +157,57 @@ export type AttentionStep =
   | (StepBase & { kind: "done"; snapshot: AttentionSnapshot });
 
 /* ------------------------------------------------------------------ *
+ * Cross-attention (encoder-decoder)                                   *
+ * ------------------------------------------------------------------ */
+
+export type CrossAttentionPhase =
+  | "begin"
+  | "project-q"
+  | "project-k"
+  | "project-v"
+  | "scores"
+  | "scaled"
+  | "softmax"
+  | "output"
+  | "done";
+
+export type CrossAttentionSnapshot = {
+  /** Decoder (target) token embeddings — queries are projected from these. */
+  readonly decoderEmbeddings: Matrix;
+  readonly decoderTokenLabels: ReadonlyArray<string>;
+  /** Encoder (source) token embeddings — keys and values come from these. */
+  readonly encoderEmbeddings: Matrix;
+  readonly encoderTokenLabels: ReadonlyArray<string>;
+  /** Projection matrices, always present (they're the model parameters). */
+  readonly wQ: Matrix;
+  readonly wK: Matrix;
+  readonly wV: Matrix;
+  /** Q has one row per decoder token; K and V have one row per encoder token. */
+  readonly q?: Matrix;
+  readonly k?: Matrix;
+  readonly v?: Matrix;
+  // Scores and attention are rectangular (decoder_n × encoder_n) — that
+  // asymmetry is the whole pedagogical point of cross-attention.
+  readonly scores?: Matrix;
+  readonly scaled?: Matrix;
+  readonly attention?: Matrix;
+  /** Output has one row per decoder token. */
+  readonly output?: Matrix;
+  readonly phase: CrossAttentionPhase;
+};
+
+export type CrossAttentionStep =
+  | (StepBase & { kind: "begin"; snapshot: CrossAttentionSnapshot })
+  | (StepBase & { kind: "project-q"; snapshot: CrossAttentionSnapshot })
+  | (StepBase & { kind: "project-k"; snapshot: CrossAttentionSnapshot })
+  | (StepBase & { kind: "project-v"; snapshot: CrossAttentionSnapshot })
+  | (StepBase & { kind: "compute-scores"; snapshot: CrossAttentionSnapshot })
+  | (StepBase & { kind: "scale-scores"; snapshot: CrossAttentionSnapshot })
+  | (StepBase & { kind: "softmax"; snapshot: CrossAttentionSnapshot })
+  | (StepBase & { kind: "weighted-sum"; snapshot: CrossAttentionSnapshot })
+  | (StepBase & { kind: "done"; snapshot: CrossAttentionSnapshot });
+
+/* ------------------------------------------------------------------ *
  * Positional encoding                                                 *
  * ------------------------------------------------------------------ */
 

@@ -11,10 +11,13 @@ export {
   attentionSequence,
   matmul,
   rowSoftmax,
+  scaleMatrix,
   transpose,
   type AttentionParams,
 } from "./attention";
 export { attentionLines, attentionPython } from "./attention.snippet";
+export { crossAttentionSequence, type CrossAttentionParams } from "./crossAttention";
+export { crossAttentionLines, crossAttentionPython } from "./crossAttention.snippet";
 export type {
   AttentionPhase,
   AttentionSnapshot,
@@ -25,6 +28,9 @@ export type {
   BackpropSnapshot,
   BackpropStep,
   BackpropWeights,
+  CrossAttentionPhase,
+  CrossAttentionSnapshot,
+  CrossAttentionStep,
   GradientDescentSnapshot,
   GradientDescentStep,
   Matrix,
