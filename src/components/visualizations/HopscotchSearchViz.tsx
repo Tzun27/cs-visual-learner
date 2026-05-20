@@ -4,10 +4,8 @@ import { useMemo } from "react";
 import { buildHopscotchTable, hopscotchSearchSequence } from "@/lib/dataStructures/hopscotch";
 import { hopscotchSearchPython } from "@/lib/dataStructures/hopscotchSearch.snippet";
 import type { HopscotchSearchStep, HopscotchSnapshot } from "@/lib/dataStructures/types";
-import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { useStepThrough } from "@/lib/hooks/useStepThrough";
-import { CodePanel } from "./CodePanel";
-import { Controls } from "./Controls";
+import { countKind } from "@/lib/stepCount";
+import { HashVizSection } from "./HashVizSection";
 import {
   HopscotchView,
   type HopscotchBitHighlight,
@@ -97,24 +95,6 @@ function annotationFor(step: HopscotchSearchStep | undefined): string | null {
   }
 }
 
-function countBitChecks(steps: readonly HopscotchSearchStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "check-bit") n++;
-  return n;
-}
-
-function countFound(steps: readonly HopscotchSearchStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "found") n++;
-  return n;
-}
-
-function countMisses(steps: readonly HopscotchSearchStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "miss") n++;
-  return n;
-}
-
 export function HopscotchSearchViz({ initialSpeedMs = 450 }: HopscotchSearchVizProps) {
   const initial = useMemo<HopscotchSnapshot>(() => buildInitialTable(), []);
   const steps = useMemo<readonly HopscotchSearchStep[]>(
@@ -122,85 +102,31 @@ export function HopscotchSearchViz({ initialSpeedMs = 450 }: HopscotchSearchVizP
     [initial],
   );
 
-  const reducedMotion = useReducedMotion();
-  const playback = useStepThrough(steps, {
-    initialSpeed: initialSpeedMs,
-    reducedMotion,
-  });
-
-  const currentStep = playback.currentStep;
-  const table = currentStep?.table ?? initial;
-  const highlights = highlightsFor(currentStep);
-  const bitHighlights = bitHighlightsFor(currentStep);
-  const activeHome = activeHomeFor(currentStep);
-  const annotation = annotationFor(currentStep);
-
-  const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const bitChecks = countBitChecks(visibleSteps);
-  const found = countFound(visibleSteps);
-  const misses = countMisses(visibleSteps);
-
   return (
-    <section
-      aria-label="Hopscotch search"
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
-    >
-      <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Searching {SEARCH_TARGETS.join(", ")} — lookups always look at at most{" "}
-        {CAPACITY === 8 ? 4 : "H"} slots
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
+    <HashVizSection
+      ariaLabel="Hopscotch search"
+      codePanelAriaLabel="Hopscotch search pseudocode"
+      caption={`Searching ${SEARCH_TARGETS.join(", ")} — lookups always look at at most ${
+        CAPACITY === 8 ? 4 : "H"
+      } slots`}
+      steps={steps}
+      source={hopscotchSearchPython}
+      initialSpeedMs={initialSpeedMs}
+      annotationFor={annotationFor}
+      counters={(visible) => [
+        { label: "Bits checked", value: countKind(visible, "check-bit") },
+        { label: "Found", value: countKind(visible, "found") },
+        { label: "Misses", value: countKind(visible, "miss") },
+      ]}
+      renderView={(currentStep) => (
         <HopscotchView
-          table={table}
-          highlights={highlights}
-          bitHighlights={bitHighlights}
-          activeHome={activeHome}
+          table={currentStep?.table ?? initial}
+          highlights={highlightsFor(currentStep)}
+          bitHighlights={bitHighlightsFor(currentStep)}
+          activeHome={activeHomeFor(currentStep)}
           className="w-full"
         />
-        <CodePanel
-          source={hopscotchSearchPython}
-          highlightedLines={currentStep?.codeLines}
-          language="python"
-          ariaLabel="Hopscotch search pseudocode"
-        />
-      </div>
-
-      <p
-        aria-live="polite"
-        className="min-h-[1.25rem] font-mono text-sm text-zinc-600 dark:text-zinc-400"
-      >
-        {annotation ?? "Idle — press play or step forward."}
-      </p>
-
-      <dl className="grid grid-cols-3 gap-3 text-sm">
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Bits checked</dt>
-          <dd className="font-mono text-lg">{bitChecks}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Found</dt>
-          <dd className="font-mono text-lg">{found}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Misses</dt>
-          <dd className="font-mono text-lg">{misses}</dd>
-        </div>
-      </dl>
-
-      <Controls
-        status={playback.status}
-        speed={playback.speed}
-        reducedMotion={reducedMotion}
-        canStepBack={playback.stepIndex > -1}
-        canStepForward={playback.stepIndex < steps.length - 1}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStepBack={playback.stepBackward}
-        onStepForward={playback.stepForward}
-        onReset={playback.reset}
-        onSpeedChange={playback.setSpeed}
-      />
-    </section>
+      )}
+    />
   );
 }

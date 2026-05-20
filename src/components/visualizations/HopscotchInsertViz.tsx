@@ -3,11 +3,9 @@
 import { useMemo } from "react";
 import { emptyHopscotchTable, hopscotchInsertSequence } from "@/lib/dataStructures/hopscotch";
 import { hopscotchInsertPython } from "@/lib/dataStructures/hopscotchInsert.snippet";
-import type { HopscotchInsertStep, HopscotchSnapshot } from "@/lib/dataStructures/types";
-import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { useStepThrough } from "@/lib/hooks/useStepThrough";
-import { CodePanel } from "./CodePanel";
-import { Controls } from "./Controls";
+import type { HopscotchInsertStep } from "@/lib/dataStructures/types";
+import { countKind } from "@/lib/stepCount";
+import { HashVizSection } from "./HashVizSection";
 import { HopscotchView, type HopscotchHighlight } from "./HopscotchView";
 
 const CAPACITY = 8;
@@ -83,106 +81,34 @@ function annotationFor(step: HopscotchInsertStep | undefined): string | null {
   }
 }
 
-function countScans(steps: readonly HopscotchInsertStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "scan") n++;
-  return n;
-}
-
-function countSwaps(steps: readonly HopscotchInsertStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "swap") n++;
-  return n;
-}
-
-function countPlaced(steps: readonly HopscotchInsertStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "place") n++;
-  return n;
-}
-
 export function HopscotchInsertViz({ initialSpeedMs = 450 }: HopscotchInsertVizProps) {
   const steps = useMemo<readonly HopscotchInsertStep[]>(
     () => [...hopscotchInsertSequence(INITIAL, INSERT_SEQUENCE)],
     [],
   );
 
-  const reducedMotion = useReducedMotion();
-  const playback = useStepThrough(steps, {
-    initialSpeed: initialSpeedMs,
-    reducedMotion,
-  });
-
-  const currentStep = playback.currentStep;
-  const table: HopscotchSnapshot = currentStep?.table ?? INITIAL;
-  const highlights = highlightsFor(currentStep);
-  const activeHome = activeHomeFor(currentStep);
-  const annotation = annotationFor(currentStep);
-
-  const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const scans = countScans(visibleSteps);
-  const swaps = countSwaps(visibleSteps);
-  const placed = countPlaced(visibleSteps);
-
   return (
-    <section
-      aria-label="Hopscotch insert"
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
-    >
-      <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Inserting {INSERT_SEQUENCE.join(", ")} into {CAPACITY} slots (neighborhood H = 4)
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
+    <HashVizSection
+      ariaLabel="Hopscotch insert"
+      codePanelAriaLabel="Hopscotch insert pseudocode"
+      caption={`Inserting ${INSERT_SEQUENCE.join(", ")} into ${CAPACITY} slots (neighborhood H = 4)`}
+      steps={steps}
+      source={hopscotchInsertPython}
+      initialSpeedMs={initialSpeedMs}
+      annotationFor={annotationFor}
+      counters={(visible) => [
+        { label: "Scans", value: countKind(visible, "scan") },
+        { label: "Swaps", value: countKind(visible, "swap") },
+        { label: "Placed", value: countKind(visible, "place") },
+      ]}
+      renderView={(currentStep) => (
         <HopscotchView
-          table={table}
-          highlights={highlights}
-          activeHome={activeHome}
+          table={currentStep?.table ?? INITIAL}
+          highlights={highlightsFor(currentStep)}
+          activeHome={activeHomeFor(currentStep)}
           className="w-full"
         />
-        <CodePanel
-          source={hopscotchInsertPython}
-          highlightedLines={currentStep?.codeLines}
-          language="python"
-          ariaLabel="Hopscotch insert pseudocode"
-        />
-      </div>
-
-      <p
-        aria-live="polite"
-        className="min-h-[1.25rem] font-mono text-sm text-zinc-600 dark:text-zinc-400"
-      >
-        {annotation ?? "Idle — press play or step forward."}
-      </p>
-
-      <dl className="grid grid-cols-3 gap-3 text-sm">
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Scans</dt>
-          <dd className="font-mono text-lg">{scans}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Swaps</dt>
-          <dd className="font-mono text-lg">{swaps}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Placed</dt>
-          <dd className="font-mono text-lg">{placed}</dd>
-        </div>
-      </dl>
-
-      <Controls
-        status={playback.status}
-        speed={playback.speed}
-        reducedMotion={reducedMotion}
-        canStepBack={playback.stepIndex > -1}
-        canStepForward={playback.stepIndex < steps.length - 1}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStepBack={playback.stepBackward}
-        onStepForward={playback.stepForward}
-        onReset={playback.reset}
-        onSpeedChange={playback.setSpeed}
-      />
-    </section>
+      )}
+    />
   );
 }

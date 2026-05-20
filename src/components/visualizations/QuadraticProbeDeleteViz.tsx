@@ -7,10 +7,8 @@ import {
 } from "@/lib/dataStructures/quadraticProbe";
 import { quadraticProbeDeletePython } from "@/lib/dataStructures/quadraticProbeDelete.snippet";
 import type { LinearProbeDeleteStep, LinearProbeSnapshot } from "@/lib/dataStructures/types";
-import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { useStepThrough } from "@/lib/hooks/useStepThrough";
-import { CodePanel } from "./CodePanel";
-import { Controls } from "./Controls";
+import { countKind } from "@/lib/stepCount";
+import { HashVizSection } from "./HashVizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 11;
@@ -70,24 +68,6 @@ function annotationFor(step: LinearProbeDeleteStep | undefined): string | null {
   }
 }
 
-function countRemoved(steps: readonly LinearProbeDeleteStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "tombstone") n++;
-  return n;
-}
-
-function countMisses(steps: readonly LinearProbeDeleteStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "miss") n++;
-  return n;
-}
-
-function countProbes(steps: readonly LinearProbeDeleteStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "probe") n++;
-  return n;
-}
-
 export function QuadraticProbeDeleteViz({ initialSpeedMs = 400 }: QuadraticProbeDeleteVizProps) {
   const initial = useMemo<LinearProbeSnapshot>(() => buildInitialTable(), []);
   const steps = useMemo<readonly LinearProbeDeleteStep[]>(
@@ -95,76 +75,27 @@ export function QuadraticProbeDeleteViz({ initialSpeedMs = 400 }: QuadraticProbe
     [initial],
   );
 
-  const reducedMotion = useReducedMotion();
-  const playback = useStepThrough(steps, {
-    initialSpeed: initialSpeedMs,
-    reducedMotion,
-  });
-
-  const currentStep = playback.currentStep;
-  const table = currentStep?.table ?? initial;
-  const highlights = highlightsFor(currentStep);
-  const annotation = annotationFor(currentStep);
-
-  const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const removed = countRemoved(visibleSteps);
-  const misses = countMisses(visibleSteps);
-  const probes = countProbes(visibleSteps);
-
   return (
-    <section
-      aria-label="Quadratic-probe delete"
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
-    >
-      <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Deleting {DELETE_TARGETS.join(", ")} from a {CAPACITY}-slot table
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
-        <LinearProbeView table={table} highlights={highlights} className="w-full" />
-        <CodePanel
-          source={quadraticProbeDeletePython}
-          highlightedLines={currentStep?.codeLines}
-          language="python"
-          ariaLabel="Quadratic-probe delete pseudocode"
+    <HashVizSection
+      ariaLabel="Quadratic-probe delete"
+      codePanelAriaLabel="Quadratic-probe delete pseudocode"
+      caption={`Deleting ${DELETE_TARGETS.join(", ")} from a ${CAPACITY}-slot table`}
+      steps={steps}
+      source={quadraticProbeDeletePython}
+      initialSpeedMs={initialSpeedMs}
+      annotationFor={annotationFor}
+      counters={(visible) => [
+        { label: "Probes", value: countKind(visible, "probe") },
+        { label: "Removed", value: countKind(visible, "tombstone") },
+        { label: "Misses", value: countKind(visible, "miss") },
+      ]}
+      renderView={(currentStep) => (
+        <LinearProbeView
+          table={currentStep?.table ?? initial}
+          highlights={highlightsFor(currentStep)}
+          className="w-full"
         />
-      </div>
-
-      <p
-        aria-live="polite"
-        className="min-h-[1.25rem] font-mono text-sm text-zinc-600 dark:text-zinc-400"
-      >
-        {annotation ?? "Idle — press play or step forward."}
-      </p>
-
-      <dl className="grid grid-cols-3 gap-3 text-sm">
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Probes</dt>
-          <dd className="font-mono text-lg">{probes}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Removed</dt>
-          <dd className="font-mono text-lg">{removed}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Misses</dt>
-          <dd className="font-mono text-lg">{misses}</dd>
-        </div>
-      </dl>
-
-      <Controls
-        status={playback.status}
-        speed={playback.speed}
-        reducedMotion={reducedMotion}
-        canStepBack={playback.stepIndex > -1}
-        canStepForward={playback.stepIndex < steps.length - 1}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStepBack={playback.stepBackward}
-        onStepForward={playback.stepForward}
-        onReset={playback.reset}
-        onSpeedChange={playback.setSpeed}
-      />
-    </section>
+      )}
+    />
   );
 }
