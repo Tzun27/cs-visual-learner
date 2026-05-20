@@ -114,9 +114,9 @@ export default function Home() {
 
       <section className="mt-20 border-t border-zinc-200 pt-8 text-sm text-zinc-500 dark:border-zinc-800">
         <p>
-          More on the way: data structures, dynamic programming, neural network forward passes,
-          eventually transformer attention. If you have a topic you&apos;d like to see, open an
-          issue.
+          Three pillars are live — sorting, data structures, and machine-learning intuitions — and
+          more lessons land in each as the project grows. If you have a topic you&apos;d like to
+          see, open an issue.
         </p>
       </section>
     </main>
