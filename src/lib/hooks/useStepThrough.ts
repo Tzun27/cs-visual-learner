@@ -47,7 +47,7 @@ const MIN_SPEED_MS = 16;
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "play":
-      if (state.status === "playing") return state;
+      if (state.status === "playing" || state.status === "done") return state;
       return { ...state, status: "playing" };
     case "pause":
       if (state.status !== "playing") return state;
