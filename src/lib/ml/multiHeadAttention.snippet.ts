@@ -25,7 +25,6 @@ export const multiHeadAttentionLines = {
   scale: [9],
   softmax: [10],
   weightedSum: [11],
-  appendHead: [13],
   concat: [15],
   projectOutput: [16],
   done: [16],
