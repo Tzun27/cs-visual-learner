@@ -18,5 +18,6 @@ export const pairingHeapMergeLines = {
   compareRoots: [4, 8],
   linkAFirst: [5, 6, 7],
   linkBFirst: [9, 10, 11],
-  done: [7],
+  returnAFirst: [7],
+  returnBFirst: [11],
 } as const;

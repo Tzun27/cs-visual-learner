@@ -75,7 +75,8 @@ export function* pairingHeapMergeSequence(
     yield {
       kind: "done",
       heap: snapshot(nodes, [...presentRoots]),
-      codeLines: pairingHeapMergeLines.done,
+      // merge(None, None): the `a is None` branch returns b (also None).
+      codeLines: pairingHeapMergeLines.emptyA,
     };
     return;
   }
@@ -108,11 +109,13 @@ export function* pairingHeapMergeSequence(
   const b = nodes[bRootId];
   let newRoot: number;
   let linkChild: number;
+  let doneLines: readonly number[];
   if (a.value <= b.value) {
     nodes[bRootId] = { ...b, nextSiblingId: a.firstChildId };
     nodes[aRootId] = { ...a, firstChildId: bRootId };
     newRoot = aRootId;
     linkChild = bRootId;
+    doneLines = pairingHeapMergeLines.returnAFirst;
     presentRoots.delete(bRootId);
     yield {
       kind: "link",
@@ -126,6 +129,7 @@ export function* pairingHeapMergeSequence(
     nodes[bRootId] = { ...b, firstChildId: aRootId };
     newRoot = bRootId;
     linkChild = aRootId;
+    doneLines = pairingHeapMergeLines.returnBFirst;
     presentRoots.delete(aRootId);
     yield {
       kind: "link",
@@ -139,7 +143,7 @@ export function* pairingHeapMergeSequence(
   yield {
     kind: "done",
     heap: snapshot(nodes, [...presentRoots]),
-    codeLines: pairingHeapMergeLines.done,
+    codeLines: doneLines,
   };
 }
 
