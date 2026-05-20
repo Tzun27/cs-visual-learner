@@ -1,3 +1,4 @@
+import { cloneMatrix } from "./attention";
 import { positionalEncodingLines } from "./positionalEncoding.snippet";
 import type { Matrix, PositionalEncodingSnapshot, PositionalEncodingStep } from "./types";
 
@@ -30,10 +31,6 @@ export function sinusoidalPE(numTokens: number, dModel: number): number[][] {
     }
   }
   return pe;
-}
-
-function cloneMatrix(m: Matrix): number[][] {
-  return m.map((row) => [...row]);
 }
 
 /**

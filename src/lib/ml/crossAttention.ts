@@ -1,4 +1,4 @@
-import { matmul, rowSoftmax, scaleMatrix, transpose } from "./attention";
+import { cloneMatrix, matmul, rowSoftmax, scaleMatrix, transpose } from "./attention";
 import { crossAttentionLines } from "./crossAttention.snippet";
 import type { CrossAttentionSnapshot, CrossAttentionStep, Matrix } from "./types";
 
@@ -13,10 +13,6 @@ export type CrossAttentionParams = {
   readonly wK: Matrix;
   readonly wV: Matrix;
 };
-
-function cloneMatrix(m: Matrix): number[][] {
-  return m.map((row) => [...row]);
-}
 
 /**
  * Encoder-decoder cross-attention as a step-through generator.

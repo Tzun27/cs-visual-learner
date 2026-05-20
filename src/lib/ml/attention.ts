@@ -165,6 +165,6 @@ export function* attentionSequence(params: AttentionParams): Generator<Attention
   yield { kind: "done", snapshot: emit("done"), codeLines: lines.done };
 }
 
-function cloneMatrix(m: Matrix): number[][] {
+export function cloneMatrix(m: Matrix): number[][] {
   return m.map((row) => [...row]);
 }

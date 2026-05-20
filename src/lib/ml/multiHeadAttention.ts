@@ -1,4 +1,4 @@
-import { matmul, rowSoftmax, transpose } from "./attention";
+import { cloneMatrix, matmul, rowSoftmax, scaleMatrix, transpose } from "./attention";
 import { multiHeadAttentionLines } from "./multiHeadAttention.snippet";
 import type { Matrix, MultiHeadAttentionSnapshot, MultiHeadAttentionStep } from "./types";
 
@@ -12,14 +12,6 @@ export type MultiHeadAttentionParams = {
   /** Output projection W_O, shape (h * d_v) × d_embed. */
   readonly wO: Matrix;
 };
-
-function cloneMatrix(m: Matrix): number[][] {
-  return m.map((row) => [...row]);
-}
-
-function scaleMatrix(a: Matrix, factor: number): number[][] {
-  return a.map((row) => row.map((v) => v * factor));
-}
 
 /**
  * Horizontal concatenation of two or more (n × d) matrices into an (n × Σd) matrix.
