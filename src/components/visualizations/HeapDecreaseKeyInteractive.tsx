@@ -14,6 +14,18 @@ import { TreeView, type TreeHighlight } from "./TreeView";
 // from "watch a trace" to "play with the data structure."
 const INITIAL_VALUES = [4, 9, 7, 13, 11, 8, 12] as const;
 
+/**
+ * Parse a strict whole number from the input draft. Returns null for anything
+ * that isn't an integer — `<input type="number">` accepts decimals and
+ * scientific notation, and `parseInt` would silently truncate them.
+ */
+function parseWholeNumber(draft: string): number | null {
+  const trimmed = draft.trim();
+  if (!/^-?\d+$/.test(trimmed)) return null;
+  const value = Number(trimmed);
+  return Number.isSafeInteger(value) ? value : null;
+}
+
 export type HeapDecreaseKeyInteractiveProps = {
   initialSpeedMs?: number;
 };
@@ -126,9 +138,9 @@ export function HeapDecreaseKeyInteractive({
       setError("Pick a node first.");
       return;
     }
-    const parsed = Number.parseInt(newValueDraft, 10);
-    if (!Number.isFinite(parsed)) {
-      setError("Enter a number for the new value.");
+    const parsed = parseWholeNumber(newValueDraft);
+    if (parsed === null) {
+      setError("Enter a whole number for the new value.");
       return;
     }
     if (parsed > effective.heap[selectedIndex]) {
@@ -151,11 +163,14 @@ export function HeapDecreaseKeyInteractive({
   // Animation in progress = playing or stepping a non-terminal step. Once
   // we hit `done`, the fieldset re-enables so the user can pick the next op.
   const animating = activeOp !== null && currentStep?.kind !== "done";
+  // The Run button reflects true runnability: a valid whole number that is an
+  // actual decrease. `handleRun` re-checks defensively against the committed heap.
+  const draftValue = parseWholeNumber(newValueDraft);
   const canRun =
     !animating &&
     selectedIndex !== null &&
-    newValueDraft.trim().length > 0 &&
-    Number.isFinite(Number.parseInt(newValueDraft, 10));
+    draftValue !== null &&
+    draftValue <= displayHeap.heap[selectedIndex];
 
   return (
     <section
