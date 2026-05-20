@@ -8,6 +8,6 @@ export const postorderPython = `def postorder(node):
 
 export const postorderLines = {
   begin: [1],
-  visit: [5],
+  visit: [6],
   done: [1],
 } as const;

@@ -8,6 +8,6 @@ export const inorderPython = `def inorder(node):
 
 export const inorderLines = {
   begin: [1],
-  visit: [4],
+  visit: [5],
   done: [1],
 } as const;
