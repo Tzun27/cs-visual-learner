@@ -101,4 +101,38 @@ test.describe("/lessons/ml/attention", () => {
     }
     await expect(region.getByText(/causal attention preserves/)).toBeVisible();
   });
+
+  test("cross-attention viz renders and Run to end reaches the done annotation", async ({
+    page,
+  }) => {
+    await page.goto("/lessons/ml/attention");
+    // Exact name — the CodePanel sibling is "Cross-attention pseudocode",
+    // so a loose regex would match two regions (strict-mode violation).
+    const region = page.getByRole("region", {
+      name: "Cross-attention visualization",
+      exact: true,
+    });
+    await expect(region).toBeVisible();
+    await expect(region.getByRole("button", { name: /Step forward/ })).toBeVisible();
+
+    await region.getByRole("button", { name: /Run to end/ }).click();
+    await expect(region.getByText(/decoder pulled context from the encoder/)).toBeVisible({
+      timeout: 30_000,
+    });
+  });
+
+  test("cross-attention step-forward through nine clicks ends at done", async ({ page }) => {
+    await page.goto("/lessons/ml/attention");
+    const region = page.getByRole("region", {
+      name: "Cross-attention visualization",
+      exact: true,
+    });
+    const stepForward = region.getByRole("button", { name: /Step forward/ });
+    // 9 steps: begin + Q/K/V (3) + scores + scale + softmax + weighted-sum + done.
+    for (let i = 0; i < 9; i++) {
+      if (!(await stepForward.isEnabled())) break;
+      await stepForward.click();
+    }
+    await expect(region.getByText(/decoder pulled context from the encoder/)).toBeVisible();
+  });
 });
