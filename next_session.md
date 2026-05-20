@@ -7,8 +7,8 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + eleven data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Double Hashing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, Hash Tables: Cuckoo Hashing insert/search/delete with eviction cascades, Cuckoo Filter insert/contains/delete with fingerprints + the XOR-trick alternate, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + **four ML-intuitions lessons (Gradient Descent, Backpropagation, Attention with positional encoding + causal masking, Multi-Head Attention)** with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 733 unit + 122 Playwright e2e (incl. 24 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + eleven data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Double Hashing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, Hash Tables: Cuckoo Hashing insert/search/delete with eviction cascades, Cuckoo Filter insert/contains/delete with fingerprints + the XOR-trick alternate, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + **four ML-intuitions lessons (Gradient Descent, Backpropagation, Attention with positional encoding + causal masking + encoder-decoder cross-attention, Multi-Head Attention)** with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 751 unit + 124 Playwright e2e (incl. 24 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
 
 Read these before writing code:
 
@@ -57,7 +57,7 @@ Read these before writing code:
 - **ML Intuitions pillar** at `/lessons/ml/*` — four lessons (Gradient Descent, Backpropagation, Attention, Multi-Head Attention), each with a `<MathLevel />` toggle at the top of the MDX that swaps prose between "Intuition" and "With math" modes while the viz stays constant. Toggle state persists across the pillar via `localStorage` (`ml.mathLevel` key) using `useSyncExternalStore`, same SSR-safe shape as `useReducedMotion`. Every lesson includes a Run-to-end button on `Controls` that snaps to the terminal under reduced motion or replays via the existing auto-advance timer otherwise.
   - **Gradient Descent** at `/lessons/ml/gradient-descent` — vanilla GD on the asymmetric bowl loss $f(w_1, w_2) = w_1^2 + 3w_2^2$ from start `(4, -2)`. Four learning-rate options (0.05 / 0.1 / 0.15 / 0.32 oscillates); the 0.32 case is right at the $\alpha > 1/3$ threshold where $|1 - 6\alpha|$ exceeds 1 along the $w_2$ axis. `ContourView` renders seven dashed level rings (level set $\{0.5, 2, 5, 10, 16, 22, 25\}$ — fitting in $[-5, 5] \times [-3, 3]$), the trajectory polyline, the current point (filled blue), and an optional gradient arrow pointing in the descent direction. Counters: Step / Loss / ‖∇L‖.
   - **Backpropagation** at `/lessons/ml/backprop` — one forward + one backward + one weight update on a fixed 2 → 2 → 1 ReLU MLP with MSE loss. Curated inputs `(1.0, 0.5)`, target `2.0`, both ReLUs alive — but tests cover the dead-ReLU branch via a separate parameter set. Ten step kinds (begin / forward-hidden ×2 / forward-output / compute-loss / backward-output / backward-hidden ×2 / apply-update / done) with branch-level codeLines per hiddenIndex. `NetworkView` paints the network as three columns of nodes with weighted edges; per-step highlights light up the path being computed; the loss readout, target, and per-node gradient labels appear once their phase is reached. Counters: Phase / Loss / y.
-  - **Attention** at `/lessons/ml/attention` — **three viz sections**: (1) single scaled dot-product attention head over 3 tokens (`t1, t2, t3`), $d_k = d_v = 2$, with hand-verified output $Y$ rows `(1.40, -0.20)`, `(1.40, 0.20)`, `(1.50, 0.00)`. Fixed projections: $W_Q$ identity, $W_K$ swap, $W_V = [[1,1],[1,-1]]$. Nine step kinds walk Q/K/V → $QK^T$ → scale → softmax → $AV$. (2) **Positional encoding** — `PositionalEncodingViz` walks the sinusoidal PE formula row-by-row on the same X, with a faded-and-dashed treatment for rows not yet computed; the `add` step shows $X + PE$ → $X'$ (hand-computed rows `[1, 1]`, `[0.84, 1.54]`, `[1.91, 0.58]`). (3) **Causal attention** — `CausalAttentionViz` reuses `attentionSequence({ mask: "causal" })` to fire an extra `mask-scores` step; the AttentionView's `showCausalMask` prop paints upper-triangle scaled-score cells with a red strikethrough overlay and renders post-mask values as `−∞`. Resulting attention is lower-triangular: row 0 = $[1, 0, 0]$, row 2 = $[0.25, 0.25, 0.50]$; $Y[0] = V[0]$ exactly. Counters per section: (1) Phase / Step, (2) Phase / PE rows ready / Step, (3) Phase / Step.
+  - **Attention** at `/lessons/ml/attention` — **four viz sections**: (1) single scaled dot-product attention head over 3 tokens (`t1, t2, t3`), $d_k = d_v = 2$, with hand-verified output $Y$ rows `(1.40, -0.20)`, `(1.40, 0.20)`, `(1.50, 0.00)`. Fixed projections: $W_Q$ identity, $W_K$ swap, $W_V = [[1,1],[1,-1]]$. Nine step kinds walk Q/K/V → $QK^T$ → scale → softmax → $AV$. (2) **Positional encoding** — `PositionalEncodingViz` walks the sinusoidal PE formula row-by-row on the same X, with a faded-and-dashed treatment for rows not yet computed; the `add` step shows $X + PE$ → $X'$ (hand-computed rows `[1, 1]`, `[0.84, 1.54]`, `[1.91, 0.58]`). (3) **Causal attention** — `CausalAttentionViz` reuses `attentionSequence({ mask: "causal" })` to fire an extra `mask-scores` step; the AttentionView's `showCausalMask` prop paints upper-triangle scaled-score cells with a red strikethrough overlay and renders post-mask values as `−∞`. Resulting attention is lower-triangular: row 0 = $[1, 0, 0]$, row 2 = $[0.25, 0.25, 0.50]$; $Y[0] = V[0]$ exactly. (4) **Cross-attention** — `CrossAttentionViz` + the new `crossAttentionSequence` generator and `CrossAttentionView` SVG: a 2-token decoder attends into a 3-token encoder, so Q is projected from the decoder while K/V come from the encoder, and the attention matrix is rectangular (2×3, not square). Hand-verified $A$ rows `[0.14, 0.28, 0.58]`, `[0.45, 0.11, 0.45]` and output $Y$ rows `(1.58, -0.14)`, `(1.45, 0.34)`. Counters per section: (1) Phase / Step, (2) Phase / PE rows ready / Step, (3) Phase / Step, (4) Phase / Step.
   - **Multi-Head Attention** at `/lessons/ml/multi-head-attention` — 2 heads, 3 tokens, $d_\text{embed} = 4$, $d_k = d_v = 2$. Reuses the single-head forward pass inside an outer head loop, then emits `concat-heads` and `project-output` steps for the $W_O$ projection. Eighteen steps total (begin + 7 per head × 2 + concat + project + done). Head 1's projections are identity-like so Q⁽¹⁾=K⁽¹⁾=V⁽¹⁾=X[:, :2]; head 2 swaps the first two dims for Q⁽²⁾ and uses an asymmetric $W_V$⁽²⁾ so Y⁽²⁾ carries a different numerical signature than Y⁽¹⁾. $W_O$ is identity in the demo (so final Y equals concat; lesson copy explains real $W_O$ is learned). `MultiHeadAttentionView` SVG renders four stacked bands — shared X, Head 1, Head 2, Combine (concat · $W_O$ = Y) — with the active head's band glowing orange. Counters: Phase / Active head / Step.
 - **Production landing** at `/` with embedded bubble-sort playground.
 - **Topic-grouped lesson index** at `/lessons` with live + coming-soon entries (Sorting / Data Structures / ML — all three pillars live; ML topic blurb mentions the math-level toggle in Unicode ∇L since the index is React, not MDX).
@@ -124,6 +124,7 @@ These are easy to miss and expensive to violate:
 51. **`AttentionView` rendering split: `showCausalMask` prop is independent of `snapshot.masked` presence.** The viz wants to preview the mask's effect _one beat before_ the mask-scores step fires (on the scale-scores step, the upper triangle gets a red strikethrough overlay so users can see "these cells are about to die"). Then on mask-scores and after, the panel reads from `snapshot.masked` and renders `-Infinity` as `−∞`. The `causalMaskOverlay` prop on the internal `MatrixPanel` does the upper-triangle strikethrough; the AttentionView's `scaledForPanel` resolution does the post-mask snapshot swap. Both layers needed — if you collapse them by deriving the overlay from `snapshot.masked` alone, the preview-before-mask beat disappears and users see scaled scores → masked scores as a sudden jump instead of a two-beat reveal.
 52. **Positional encoding's `revealedRows` snapshot field drives a faded/dashed treatment for unrevealed PE rows.** The PE matrix is shape-stable from the begin step (all zeros) and fills in row-by-row; `revealedRows` tells the view how many rows are "real" so the rest can render as dashed-outline cells with a `·` placeholder. This pattern is cleaner than the alternative ("only render rows 0..i") because the matrix doesn't visually reflow as rows appear. If you add a future viz that incrementally reveals a matrix (e.g., per-cell attention computation), prefer the same shape-stable-with-fade pattern over conditional row rendering.
 53. **`sinusoidalPE` uses `Math.floor(d/2)` with an explicit odd-d trailing-column branch for forward compatibility.** The lesson demo uses `d = 2`, so the odd branch is never exercised; the `/* v8 ignore next 3 */` annotation keeps coverage at 100% while documenting that the branch exists by design (real models use `d = 64`, `128`, etc., which are always even — but if someone uses the function with an odd `d` from a future viz, it should still produce sane output, not skip the final column).
+54. **Cross-attention is its own module (`crossAttention.ts`), not a `mask`-style parameter on `attentionSequence`.** Causal masking fit as an opt-in param (decision 50) because it keeps every matrix shape identical and just inserts one step. Cross-attention can't: it takes _two_ embedding matrices (decoder + encoder), the score/attention matrices become rectangular (decoder*n × encoder_n), the output row count tracks the decoder, and the snapshot needs both token-label sets — so it gets its own `CrossAttentionSnapshot` / `CrossAttentionStep` / `CrossAttentionParams` and a `CrossAttentionView`. It still \_reuses* `attentionSequence`'s exported `matmul` / `transpose` / `rowSoftmax` / `scaleMatrix` (`scaleMatrix` was newly exported for this) plus the now-exported `MatrixPanel` / `Heatmap` from `AttentionView`, so the arithmetic and cell rendering aren't duplicated. Rule of thumb for the next attention variant: one that preserves all shapes → param + new step kind (decision 50); one that changes shapes or input count → new module.
 
 ## Useful commands
 
@@ -174,8 +175,7 @@ User deferred this. When you do it:
 - **Pyodide-powered live Python execution** in the code panel. Run-this-snippet button under each viz, with the result rendered inline. Adds ~10 MB to the bundle and needs a web-worker lifecycle, so the v1 deliberately ships static snippets. The dual-track + hybrid-viz pattern proved itself; this is the next-level upgrade.
 - **Optimizer zoo** — momentum, RMSProp, Adam — each adds a few lines to the GD viz and a counter (running mean of gradients etc.). One lesson, four optimizer toggles.
 - **Loss-landscape playground.** Let users drag the start point on the GD viz and watch the trajectory change. v1 ships curated starts only.
-- **Encoder-decoder cross-attention** — where $Q$ comes from one sequence and $K, V$ come from another. The mechanism is identical except for the source split. Used in the original Transformer paper for translation; not used in decoder-only LLMs. Named in the multi-head lesson's "What's next" — now the highest-priority remaining ML follow-up.
-- **Rotary position embedding (RoPE)** — the modern alternative to sinusoidal positional encoding. Instead of adding PE to embeddings, RoPE _rotates_ Q and K vectors by position-dependent angles. Used in Llama, GPT-NeoX, PaLM. Could be a follow-on section in the attention lesson alongside the existing sinusoidal viz.
+- **Rotary position embedding (RoPE)** — the modern alternative to sinusoidal positional encoding, and now the highest-priority remaining ML follow-up. Instead of adding PE to embeddings, RoPE _rotates_ Q and K vectors by position-dependent angles. Used in Llama, GPT-NeoX, PaLM. Best shipped as a follow-on section in the attention lesson alongside the existing sinusoidal viz — the multi-head lesson's "What's next" already names it.
 
 ### Light follow-ups
 
@@ -321,6 +321,36 @@ If you need to make a focused change, these are the files that matter for each s
 
 ## What changed in the most recent session
 
+This session shipped **encoder-decoder cross-attention** as a fourth viz section appended to the existing `/lessons/ml/attention` page — the highest-priority ML pillar v2 follow-up. Five commits. The attention lesson now covers self-attention (plain + causal) _and_ cross-attention: queries from a decoder sequence, keys/values from an encoder sequence, producing a rectangular attention matrix. Chrome DevTools MCP verification on the live page confirmed every hand-computed value matches exactly, with zero console errors.
+
+| #   | subject                                                             |
+| --- | ------------------------------------------------------------------- |
+| 1   | `feat(ml)`: add crossAttentionSequence generator + tests            |
+| 2   | `feat(viz)`: add CrossAttentionView + CrossAttentionViz             |
+| 3   | `feat(lessons)`: add cross-attention section to attention lesson    |
+| 4   | `test(e2e)`: cover cross-attention viz section                      |
+| 5   | (Chrome DevTools MCP verification — no commit; verified in browser) |
+| 6   | `docs`: refresh next_session.md after cross-attention rollout       |
+
+Narrative summary:
+
+1. **Cross-attention is its own module, not a `mask`-style param** (commit 1) — see decision 54. `crossAttention.ts` exports `crossAttentionSequence`, a nine-step generator (begin → Q/K/V → scores → scale → softmax → weighted-sum → done) that projects Q from a decoder sequence and K/V from an encoder sequence. New `CrossAttentionSnapshot` / `CrossAttentionStep` / `CrossAttentionParams` types and a `crossAttention.snippet.ts`. Reuses `matmul` / `transpose` / `rowSoftmax` / `scaleMatrix` from `attention.ts` (`scaleMatrix` newly exported). 18 tests including the rectangular-shape invariant and a property that attention tracks decoder and encoder lengths independently across 1–3 token sequences.
+2. **CrossAttentionView + CrossAttentionViz** (commit 2). `CrossAttentionView` stacks a decoder band (token labels, X_dec, Q) over an encoder band (X_enc, K, V), with the rectangular attention heatmap to the right — decoder tokens label the rows, encoder tokens the columns. `MatrixPanel` and `Heatmap` were promoted to exports on `AttentionView` so the new view reuses the exact cell rendering instead of duplicating it. The viz drives a 2-decoder × 3-encoder demo.
+3. **Lesson MDX** (commit 3). New "Cross-attention: letting the decoder read the encoder" section between causal attention and "What's the point?", dual-track prose. Intuition mode uses the translation framing (encoder reads French, decoder generates English); math mode formalizes the $m \times n$ rectangular shape and shows the hand-verifiable demo numbers. Forward-pointers in the causal and multi-head sections updated — cross-attention is no longer a "what's next" item; RoPE took its slot in the multi-head lesson.
+4. **E2E** (commit 4). Two specs in `e2e/attention.spec.ts`: cross-attention Run-to-end reaches the done annotation, and step-forward through nine clicks reaches done. Region locator uses exact-string matching (decision 25 — the CodePanel sibling shares the "Cross-attention" prefix). Axe sweep on `/lessons/ml/attention` re-confirmed WCAG 2.1 AA.
+5. **Chrome DevTools MCP verification** (no commit). Loaded `/lessons/ml/attention`, stepped the cross-attention viz to completion, and read back the rendered SVG: Q `[[2,1],[0,2]]` (decoder-projected), K `[[0,1],[1,0],[1,1]]` / V `[[1,1],[1,-1],[2,0]]` (encoder-projected), attention `[[0.14,0.28,0.58],[0.45,0.11,0.45]]`, Y `[[1.58,-0.14],[1.45,0.34]]` — all match hand calculation. Zero console errors.
+6. **Doc refresh** (commit 6). This file.
+
+Test counts grew from **733 unit / 122 e2e (24 axe routes)** at session start to **751 unit / 124 e2e (24 axe routes)** at HEAD (+18 unit, +2 e2e, no new axe routes since `/lessons/ml/attention` was already in the sweep).
+
+One new load-bearing decision worth flagging for the next agent (pinned above as #54):
+
+- **Cross-attention is its own module, not an opt-in param on `attentionSequence`.** Causal masking fit as a param (decision 50) because it preserves every matrix shape; cross-attention changes them — two embedding inputs, rectangular score/attention matrices, output row count tracking the decoder — so it gets its own snapshot/step/params types and `CrossAttentionView`. It still reuses the exported `matmul` / `transpose` / `rowSoftmax` / `scaleMatrix` helpers and the now-exported `MatrixPanel` / `Heatmap`. Rule of thumb: a shape-preserving attention variant → param + new step kind; a shape-changing one → new module.
+
+---
+
+### Previous session
+
 This session shipped **causal masking + positional encoding** as two new viz sections appended to the existing `/lessons/ml/attention` page — the highest-priority ML pillar v2 follow-up. Seven commits. The attention lesson is no longer "permutation-equivariant by omission" — it now covers the two pieces every real transformer adds on top of the bare attention mechanism. Chrome DevTools MCP verification on the live page confirmed hand-computed PE values (sin/cos at positions 0/1/2) match exactly and the causal viz produces the expected lower-triangular attention matrix with $Y[0] = V[0]$.
 
 | #   | subject                                                             |
@@ -357,7 +387,7 @@ Four new load-bearing decisions worth flagging for the next agent (pinned above 
 
 ---
 
-### Previous session
+### Two sessions ago
 
 This session shipped the **Cuckoo Filter** lesson — the natural follow-on to last session's cuckoo-hashing lesson and the top entry in the previous "Suggested next features" list. Five commits. The cuckoo filter is the first **probabilistic** data structure in the project — it stores small fingerprints instead of full keys, accepting a tunable false-positive rate in exchange for a memory footprint roughly 4-10× smaller than storing keys. The load-bearing teaching moment is the symmetric XOR trick: `alt(slot, fp) = slot ⊕ hashFp(fp)` lets the eviction cascade compute a displaced fingerprint's other home from the fingerprint alone, no original-key bookkeeping needed.
 
@@ -387,7 +417,7 @@ Three cuckoo-filter-specific load-bearing decisions worth flagging for the next 
 
 ---
 
-### Two sessions ago
+### Three sessions ago
 
 This session shipped the **Hash Tables: Cuckoo Hashing** lesson — the headline open-addressing follow-up named in both the hopscotch and double-hashing lessons' "What's next," and the first hash-table lesson with a fundamentally different table layout. Five commits. Unlike quadratic / double / hopscotch which all reused `LinearProbeSnapshot` / `LinearProbeView`, cuckoo needed a brand-new snapshot type (two parallel `slotsA` / `slotsB` arrays, no tombstone state), a new step union (carrying a `CuckooSide` discriminator), and a new SVG primitive (`CuckooView` — two stacked rows with side labels).
 
@@ -411,7 +441,7 @@ Test counts grew from **622 unit / 105 e2e (22 axe routes)** at session start to
 
 ---
 
-### Three sessions ago
+### Four sessions ago
 
 This session shipped the **Multi-Head Attention** lesson — the obvious follow-up to the single-head attention lesson, and the first entry from the ML-pillar-v2 follow-up list. Four commits. The generator wraps the existing single-head forward pass in an outer head loop and adds `concat-heads` and `project-output` steps for the $W_O$ projection; the view is a new stacked-bands SVG that lights up whichever head's currently being computed.
 
@@ -438,7 +468,7 @@ Two small multi-head-specific decisions worth flagging for the next agent:
 
 ---
 
-### Four sessions ago
+### Five sessions ago
 
 This session shipped the **Hash Tables: Double Hashing** lesson — the fourth open-addressing variant in the data-structures track, completing the linear → quadratic → double-hashing trio. Five commits, no new product primitives — pure follow-on work that reuses the entire `LinearProbeSnapshot` / `LinearProbeView` infrastructure unchanged. The whole lesson is one new generator module + three viz compositions + one MDX page + one e2e spec.
 
@@ -464,7 +494,7 @@ New load-bearing decision #41 (pinned above in the decisions list) captures the 
 
 ---
 
-### Five sessions ago
+### Six sessions ago
 
 This session shipped the **ML Intuitions pillar v1** — three lessons (Gradient Descent → Backpropagation → Attention) with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button. The work followed the gated spec-driven-development flow: spec → plan → tasks → implementation. 17 implementation commits over four phases (A foundations, B GD, C backprop, D attention, E rollout) plus two fixes for a latent CSS-variable bug surfaced by Chrome DevTools MCP review.
 
@@ -514,13 +544,13 @@ A few small ML-pillar-specific decisions worth flagging for the next agent:
 
 ---
 
-### Six sessions ago
+### Seven sessions ago
 
 This session knocked out **six of the seven light follow-ups** that were queued at that time (the seventh, real-device Lighthouse, was blocked on the Vercel deploy). Eight commits landed, no new product features — pure cleanup, hardening, and one substantive refactor (hash-table set → map). The most important upshot is that `src/lib/dataStructures/` came under the same 100% coverage gate as `src/lib/algorithms/`, so future drift in the data-structures track is caught at CI time rather than during review. The refactor (commit 6 of that session) rebuilt the chaining hash table around `(key, value)` pairs and changed the third counter from "Duplicates" to "Overwrites" — production hash tables are maps, not sets.
 
 ---
 
-### Seven sessions ago
+### Eight sessions ago
 
 This session shipped **`decrease_key` on the heap lesson** — the remaining textbook heap operation called out in the prior session's "What you didn't see" list. The heap lesson now contains four viz sections (insert, heapify, extract-min, decrease-key); the "What you didn't see" copy rotates `decrease_key` out and adds heap-merge in its place. After all changes were committed and tests went green, I verified the new viz interactively in Chrome DevTools MCP — stepped through both ops, confirmed the tree mutations and highlight colors matched the algorithm trace, and confirmed zero console errors on the heap and linear-probing pages.
 
@@ -551,7 +581,7 @@ Test counts grew from **340 unit / 57 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Eight sessions ago
+### Nine sessions ago
 
 This session shipped **Robin Hood backshift deletion** as the natural counterpart to the Robin Hood insert section landed in the prior session. The linear-probing lesson now contains five viz sections (insert, search, delete, Robin Hood insert, Robin Hood delete) and the "What's next" list has rotated backshift deletion out (just shipped) and Hopscotch hashing in. Five commits landed:
 
@@ -575,7 +605,7 @@ Test counts grew from **330 unit / 56 e2e (incl. 9 axe routes)** at session star
 
 ---
 
-### Nine sessions ago
+### Ten sessions ago
 
 The prior session shipped the **Heaps & Priority Queues** lesson with three viz sections (insert, heapify, extract-min), the new **Hash Tables: Linear Probing** lesson with three viz sections (insert, search, delete), a fourth viz section in the linear-probing lesson for **Robin Hood probing**, and added a single-line "git commit discipline" rule to `AGENTS.md`. Commits landed in four phases — heap (insert + extract-min), heapify as an in-place extension, linear probing as a brand-new lesson, and Robin Hood as an in-place extension to it:
 
