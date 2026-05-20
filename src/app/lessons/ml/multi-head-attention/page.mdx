@@ -164,10 +164,11 @@ above is the entire "transformer" idea — everything else is engineering around
 
 ## What's next
 
-- **Causal masking + positional encoding** — both now covered in the
-  [attention lesson](/lessons/ml/attention). The mechanism inside multi-head is
-  unchanged: every head gets the same mask applied before its softmax, and the same
-  position vectors added to $X$ before the per-head projections run.
-- **Encoder-decoder cross-attention** — where $Q$ comes from one sequence and $K, V$ come
-  from another. The mechanism is identical except for the source split. Used in the
-  original Transformer paper for translation; not used in decoder-only LLMs like GPT.
+- **Causal masking, positional encoding, and cross-attention** — all three now covered in
+  the [attention lesson](/lessons/ml/attention). The mechanism inside multi-head is
+  unchanged: every head gets the same mask applied before its softmax, the same position
+  vectors added to $X$ before the per-head projections, and in cross-attention each head
+  simply routes its $Q$ from the decoder while $K, V$ come from the encoder.
+- **Rotary position embeddings (RoPE)** — the modern replacement for additive sinusoidal
+  encoding. Instead of adding a position vector to $X$, RoPE rotates each head's $Q$ and
+  $K$ by a position-dependent angle. Used in Llama, GPT-NeoX, and PaLM.

@@ -1,5 +1,6 @@
 import { AttentionViz } from "@/components/visualizations/AttentionViz";
 import { CausalAttentionViz } from "@/components/visualizations/CausalAttentionViz";
+import { CrossAttentionViz } from "@/components/visualizations/CrossAttentionViz";
 import { PositionalEncodingViz } from "@/components/visualizations/PositionalEncodingViz";
 import { MathLevel, IntuitionOnly, MathOnly } from "@/components/mdx/MathLevel";
 
@@ -112,8 +113,9 @@ See that lesson for the worked example with two heads, including hand-verifiable
 outputs. In real transformers the KQV matrices are low-rank decompositions:
 $d_k = d_{\text{embed}} / h$ for $h$ heads, so the total parameter count is the same as a
 single head with $d_k = d_{\text{embed}}$, just spread across more independent attention
-computations. The next two sections cover the other two pieces of every real transformer
-attention layer: positional encoding and causal masking.
+computations. The remaining sections cover three things layered on top of the bare
+mechanism: positional encoding, causal masking, and — for encoder-decoder models —
+cross-attention.
 
 </MathOnly>
 
@@ -256,7 +258,99 @@ $\Theta(n^2)$ matmuls (one per position) to $\Theta(1)$ matmuls of size $n \time
 In production decoder-only LMs (GPT family, Llama, Claude's underlying architecture)
 every attention layer is causal-masked. In encoder-decoder models (translation,
 summarization), the encoder layers use the un-masked attention from the previous section
-while the decoder layers use causal masking.
+while the decoder layers use causal masking — plus a cross-attention sub-layer that
+wires the two stacks together, which the next section covers.
+
+</MathOnly>
+
+## Cross-attention: letting the decoder read the encoder
+
+<CrossAttentionViz />
+
+<IntuitionOnly>
+
+Every attention computation so far — plain and causal — has each token attend **within
+its own sequence**. Cross-attention is the one place a transformer wires _two different
+sequences_ together.
+
+The classic setting is translation. An **encoder** reads the source sentence (say,
+French) and turns it into a sequence of vectors — a fixed "memory" of what was said. A
+**decoder** then generates the target sentence (English) one token at a time. Each time
+the decoder emits a word, it has to look back at the French sentence to decide _which
+source words matter right now_. "Which French word am I translating at this step?" is
+exactly an attention query.
+
+So cross-attention keeps the mechanism identical and changes only **where Q, K, and V
+come from**:
+
+- **Q comes from the decoder** — the sequence being generated asks the questions.
+- **K and V come from the encoder** — the sequence being read offers the answers.
+
+Because the two sequences can have different lengths, the attention matrix is no longer
+square. The demo has a 2-token decoder and a 3-token encoder, so the attention matrix is
+**2 × 3**: one row per decoder token, one column per encoder token. Row $d_1$ reads "how
+much should decoder token 1 draw from each of the three encoder tokens?" — and like every
+attention row, it sums to 1.
+
+Step through and watch the source split: **Q** lights up in the decoder band, **K** and
+**V** in the encoder band. Everything downstream — scores, scaling, softmax, weighted sum
+— is the exact arithmetic from the first viz on this page. Only the inputs were rerouted.
+
+Where it shows up: the original Transformer (the 2017 "Attention Is All You Need" paper
+was a _translation_ model) and modern encoder-decoder models like T5 and BART.
+Decoder-only LLMs — GPT, Llama, Claude's architecture — don't use cross-attention at all;
+they're pure self-attention with causal masking. Cross-attention is the signature of an
+encoder-decoder design.
+
+</IntuitionOnly>
+
+<MathOnly>
+
+Cross-attention takes **two** input sequences instead of one: a decoder (target) sequence
+$X_{\text{dec}} \in \mathbb{R}^{m \times d_{\text{embed}}}$ and an encoder (source)
+sequence $X_{\text{enc}} \in \mathbb{R}^{n \times d_{\text{embed}}}$. The query projection
+reads the decoder; the key and value projections read the encoder:
+
+$$
+Q = X_{\text{dec}} W_Q \in \mathbb{R}^{m \times d_k}, \quad
+K = X_{\text{enc}} W_K \in \mathbb{R}^{n \times d_k}, \quad
+V = X_{\text{enc}} W_V \in \mathbb{R}^{n \times d_v}
+$$
+
+$$
+A = \text{softmax}\!\left( \frac{Q K^\top}{\sqrt{d_k}} \right) \in \mathbb{R}^{m \times n},
+\quad Y = A V \in \mathbb{R}^{m \times d_v}
+$$
+
+The score and attention matrices are **rectangular** — $m \times n$, not square — and the
+output $Y$ has one row per decoder token. Plain self-attention is exactly the special case
+$X_{\text{dec}} = X_{\text{enc}}$ (so $m = n$).
+
+The demo uses $m = 2$ decoder tokens, $n = 3$ encoder tokens, and $d_k = d_v = 2$ with
+$W_Q = I$, $W_K$ the dimension-swap, and $W_V = \begin{bmatrix} 1 & 1 \\ 1 & -1 \end{bmatrix}$.
+The raw scores $S = Q K^\top$ come out as integers:
+
+$$
+S = \begin{bmatrix} 1 & 2 & 3 \\ 2 & 0 & 2 \end{bmatrix}
+$$
+
+After dividing by $\sqrt{2}$ and applying a row-wise softmax, the attention matrix is a
+distribution over the three encoder tokens on each decoder row:
+
+| A   |   e1 |   e2 |   e3 |
+| :-- | ---: | ---: | ---: |
+| d1  | 0.14 | 0.28 | 0.58 |
+| d2  | 0.45 | 0.11 | 0.45 |
+
+and the output is $Y \approx \begin{bmatrix} 1.58 & -0.14 \\ 1.45 & 0.34 \end{bmatrix}$ —
+one blended encoder value per decoder token.
+
+**Where this sits in a real model.** An encoder-decoder transformer (the original Vaswani
+et al. 2017 architecture, T5, BART) has three sub-layers per decoder block: _causal
+self-attention_ (the decoder attends to its own past, from the previous section), then
+_cross-attention_ (the decoder attends to the encoder memory computed once up front), then
+a feed-forward layer. Decoder-only LLMs drop the encoder and the cross-attention sub-layer
+entirely — every attention layer is causal self-attention.
 
 </MathOnly>
 
