@@ -1,19 +1,10 @@
 import type { MetadataRoute } from "next";
+import { liveLessonPaths } from "@/lib/lessons";
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
-const staticRoutes = [
-  "",
-  "/lessons",
-  "/lessons/sorting/bubble-sort",
-  "/lessons/sorting/heap-sort",
-  "/lessons/sorting/insertion-sort",
-  "/lessons/sorting/merge-sort",
-  "/lessons/sorting/quick-sort",
-  "/lessons/sorting/radix-sort",
-  "/lessons/sorting/compare",
-  "/lessons/data-structures/binary-search-tree",
-] as const;
+// Derived from the shared lesson registry so new lessons appear automatically.
+const staticRoutes: readonly string[] = ["", "/lessons", ...liveLessonPaths];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
