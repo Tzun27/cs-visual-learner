@@ -6,6 +6,7 @@ import { bstInsertPython } from "@/lib/dataStructures/insertSequence.snippet";
 import type { BstSnapshot, BstStep } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { countKind } from "@/lib/stepCount";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
@@ -72,18 +73,6 @@ function annotationFor(step: BstStep | undefined): string | null {
   }
 }
 
-function countCompares(steps: readonly BstStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "compare") n++;
-  return n;
-}
-
-function countPlaced(steps: readonly BstStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "place") n++;
-  return n;
-}
-
 export function BSTViz({ initialSource = "balanced", initialSpeedMs = 350 }: BSTVizProps) {
   const [source, setSource] = useState<SourceKind>(initialSource);
   const sequence = SEQUENCES[source];
@@ -102,8 +91,8 @@ export function BSTViz({ initialSource = "balanced", initialSpeedMs = 350 }: BST
   const annotation = annotationFor(currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const compares = countCompares(visibleSteps);
-  const placed = countPlaced(visibleSteps);
+  const compares = countKind(visibleSteps, "compare");
+  const placed = countKind(visibleSteps, "place");
   const depth = maxDepth(tree);
 
   const handleSourceChange = (next: SourceKind) => {

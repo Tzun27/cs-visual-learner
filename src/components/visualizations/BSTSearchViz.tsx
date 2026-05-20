@@ -6,6 +6,7 @@ import { bstSearchPython } from "@/lib/dataStructures/searchSequence.snippet";
 import type { BstSearchStep } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { countKind } from "@/lib/stepCount";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
@@ -57,24 +58,6 @@ function annotationFor(step: BstSearchStep | undefined): string | null {
   }
 }
 
-function countCompares(steps: readonly BstSearchStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "compare") n++;
-  return n;
-}
-
-function countFound(steps: readonly BstSearchStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "found") n++;
-  return n;
-}
-
-function countMisses(steps: readonly BstSearchStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "miss") n++;
-  return n;
-}
-
 export function BSTSearchViz({ initialSpeedMs = 350 }: BSTSearchVizProps) {
   const tree = useMemo(() => buildTree(BUILD_SEQUENCE), []);
   const steps = useMemo<readonly BstSearchStep[]>(
@@ -94,9 +77,9 @@ export function BSTSearchViz({ initialSpeedMs = 350 }: BSTSearchVizProps) {
   const annotation = annotationFor(currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const compares = countCompares(visibleSteps);
-  const found = countFound(visibleSteps);
-  const misses = countMisses(visibleSteps);
+  const compares = countKind(visibleSteps, "compare");
+  const found = countKind(visibleSteps, "found");
+  const misses = countKind(visibleSteps, "miss");
 
   return (
     <section

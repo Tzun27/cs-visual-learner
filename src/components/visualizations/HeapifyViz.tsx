@@ -6,6 +6,7 @@ import { heapifyPython } from "@/lib/dataStructures/heapify.snippet";
 import type { HeapifyStep, HeapSnapshot } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { countKind } from "@/lib/stepCount";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
@@ -78,24 +79,6 @@ function annotationFor(step: HeapifyStep | undefined): string | null {
   }
 }
 
-function countStartSifts(steps: readonly HeapifyStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "start-sift") n++;
-  return n;
-}
-
-function countCompares(steps: readonly HeapifyStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "compare-children") n++;
-  return n;
-}
-
-function countSwaps(steps: readonly HeapifyStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "swap-down") n++;
-  return n;
-}
-
 export function HeapifyViz({ initialSpeedMs = 350 }: HeapifyVizProps) {
   const steps = useMemo<readonly HeapifyStep[]>(() => [...heapifySequence(INPUT_VALUES)], []);
 
@@ -112,9 +95,9 @@ export function HeapifyViz({ initialSpeedMs = 350 }: HeapifyVizProps) {
   const annotation = annotationFor(currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const passes = countStartSifts(visibleSteps);
-  const compares = countCompares(visibleSteps);
-  const swaps = countSwaps(visibleSteps);
+  const passes = countKind(visibleSteps, "start-sift");
+  const compares = countKind(visibleSteps, "compare-children");
+  const swaps = countKind(visibleSteps, "swap-down");
 
   return (
     <section

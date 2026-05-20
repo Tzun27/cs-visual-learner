@@ -6,6 +6,7 @@ import { heapDecreaseKeyPython } from "@/lib/dataStructures/heapDecreaseKey.snip
 import type { HeapDecreaseKeyStep, HeapSnapshot } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { countKind } from "@/lib/stepCount";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
@@ -83,24 +84,6 @@ function annotationFor(step: HeapDecreaseKeyStep | undefined): string | null {
   }
 }
 
-function countCompares(steps: readonly HeapDecreaseKeyStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "compare-parent") n++;
-  return n;
-}
-
-function countSwaps(steps: readonly HeapDecreaseKeyStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "swap-up") n++;
-  return n;
-}
-
-function countOps(steps: readonly HeapDecreaseKeyStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "begin") n++;
-  return n;
-}
-
 export function HeapDecreaseKeyViz({ initialSpeedMs = 450 }: HeapDecreaseKeyVizProps) {
   const initialHeap = useMemo<HeapSnapshot>(() => buildHeap(DEMO_VALUES), []);
   const steps = useMemo<readonly HeapDecreaseKeyStep[]>(
@@ -121,9 +104,9 @@ export function HeapDecreaseKeyViz({ initialSpeedMs = 450 }: HeapDecreaseKeyVizP
   const annotation = annotationFor(currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const compares = countCompares(visibleSteps);
-  const swaps = countSwaps(visibleSteps);
-  const ops = countOps(visibleSteps);
+  const compares = countKind(visibleSteps, "compare-parent");
+  const swaps = countKind(visibleSteps, "swap-up");
+  const ops = countKind(visibleSteps, "begin");
 
   return (
     <section

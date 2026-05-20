@@ -6,6 +6,7 @@ import { bstDeletePython } from "@/lib/dataStructures/deleteSequence.snippet";
 import type { BstDeleteStep } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { countKind } from "@/lib/stepCount";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
@@ -84,24 +85,6 @@ function annotationFor(step: BstDeleteStep | undefined): string | null {
   }
 }
 
-function countCompares(steps: readonly BstDeleteStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "compare") n++;
-  return n;
-}
-
-function countSuccessorWalks(steps: readonly BstDeleteStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "find-successor") n++;
-  return n;
-}
-
-function countRemoved(steps: readonly BstDeleteStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "unlink") n++;
-  return n;
-}
-
 export function BSTDeleteViz({ initialSpeedMs = 450 }: BSTDeleteVizProps) {
   const tree = useMemo(() => buildTree(BUILD_SEQUENCE), []);
   const steps = useMemo<readonly BstDeleteStep[]>(
@@ -121,9 +104,9 @@ export function BSTDeleteViz({ initialSpeedMs = 450 }: BSTDeleteVizProps) {
   const annotation = annotationFor(currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const compares = countCompares(visibleSteps);
-  const successorWalks = countSuccessorWalks(visibleSteps);
-  const removed = countRemoved(visibleSteps);
+  const compares = countKind(visibleSteps, "compare");
+  const successorWalks = countKind(visibleSteps, "find-successor");
+  const removed = countKind(visibleSteps, "unlink");
 
   return (
     <section

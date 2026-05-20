@@ -6,6 +6,7 @@ import { heapExtractMinPython } from "@/lib/dataStructures/heapExtractMin.snippe
 import type { HeapExtractStep } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { countKind } from "@/lib/stepCount";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
@@ -81,24 +82,6 @@ function annotationFor(step: HeapExtractStep | undefined): string | null {
   }
 }
 
-function countExtracted(steps: readonly HeapExtractStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "take-root") n++;
-  return n;
-}
-
-function countCompares(steps: readonly HeapExtractStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "compare-children") n++;
-  return n;
-}
-
-function countSwaps(steps: readonly HeapExtractStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "swap-down") n++;
-  return n;
-}
-
 export function HeapExtractMinViz({ initialSpeedMs = 400 }: HeapExtractMinVizProps) {
   const initial = useMemo(() => buildHeap(INITIAL_VALUES), []);
   const steps = useMemo<readonly HeapExtractStep[]>(
@@ -119,9 +102,9 @@ export function HeapExtractMinViz({ initialSpeedMs = 400 }: HeapExtractMinVizPro
   const annotation = annotationFor(currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const extracted = countExtracted(visibleSteps);
-  const compares = countCompares(visibleSteps);
-  const swaps = countSwaps(visibleSteps);
+  const extracted = countKind(visibleSteps, "take-root");
+  const compares = countKind(visibleSteps, "compare-children");
+  const swaps = countKind(visibleSteps, "swap-down");
 
   const extractedValues = visibleSteps
     .filter((s): s is HeapExtractStep & { kind: "take-root" } => s.kind === "take-root")

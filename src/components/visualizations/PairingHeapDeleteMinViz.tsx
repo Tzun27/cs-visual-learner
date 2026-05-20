@@ -6,6 +6,7 @@ import { pairingHeapDeleteMinPython } from "@/lib/dataStructures/pairingHeapDele
 import type { PairingHeapDeleteMinStep, PairingHeapSnapshot } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { countKind } from "@/lib/stepCount";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { PairingHeapView, type PairingHeapHighlight } from "./PairingHeapView";
@@ -94,18 +95,6 @@ function annotationFor(step: PairingHeapDeleteMinStep | undefined): string | nul
   }
 }
 
-function countPairLinks(steps: readonly PairingHeapDeleteMinStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "pair-link") n++;
-  return n;
-}
-
-function countFoldLinks(steps: readonly PairingHeapDeleteMinStep[]): number {
-  let n = 0;
-  for (const s of steps) if (s.kind === "fold-link") n++;
-  return n;
-}
-
 export function PairingHeapDeleteMinViz({ initialSpeedMs = 500 }: PairingHeapDeleteMinVizProps) {
   const steps = useMemo<readonly PairingHeapDeleteMinStep[]>(
     () => [...pairingHeapDeleteMinSequence(INITIAL)],
@@ -121,8 +110,8 @@ export function PairingHeapDeleteMinViz({ initialSpeedMs = 500 }: PairingHeapDel
   const annotation = annotationFor(currentStep);
 
   const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const pairs = countPairLinks(visibleSteps);
-  const folds = countFoldLinks(visibleSteps);
+  const pairs = countKind(visibleSteps, "pair-link");
+  const folds = countKind(visibleSteps, "fold-link");
 
   return (
     <section

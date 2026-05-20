@@ -14,6 +14,7 @@ import { preorderPython } from "@/lib/dataStructures/preorderTraversal.snippet";
 import type { BstTraversalStep, TraversalMode } from "@/lib/dataStructures/types";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
+import { countKind } from "@/lib/stepCount";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
@@ -84,7 +85,7 @@ export function TreeTraversalViz({
   const sequence = currentStep?.sequence ?? [];
 
   const visited = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const visits = visited.filter((s) => s.kind === "visit").length;
+  const visits = countKind(visited, "visit");
   const total = tree.nodes.length;
 
   const handleModeChange = (next: TraversalMode) => {
