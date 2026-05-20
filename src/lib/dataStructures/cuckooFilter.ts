@@ -33,7 +33,7 @@ export function cuckooFilterHome(key: number, capacity: number): number {
 // (alt != slot). MUST be non-zero for every legal fp — a zero offset
 // would mean alt == slot, breaking the two-candidates guarantee.
 export function cuckooFilterHashFp(fingerprint: number, capacity: number): number {
-  // The factor 3 is coprime to 8, so this is a bijection on {1..7} → {1..7,4}.
+  // The factor 3 is coprime to 8, so this is a bijection on {1..7} → {1..7}.
   // For capacity 8 / FP_RANGE 7: outputs are {3, 6, 1, 4, 7, 2, 5} — all non-zero.
   return ((fingerprint * 3) % capacity) | 0;
 }
