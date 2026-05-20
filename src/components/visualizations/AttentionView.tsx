@@ -25,7 +25,11 @@ function fmt(v: number, digits = 2): string {
   return Number.isFinite(v) ? v.toFixed(digits) : "—";
 }
 
-function MatrixPanel({
+/**
+ * A labelled grid of numbers. Exported so sibling attention views
+ * (cross-attention, etc.) can reuse the exact same cell rendering.
+ */
+export function MatrixPanel({
   label,
   matrix,
   x,
@@ -112,7 +116,11 @@ function MatrixPanel({
   );
 }
 
-function Heatmap({
+/**
+ * A softmax-weight grid where cell opacity tracks the value. Exported so
+ * sibling attention views can reuse it for rectangular attention maps.
+ */
+export function Heatmap({
   label,
   matrix,
   x,
