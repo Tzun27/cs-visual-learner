@@ -9,6 +9,7 @@ export { backpropSequence, forwardLoss, type BackpropParams } from "./backprop";
 export { backpropLines, backpropPython } from "./backprop.snippet";
 export {
   attentionSequence,
+  cloneMatrix,
   matmul,
   rowSoftmax,
   scaleMatrix,
@@ -16,8 +17,21 @@ export {
   type AttentionParams,
 } from "./attention";
 export { attentionLines, attentionPython } from "./attention.snippet";
+export { causalAttentionLines, causalAttentionPython } from "./causalAttention.snippet";
 export { crossAttentionSequence, type CrossAttentionParams } from "./crossAttention";
 export { crossAttentionLines, crossAttentionPython } from "./crossAttention.snippet";
+export {
+  concatHorizontal,
+  multiHeadAttentionSequence,
+  type MultiHeadAttentionParams,
+} from "./multiHeadAttention";
+export { multiHeadAttentionLines, multiHeadAttentionPython } from "./multiHeadAttention.snippet";
+export {
+  positionalEncodingSequence,
+  sinusoidalPE,
+  type PositionalEncodingParams,
+} from "./positionalEncoding";
+export { positionalEncodingLines, positionalEncodingPython } from "./positionalEncoding.snippet";
 export type {
   AttentionPhase,
   AttentionSnapshot,
@@ -34,5 +48,12 @@ export type {
   GradientDescentSnapshot,
   GradientDescentStep,
   Matrix,
+  MultiHeadAttentionSnapshot,
+  MultiHeadAttentionStep,
+  MultiHeadHeadState,
+  MultiHeadPhase,
+  PositionalEncodingPhase,
+  PositionalEncodingSnapshot,
+  PositionalEncodingStep,
   StepBase,
 } from "./types";
