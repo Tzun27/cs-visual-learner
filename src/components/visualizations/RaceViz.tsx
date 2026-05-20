@@ -10,6 +10,7 @@ import {
 import type { SortStep } from "@/lib/algorithms/types";
 import { useParallelStepThrough } from "@/lib/hooks/useParallelStepThrough";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
+import { fnv1a, makeSeededArray } from "@/lib/seededArray";
 import { ArrayBars } from "./ArrayBars";
 import { Controls } from "./Controls";
 import { activeRangeFor, countCompares, countSwapsAndWrites, highlightsFor } from "./stepView";
@@ -24,28 +25,6 @@ export type RaceVizProps = {
 
 const DEFAULT_INITIAL: readonly SortAlgorithmKey[] = ["bubble", "merge", "quick"];
 
-function deterministicSeed(size: number, slots: readonly SortAlgorithmKey[]): number {
-  let h = 2166136261 >>> 0;
-  const key = `race:${size}:${slots.join(",")}`;
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h || 1;
-}
-
-function makeRandomArray(size: number, seed: number): number[] {
-  let s = seed;
-  const rand = () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0x100000000;
-  };
-  return Array.from({ length: size }, (_, i) => Math.floor(rand() * 90) + i + 1)
-    .map((value) => ({ value, key: rand() }))
-    .sort((a, b) => a.key - b.key)
-    .map((entry) => entry.value);
-}
-
 export function RaceViz({
   initial = DEFAULT_INITIAL,
   initialSize = 16,
@@ -57,9 +36,9 @@ export function RaceViz({
   const [size, setSize] = useState(initialSize);
   // Deterministic seed so SSR and first client paint agree on the input array.
   // User-driven size or algorithm changes happen post-hydration and may reseed.
-  const [seed, setSeed] = useState(() => deterministicSeed(initialSize, initial));
+  const [seed, setSeed] = useState(() => fnv1a(`race:${initialSize}:${initial.join(",")}`));
 
-  const input = useMemo(() => makeRandomArray(size, seed), [size, seed]);
+  const input = useMemo(() => makeSeededArray(size, seed), [size, seed]);
   const stepsList = useMemo<readonly (readonly SortStep[])[]>(
     () => algorithms.map((key) => [...sortAlgorithms[key](input)]),
     [algorithms, input],

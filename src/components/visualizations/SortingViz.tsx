@@ -10,6 +10,7 @@ import {
 import type { SortStep } from "@/lib/algorithms/types";
 import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
+import { fnv1a, makeSeededArray } from "@/lib/seededArray";
 import { ArrayBars } from "./ArrayBars";
 import { CodePanel } from "./CodePanel";
 import { Controls } from "./Controls";
@@ -23,28 +24,6 @@ export type SortingVizProps = {
   initialSpeedMs?: number;
 };
 
-function deterministicSeed(algorithm: string, size: number): number {
-  let h = 2166136261 >>> 0;
-  const key = `${algorithm}:${size}`;
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h || 1;
-}
-
-function makeRandomArray(size: number, seed: number): number[] {
-  let s = seed;
-  const rand = () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0x100000000;
-  };
-  return Array.from({ length: size }, (_, i) => Math.floor(rand() * 90) + i + 1)
-    .map((value) => ({ value, key: rand() }))
-    .sort((a, b) => a.key - b.key)
-    .map((entry) => entry.value);
-}
-
 export function SortingViz({
   algorithm,
   initialSize = 16,
@@ -56,10 +35,10 @@ export function SortingViz({
   // Deterministic initial seed so SSR and client hydration agree on the array.
   // We re-seed (with Math.random) only in response to user actions like resizing,
   // which happen post-hydration and are therefore safe.
-  const [seed, setSeed] = useState(() => deterministicSeed(algorithm, initialSize));
+  const [seed, setSeed] = useState(() => fnv1a(`${algorithm}:${initialSize}`));
 
   const algorithmFn = sortAlgorithms[algorithm];
-  const input = useMemo(() => makeRandomArray(size, seed), [size, seed]);
+  const input = useMemo(() => makeSeededArray(size, seed), [size, seed]);
   const steps = useMemo<readonly SortStep[]>(() => [...algorithmFn(input)], [algorithmFn, input]);
 
   const reducedMotion = useReducedMotion();
