@@ -9,6 +9,7 @@
 
   /* Color-blind safe palette (Wong, 2011). Verified for protan/deutan/tritan. */
   --bar-default: #94a3b8;
+  --bar-default-stroke: #475569;
   --bar-compare: #e69f00;
   --bar-compare-stroke: #ad7800;
   --bar-swap: #56b4e9;
@@ -25,6 +26,7 @@
   --background: #0a0a0a;
   --foreground: #ededed;
   --bar-default: #475569;
+  --bar-default-stroke: #94a3b8;
   --bar-compare: #f0b441;
   --bar-compare-stroke: #fbd281;
   --bar-swap: #7cc8f0;
