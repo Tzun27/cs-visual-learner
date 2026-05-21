@@ -352,6 +352,11 @@ Test counts are **unchanged at 751 unit / 124 e2e (24 axe routes)** — pure cle
 
 Three new load-bearing decisions, pinned above as #55–57: new hash-table vizes compose `HashVizSection`; shared SVG primitives live in `svgPrimitives.tsx`; `src/lib/lessons.ts` is the single lesson registry feeding both `/lessons` and the sitemap.
 
+**Two follow-ups landed after the audit** (both flagged by the audit as needing a product call, then approved):
+
+- **"Run to end" is now on every lesson, not just ML.** `useParallelStepThrough` gained a `runToCompletion()` (it previously lacked one), and `onRunToCompletion` is now passed by `SortingViz`, `RaceViz`, `HashVizSection` (all 22 hash wrappers), and the BST / heap / traversal / pairing vizes. Reduced-motion users get a one-click jump to the terminal state everywhere.
+- **ML lessons now use the shared `LessonArticle` prose shell.** `/lessons/ml/*` had no segment layout, so the four ML lessons rendered without Tailwind Typography. A new `src/app/lessons/ml/layout.tsx` fixes that — all three pillars now have a `layout.tsx` rendering `LessonArticle`.
+
 ---
 
 ### Previous session — encoder-decoder cross-attention
