@@ -139,6 +139,7 @@ export function HashVizSection<T extends { readonly codeLines?: readonly number[
         onStepBack={playback.stepBackward}
         onStepForward={playback.stepForward}
         onReset={playback.reset}
+        onRunToCompletion={playback.runToCompletion}
         onSpeedChange={playback.setSpeed}
       />
     </section>

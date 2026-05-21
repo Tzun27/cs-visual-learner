@@ -190,6 +190,7 @@ export function HeapExtractMinViz({ initialSpeedMs = 400 }: HeapExtractMinVizPro
         onStepBack={playback.stepBackward}
         onStepForward={playback.stepForward}
         onReset={playback.reset}
+        onRunToCompletion={playback.runToCompletion}
         onSpeedChange={playback.setSpeed}
       />
     </section>

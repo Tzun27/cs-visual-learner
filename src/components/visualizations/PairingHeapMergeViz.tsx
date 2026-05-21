@@ -136,6 +136,7 @@ export function PairingHeapMergeViz({ initialSpeedMs = 500 }: PairingHeapMergeVi
         onStepBack={playback.stepBackward}
         onStepForward={playback.stepForward}
         onReset={playback.reset}
+        onRunToCompletion={playback.runToCompletion}
         onSpeedChange={playback.setSpeed}
       />
     </section>

@@ -20,6 +20,7 @@ export type ParallelStepThroughApi = {
   stepBackward: () => void;
   reset: () => void;
   setSpeed: (ms: number) => void;
+  runToCompletion: () => void;
 };
 
 type State = {
@@ -35,7 +36,8 @@ type Action =
   | { type: "stepBackward" }
   | { type: "reset"; count: number }
   | { type: "setSpeed"; speed: number }
-  | { type: "syncTotals"; totals: readonly number[] };
+  | { type: "syncTotals"; totals: readonly number[] }
+  | { type: "jumpToEnd"; totals: readonly number[] };
 
 const DEFAULT_SPEED_MS = 250;
 const MIN_SPEED_MS = 16;
@@ -110,6 +112,10 @@ function reducer(state: State, action: Action): State {
       const allReset = indexes.every((v) => v === -1);
       return { ...state, indexes, status: allReset ? "idle" : state.status };
     }
+    case "jumpToEnd": {
+      const indexes = action.totals.map((t) => (t > 0 ? lastIndex(t) : -1));
+      return { ...state, indexes, status: "done" };
+    }
   }
 }
 
@@ -166,6 +172,15 @@ export function useParallelStepThrough(
     [totals.length],
   );
   const setSpeed = useCallback((ms: number) => dispatch({ type: "setSpeed", speed: ms }), []);
+  const runToCompletion = useCallback(() => {
+    if (reducedMotion) {
+      dispatch({ type: "jumpToEnd", totals });
+      return;
+    }
+    dispatch({ type: "play" });
+    // totals captured only for the reduced-motion jump; totalsKey guards re-creation
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reducedMotion, totalsKey]);
 
   return {
     status: state.status,
@@ -178,5 +193,6 @@ export function useParallelStepThrough(
     stepBackward,
     reset,
     setSpeed,
+    runToCompletion,
   };
 }

@@ -160,6 +160,7 @@ export function BSTDeleteViz({ initialSpeedMs = 450 }: BSTDeleteVizProps) {
         onStepBack={playback.stepBackward}
         onStepForward={playback.stepForward}
         onReset={playback.reset}
+        onRunToCompletion={playback.runToCompletion}
         onSpeedChange={playback.setSpeed}
       />
     </section>

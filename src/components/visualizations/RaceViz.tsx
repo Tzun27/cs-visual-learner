@@ -162,6 +162,7 @@ export function RaceViz({
         onStepBack={playback.stepBackward}
         onStepForward={playback.stepForward}
         onReset={playback.reset}
+        onRunToCompletion={playback.runToCompletion}
         onSpeedChange={playback.setSpeed}
         onArraySizeChange={handleSizeChange}
         minArraySize={minSize}

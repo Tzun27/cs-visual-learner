@@ -160,6 +160,7 @@ export function HeapDecreaseKeyViz({ initialSpeedMs = 450 }: HeapDecreaseKeyVizP
         onStepBack={playback.stepBackward}
         onStepForward={playback.stepForward}
         onReset={playback.reset}
+        onRunToCompletion={playback.runToCompletion}
         onSpeedChange={playback.setSpeed}
       />
     </section>
