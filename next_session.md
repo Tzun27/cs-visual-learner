@@ -9,6 +9,7 @@ Quick orientation for the next agent picking up this project.
 - **Branch:** `main`, tracking `origin/main`.
 - **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + eleven data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Double Hashing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, Hash Tables: Cuckoo Hashing insert/search/delete with eviction cascades, Cuckoo Filter insert/contains/delete with fingerprints + the XOR-trick alternate, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + **four ML-intuitions lessons (Gradient Descent, Backpropagation, Attention with positional encoding + causal masking + encoder-decoder cross-attention, Multi-Head Attention)** with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
 - **Test counts at HEAD:** 751 unit + 124 Playwright e2e (incl. 24 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
+- **Latest pass:** a codebase-wide audit + behaviour-preserving cleanup (18 commits) — see "What changed in the most recent session" below. No new lessons; D6 deploy is still the only open v1 item.
 
 Read these before writing code:
 
@@ -125,6 +126,9 @@ These are easy to miss and expensive to violate:
 52. **Positional encoding's `revealedRows` snapshot field drives a faded/dashed treatment for unrevealed PE rows.** The PE matrix is shape-stable from the begin step (all zeros) and fills in row-by-row; `revealedRows` tells the view how many rows are "real" so the rest can render as dashed-outline cells with a `·` placeholder. This pattern is cleaner than the alternative ("only render rows 0..i") because the matrix doesn't visually reflow as rows appear. If you add a future viz that incrementally reveals a matrix (e.g., per-cell attention computation), prefer the same shape-stable-with-fade pattern over conditional row rendering.
 53. **`sinusoidalPE` uses `Math.floor(d/2)` with an explicit odd-d trailing-column branch for forward compatibility.** The lesson demo uses `d = 2`, so the odd branch is never exercised; the `/* v8 ignore next 3 */` annotation keeps coverage at 100% while documenting that the branch exists by design (real models use `d = 64`, `128`, etc., which are always even — but if someone uses the function with an odd `d` from a future viz, it should still produce sane output, not skip the final column).
 54. **Cross-attention is its own module (`crossAttention.ts`), not a `mask`-style parameter on `attentionSequence`.** Causal masking fit as an opt-in param (decision 50) because it keeps every matrix shape identical and just inserts one step. Cross-attention can't: it takes _two_ embedding matrices (decoder + encoder), the score/attention matrices become rectangular (decoder*n × encoder_n), the output row count tracks the decoder, and the snapshot needs both token-label sets — so it gets its own `CrossAttentionSnapshot` / `CrossAttentionStep` / `CrossAttentionParams` and a `CrossAttentionView`. It still \_reuses* `attentionSequence`'s exported `matmul` / `transpose` / `rowSoftmax` / `scaleMatrix` (`scaleMatrix` was newly exported for this) plus the now-exported `MatrixPanel` / `Heatmap` from `AttentionView`, so the arithmetic and cell rendering aren't duplicated. Rule of thumb for the next attention variant: one that preserves all shapes → param + new step kind (decision 50); one that changes shapes or input count → new module.
+55. **New hash-table viz sections compose `HashVizSection`, not a hand-rolled shell.** The 22 hash wrappers (`HashTable*`, `LinearProbe*`, `QuadraticProbe*`, `DoubleHash*`, `Hopscotch*`, `RobinHood*`, `Cuckoo*`, `CuckooFilter*`) each shed ~75 lines of identical boilerplate — the `<section>` / responsive-grid / `CodePanel` / aria-live / `<dl>` / `<Controls>` shell now lives in `HashVizSection.tsx`. A wrapper supplies: curated input + `highlightsFor`/`annotationFor` switches, `caption`, `ariaLabel`/`codePanelAriaLabel` (exact strings — decision 25), a `renderView(currentStep)` closure (View prop shapes are incompatible across families, so a render-prop is used, not a string registry), and a `counters(visibleSteps)` function (the `<dl>` grid columns derive from its length). These wrappers deliberately do NOT pass `onRunToCompletion` — preserve that. Don't reintroduce the per-wrapper shell.
+56. **Shared SVG view primitives live in `svgPrimitives.tsx`.** `fmt` (finite-number formatter), `slotHighlightPalette` + `cuckooKindLabel`, `SlotRect`/`slotCellStyle` (the slot-cell `<rect>` shared by the four open-addressing views), and `MatrixPanel`/`Heatmap` are exported there. `AttentionView` re-exports `MatrixPanel`/`Heatmap` so `CrossAttentionView`'s `./AttentionView` import path (decision 54) still resolves. `LinearProbeView` and `HopscotchView` keep their own `kindLabel` — the wording genuinely differs, so only the cuckoo pair's record was shared. Reuse these rather than re-inlining; SVG output must stay pixel-identical.
+57. **`src/lib/lessons.ts` is the single source of truth for the lesson catalog.** Both `/lessons` (the index page) and `sitemap.ts` derive from its `topics` array (`liveLessonPaths` is the flattened route list) — adding a lesson there puts it in the sitemap automatically. Never hardcode routes in `sitemap.ts` again. The other audit-pass shared utils: `countKind` (`src/lib/stepCount.ts`) and `fnv1a`/`makeSeededArray` (`src/lib/seededArray.ts`).
 
 ## Useful commands
 
@@ -214,6 +218,7 @@ src/app/                            App Router routes
 src/components/
   layout/{Nav,Footer,ThemeToggle}.tsx
   providers.tsx                     next-themes wrapper
+  LessonArticle.tsx                 Shared `prose` article shell for the lesson layouts
   visualizations/
     ArrayBars.tsx                   SVG presentational (sort viz)
     TreeView.tsx                    SVG presentational (tree viz)
@@ -261,8 +266,13 @@ src/components/
     PairingHeapMergeViz.tsx         Pairing-heap merge composition (compare-roots + link demo)
     PairingHeapDeleteMinViz.tsx     Pairing-heap delete-min composition (two-pass merge with pair + fold counters)
     stepView.ts                     Shared step→highlight + counter helpers (sort)
+    HashVizSection.tsx              Config-driven shell composed by all 22 hash-table viz wrappers (decision 55)
+    svgPrimitives.tsx               Shared SVG primitives: fmt, slot palette, SlotRect, MatrixPanel, Heatmap (decision 56)
 
 src/lib/
+  lessons.ts                        Lesson catalog registry — consumed by /lessons + sitemap.ts (decision 57)
+  stepCount.ts                      Generic countKind step counter
+  seededArray.ts                    fnv1a + makeSeededArray (deterministic SortingViz/RaceViz input)
   algorithms/
     types.ts                        SortStep discriminated union (with optional codeLines via StepBase)
     index.ts                        String-keyed registry + labels + sortAlgorithmSnippets registry
@@ -313,13 +323,38 @@ docs/                               SPEC, PLAN, TASKS
 If you need to make a focused change, these are the files that matter for each subsystem. Read them in this order to come up to speed quickly.
 
 - **Add a new sorting algorithm:** `src/lib/algorithms/types.ts` (step union, add a variant if needed) → write `src/lib/algorithms/foo.snippet.ts` → write `src/lib/algorithms/foo.ts` (the generator) → register in `src/lib/algorithms/index.ts` → write `tests/algorithms/foo.test.ts` (100% coverage required) → create `src/app/lessons/sorting/foo-sort/page.mdx` → add to `src/app/lessons/page.tsx` lessons array → add e2e to `e2e/lessons.spec.ts`'s array.
-- **Add a new BST or hash-table or heap operation:** `src/lib/dataStructures/types.ts` (step union) → write `*.snippet.ts` → extend `binarySearchTree.ts` or `hashTable.ts` or `heap.ts` with a generator → write tests in `tests/dataStructures/*.test.ts` → wire up a new `*Viz.tsx` composition next to the existing ones → render it on the lesson MDX.
+- **Add a new BST or hash-table or heap operation:** `src/lib/dataStructures/types.ts` (step union) → write `*.snippet.ts` → extend `binarySearchTree.ts` or `hashTable.ts` or `heap.ts` with a generator → write tests in `tests/dataStructures/*.test.ts` → wire up a new `*Viz.tsx` composition next to the existing ones (hash-table-family vizes compose `HashVizSection` — decision 55) → render it on the lesson MDX.
 - **Add a new data-structure lesson from scratch:** Mirror Hash Tables. New `*.snippet.ts` per operation + new generator file + new `*View.tsx` presentational primitive (if existing primitives don't fit) + per-operation `*Viz.tsx` compositions + lesson MDX + lessons-index entry (`status: "live"`, set `slug`) + e2e spec + add the route to `e2e/a11y.spec.ts` route list.
 - **Touch the CodePanel:** `src/components/visualizations/CodePanel.tsx` + `tests/components/CodePanel.test.tsx`. Decisions 17–21 cover the load-bearing constraints (lazy Shiki, focusable scroll region, line-number contrast, `not-prose`, scroll math, soft-wrap hanging indent).
 - **Touch the TreeView SVG:** `src/components/visualizations/TreeView.tsx`. Highlight palette uses `--bar-compare / swap / pivot` CSS vars defined in `src/app/globals.css` (light + dark variants). Reused by BST insert/search/delete vizes, TreeTraversalViz, **and all three heap vizes via `heapToTree`** — exercise all eight before merging.
 - **Touch the LinearProbeView SVG:** `src/components/visualizations/LinearProbeView.tsx`. Different layout philosophy from `HashTableView`: single horizontal row of fixed-size cells (no chains), each cell has three visual states (empty=dashed, tombstone=× marks, occupied=key). Four viz compositions consume it (`LinearProbe{Insert,Search,Delete}Viz` and `RobinHoodInsertViz`). The ×-mark glyph for tombstones is constructed from two SVG lines, not a Unicode character — don't replace with `<text>✗</text>` without checking the centering math. The `showDisplacements` prop renders a small "+N" badge below each key — only the Robin Hood viz turns it on.
 
 ## What changed in the most recent session
+
+This session was a **codebase-wide audit and cleanup pass** — no new lessons. Eight read-only audit agents reviewed every part of the repo through the `code-review-and-quality` / `code-simplification` lenses; the findings were then fixed and the duplication refactors landed. **18 commits, all behaviour-preserving.** The 751 unit + 124 e2e tests and the typecheck/lint gates were green before and after; two fresh-eyes review agents approved the refactors; Chrome DevTools MCP re-verified every fix in the live browser with zero console errors.
+
+### Bug fixes
+
+- **`--bar-default-stroke` was never defined** — 10 SVG label references (slot indices, tombstone × marks, fingerprint labels, displacement badges) fell back to black, invisible in dark mode. Now defined in `globals.css` for both themes.
+- **inorder/postorder `visit` line maps were off-by-one** — the tree-traversal lesson highlighted the recursion call instead of `visit(node)`. Both snippet maps corrected.
+- **`sitemap.ts` listed 9 of ~26 routes** — every data-structures lesson except BST and the entire ML pillar were missing. Now derived from the new `src/lib/lessons.ts` registry.
+- **`HeapDecreaseKeyInteractive` accepted non-integers** — `parseInt` truncated `"3.9"` → `3`, and the Run button skipped the `≤ current` check. A strict `parseWholeNumber` now gates both `canRun` and `handleRun`.
+- Smaller: dropped a dead `appendHead` line-map key, guarded `useStepThrough`'s `play` against `done`, fixed pairing-heap snippet line maps (merge `done` is now branch-aware), a garbled `cuckooFilter` comment, stale landing copy, and completed the `ml/index.ts` barrel.
+
+### Refactors (behaviour-preserving)
+
+- **`HashVizSection`** (decision 55) — the 22 hash-table viz wrappers each carried ~75 lines of byte-identical hook-wiring + JSX shell. One config-driven component now owns the shell; net **−1,330 lines**.
+- **`svgPrimitives.tsx`** (decision 56) — extracted the shared `fmt`, slot highlight palette, slot-cell `<rect>`, and `MatrixPanel`/`Heatmap` (moved out of `AttentionView`, which re-exports them). Removed the four-way `fmt` copy and MultiHeadAttentionView's ~155-line private MatrixPanel/Heatmap.
+- **`countKind`** (`src/lib/stepCount.ts`) — one generic step counter replaced ~24 hand-rolled per-wrapper `countX` functions.
+- Shared **`seededArray.ts`** (`fnv1a` + `makeSeededArray`, was duplicated in SortingViz/RaceViz), shared **`LessonArticle`** (the two lesson layouts were byte-identical), and exported **`snapshot`/`TOMBSTONE`** from `linearProbe.ts` for quadratic/double/robinHood to reuse.
+
+Test counts are **unchanged at 751 unit / 124 e2e (24 axe routes)** — pure cleanup, no behaviour added, so no new tests; the existing suites were the regression net and stayed green throughout.
+
+Three new load-bearing decisions, pinned above as #55–57: new hash-table vizes compose `HashVizSection`; shared SVG primitives live in `svgPrimitives.tsx`; `src/lib/lessons.ts` is the single lesson registry feeding both `/lessons` and the sitemap.
+
+---
+
+### Previous session — encoder-decoder cross-attention
 
 This session shipped **encoder-decoder cross-attention** as a fourth viz section appended to the existing `/lessons/ml/attention` page — the highest-priority ML pillar v2 follow-up. Five commits. The attention lesson now covers self-attention (plain + causal) _and_ cross-attention: queries from a decoder sequence, keys/values from an encoder sequence, producing a rectangular attention matrix. Chrome DevTools MCP verification on the live page confirmed every hand-computed value matches exactly, with zero console errors.
 
@@ -349,7 +384,7 @@ One new load-bearing decision worth flagging for the next agent (pinned above as
 
 ---
 
-### Previous session
+### Earlier session — causal masking + positional encoding
 
 This session shipped **causal masking + positional encoding** as two new viz sections appended to the existing `/lessons/ml/attention` page — the highest-priority ML pillar v2 follow-up. Seven commits. The attention lesson is no longer "permutation-equivariant by omission" — it now covers the two pieces every real transformer adds on top of the bare attention mechanism. Chrome DevTools MCP verification on the live page confirmed hand-computed PE values (sin/cos at positions 0/1/2) match exactly and the causal viz produces the expected lower-triangular attention matrix with $Y[0] = V[0]$.
 
