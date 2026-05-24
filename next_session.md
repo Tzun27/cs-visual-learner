@@ -7,9 +7,9 @@ Quick orientation for the next agent picking up this project.
 - **Repo:** https://github.com/Tzun27/cs-visual-learner (public, owner Tzun27)
 - **Local path:** `/home/tzun/repos/cs-visual-learner`
 - **Branch:** `main`, tracking `origin/main`.
-- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + eleven data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Double Hashing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, Hash Tables: Cuckoo Hashing insert/search/delete with eviction cascades, Cuckoo Filter insert/contains/delete with fingerprints + the XOR-trick alternate, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min) + **four ML-intuitions lessons (Gradient Descent, Backpropagation, Attention with positional encoding + causal masking + encoder-decoder cross-attention, Multi-Head Attention)** with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
-- **Test counts at HEAD:** 751 unit + 124 Playwright e2e (incl. 24 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
-- **Latest pass:** a codebase-wide audit + behaviour-preserving cleanup (18 commits) — see "What changed in the most recent session" below. No new lessons; D6 deploy is still the only open v1 item.
+- **Status:** v1 shipped + three post-v1 sorts (insertion, heap, radix) + side-by-side compare page + thirteen data-structures lessons (BST insert/search/delete, Hash Tables: Separate Chaining add/contains/remove, Hash Tables: Linear Probing insert/search/delete + Robin Hood insert/backshift-delete, Hash Tables: Quadratic Probing insert/search/delete, Hash Tables: Double Hashing insert/search/delete, Hash Tables: Hopscotch insert + search with hop-bit lookups, Hash Tables: Cuckoo Hashing insert/search/delete with eviction cascades, Cuckoo Filter insert/contains/delete with fingerprints + the XOR-trick alternate, **Bloom Filter insert/contains with the bit-sharing + false-positive demo**, Tree Traversal in four orders, Min-heap insert/heapify/extract-min/decrease-key + interactive decrease_key playground, Pairing Heap merge + delete-min, **Fibonacci Heap insert/extract-min with consolidate + decrease-key with cascading cut**) + **four ML-intuitions lessons (Gradient Descent, Backpropagation, Attention with positional encoding + causal masking + encoder-decoder cross-attention, Multi-Head Attention)** with a dual-track `<MathLevel />` prose toggle and a run-to-completion trajectory button + Python code panel synchronized with every visualization. Not yet deployed.
+- **Test counts at HEAD:** 826 unit + 135 Playwright e2e (incl. 26 axe-core a11y routes) — all green. Vitest 100% coverage gate enforced for `src/lib/algorithms/`, `src/lib/dataStructures/`, and `src/lib/ml/`.
+- **Latest pass:** added **Bloom Filter** and **Fibonacci Heap** lessons across six commits — see "What changed in the most recent session" below. D6 deploy is still the only open v1 item.
 
 Read these before writing code:
 
@@ -66,7 +66,7 @@ Read these before writing code:
 - **Class-based dark mode** via `next-themes` + Tailwind v4 `@variant dark`.
 - **a11y:** WCAG 2.1 AA verified by axe-core in CI; `role="toolbar"`, `aria-pressed` on play/pause, color-blind safe palette (Wong 2011) with shape redundancy, reduced-motion support throughout.
 - **SEO:** `metadataBase`, OG/Twitter metadata, edge-runtime OG image at `/opengraph-image.png`, `sitemap.xml`, `robots.txt`.
-- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/` + `src/lib/dataStructures/` + `src/lib/ml/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + quadratic-probing + double-hashing + hopscotch + cuckoo-hashing + cuckoo-filter + pairing-heap + tree-traversal 4-mode + heap insert/heapify/extract-min + ML gradient-descent / backprop / attention / multi-head-attention + axe sweep across 24 routes).
+- **CI:** GitHub Actions runs lint/typecheck/format-check, unit + property tests with 100% coverage on `src/lib/algorithms/` + `src/lib/dataStructures/` + `src/lib/ml/`, production build, and Playwright e2e (smoke + per-algorithm sort lessons + compare + BST insert/search/delete + hash-table-chaining add/contains/remove + hash-table-linear-probing insert/search/delete + quadratic-probing + double-hashing + hopscotch + cuckoo-hashing + cuckoo-filter + bloom-filter + pairing-heap + fibonacci-heap + tree-traversal 4-mode + heap insert/heapify/extract-min + ML gradient-descent / backprop / attention / multi-head-attention + axe sweep across 26 routes).
 
 ## Architectural load-bearing decisions
 
@@ -166,10 +166,9 @@ User deferred this. When you do it:
 
 ### Suggested next features
 
-- **Bloom filter** (probabilistic set, no delete support). The direct point of comparison for the just-shipped cuckoo filter. Multi-hash design, false-positive rate tunable via filter size + hash count, the classic baseline that cuckoo filters explicitly improve on. Named in both the cuckoo-hashing and cuckoo-filter "What's next."
-- **Counting Bloom filter.** Bloom filter with delete support, at the cost of using counters instead of bits. Different shape of the same trade-off cuckoo filters made. One lesson page, two viz sections (count-up insert + count-down delete).
+- **Counting Bloom filter.** Bloom filter with delete support, at the cost of using counters instead of bits. Different shape of the same trade-off cuckoo filters made. One lesson page, two viz sections (count-up insert + count-down delete). Named in the cuckoo-filter and just-shipped Bloom-filter "What's next."
 - **Bucketized / $d$-way cuckoo.** The cuckoo-hashing lesson notes that pure 2-way 1-key-per-slot caps out at ~50% load factor; $d = 4$ raises it to ~95%, and packing $b$ keys per slot makes a single cache line hold the entire candidate bucket. Would be a follow-on viz on the same lesson page, not a new lesson.
-- **Fibonacci heap** as the third heap-merge variant. Same lazy-merge idea as pairing, more bookkeeping, $O(1)$ amortized decrease-key. Often quoted in Dijkstra/MST analysis. The pairing-heap lesson's "What's next" mentions it.
+- **Rank-pairing or strict-Fibonacci heap.** Either is a natural follow-on now that Fibonacci itself has shipped. Rank-pairing (Haeupler-Sen-Tarjan 2009) achieves the same bounds with simpler proofs; strict Fibonacci (Brodal-Lagogiannis-Tarjan 2012) gives $O(1)$ _worst-case_ decrease-key. Both named in the Fibonacci-heap "What's next."
 - **Leftist or skew heap.** Lighter-weight than Fibonacci, similar merge-first design. Either fits in a single lesson page.
 - **Language toggle on the code panel.** All snippets are Python today. Adding TypeScript (the actual generator source) or another teaching language would re-tokenize on toggle and roughly double the snippet-authoring work per algorithm. The pieces are in place: `CodePanel` already accepts a `language` prop and Shiki supports many languages — what's missing is a per-algorithm registry of `{ python: source, typescript: source }` and matching line-number maps.
 - **Handle-based decrease_key on the binary heap.** The current interactive decrease_key viz takes an index, but production Dijkstra uses an entry handle that survives swaps via a side index map. Build that side-map as a small playground showing how the indirection works.
@@ -209,9 +208,11 @@ src/app/                            App Router routes
     hopscotch/page.mdx              Open-addressing hash table with bounded-H hop bitmask
     cuckoo-hashing/page.mdx         Two-table cuckoo with eviction cascades: insert + search + delete
     cuckoo-filter/page.mdx          Probabilistic set: fingerprints + XOR-trick alternate + the false-positive demo
+    bloom-filter/page.mdx           Probabilistic set: bit array + k hash functions, no false negatives, no delete
     tree-traversal/page.mdx         Preorder / inorder / postorder / level-order
     heap/page.mdx                   Min-heap insert (siftUp) + heapify + extract-min + decrease-key + interactive playground
     pairing-heap/page.mdx           Multi-way-tree min-heap: O(1) merge + two-pass delete-min
+    fibonacci-heap/page.mdx         Lazy O(1) insert + consolidate extract-min + cascading-cut decrease-key
   opengraph-image.tsx               Edge-runtime OG card (1200x630)
   sitemap.ts, robots.ts             SEO
 
@@ -256,6 +257,13 @@ src/components/
     CuckooFilterInsertViz.tsx       Cuckoo filter insert composition (XOR-trick alternate + cascade)
     CuckooFilterSearchViz.tsx       Cuckoo filter contains composition (curated false-positive demo + False+ counter)
     CuckooFilterDeleteViz.tsx       Cuckoo filter delete composition (just clear — see prose for delete-safety pitfall)
+    BloomFilterView.tsx             SVG presentational for Bloom filter — single row of bit cells (0/1)
+    BloomFilterInsertViz.tsx        Bloom filter insert composition (curated [1,6,12,9], bit-9 already-set duplicate moment)
+    BloomFilterSearchViz.tsx        Bloom filter contains composition (TP / TP-shared-bit / FP from 3 inserts / TN short-circuit)
+    FibonacciHeapView.tsx           SVG presentational for Fibonacci heap — multi-tree forest + degree badges + min ring + mark badges
+    FibonacciHeapInsertViz.tsx      Fibonacci heap insert composition (5 lazy prepends, no consolidation runs)
+    FibonacciHeapExtractMinViz.tsx  Fibonacci heap extract-min composition (remove-min + consolidate pair-link cascade)
+    FibonacciHeapDecreaseKeyViz.tsx Fibonacci heap decrease-key composition (3-cut cascading cut on a chain of marked ancestors)
     TreeTraversalViz.tsx            Tree traversal composition (4-mode toggle + output sequence strip)
     HeapInsertViz.tsx               Min-heap insert composition (siftUp; 2-sequence toggle)
     HeapifyViz.tsx                  Min-heap heapify composition (bottom-up siftDown; single curated input)
@@ -281,7 +289,7 @@ src/lib/
     {bubble,heap,insertion,         Python source + named line-number constants
      merge,quick,radix}Sort.snippet.ts
   dataStructures/
-    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep / HeapDecreaseKeyStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step + RobinHoodInsertStep + RobinHoodDeleteStep + HopscotchSlot / HopscotchSnapshot / Hopscotch{Insert,Search}Step + CuckooSlot / CuckooSide / CuckooSnapshot / Cuckoo{Insert,Search,Delete}Step + CuckooFilterSlot / CuckooFilterSnapshot / CuckooFilterCheckPhase / CuckooFilter{Insert,Search,Delete}Step + PairingHeapNode / PairingHeapSnapshot / PairingHeap{Merge,DeleteMin}Step
+    types.ts                        BstNode / BstSnapshot / Bst*Step + HashTableEntry / HashTableSnapshot / HashTable*Step + TraversalMode / BstTraversalStep + HeapSnapshot / HeapInsertStep / HeapifyStep / HeapExtractStep / HeapDecreaseKeyStep + LinearProbeSlot / LinearProbeSnapshot / LinearProbe{Insert,Search,Delete}Step + RobinHoodInsertStep + RobinHoodDeleteStep + HopscotchSlot / HopscotchSnapshot / Hopscotch{Insert,Search}Step + CuckooSlot / CuckooSide / CuckooSnapshot / Cuckoo{Insert,Search,Delete}Step + CuckooFilterSlot / CuckooFilterSnapshot / CuckooFilterCheckPhase / CuckooFilter{Insert,Search,Delete}Step + BloomFilterSnapshot / BloomFilter{Insert,Search}Step + PairingHeapNode / PairingHeapSnapshot / PairingHeap{Merge,DeleteMin}Step + FibonacciHeapNode / FibonacciHeapSnapshot / FibonacciHeap{Insert,ExtractMin,DecreaseKey}Step
     binarySearchTree.ts             BST insertSequence + searchSequence + deleteSequence + buildTree
     hashTable.ts                    Hash table insertSequence + searchSequence + deleteSequence + buildHashTable + bucketIndexFor + liveKeys + loadFactor
     traversal.ts                    Parameterized traversalSequence(tree, mode) + TRAVERSAL_MODES + labels
@@ -292,7 +300,9 @@ src/lib/
     hopscotch.ts                    Hopscotch {insert,search}Sequence + buildHopscotchTable + emptyHopscotchTable + HOPSCOTCH_NEIGHBORHOOD + hopscotchHomeFor
     cuckoo.ts                       Cuckoo {insert,search,delete}Sequence + buildCuckooTable + emptyCuckooTable + cuckooHash1 + cuckooHash2 + liveCuckooKeys + CUCKOO_MAX_ITERATIONS
     cuckooFilter.ts                 Cuckoo filter {insert,search,delete}Sequence + buildCuckooFilter + emptyCuckooFilter + cuckooFilterFingerprint + cuckooFilterHome + cuckooFilterHashFp + cuckooFilterAlt + cuckooFilterContains + liveCuckooFilterFingerprints + CUCKOO_FILTER_{FP_RANGE,MAX_ITERATIONS}
+    bloomFilter.ts                  Bloom filter {insert,search}Sequence + buildBloomFilter + emptyBloomFilter + bloomFilterBitIndices + bloomFilterContains + bloomFilterPopcount + BLOOM_FILTER_{M,K}
     pairingHeap.ts                  Pairing-heap {merge,deleteMin}Sequence + buildPairingHeap + pairingHeapDepths + emptyPairingHeap
+    fibonacciHeap.ts                Fibonacci heap {insert,extractMin,decreaseKey}Sequence + buildFibonacciHeap + emptyFibonacciHeap + fibonacciHeapDepths + isFibonacciHeapValid (invariant checker)
     robinHood.ts                    Robin Hood robinHoodInsertSequence + robinHoodDeleteSequence + buildRobinHoodTable + displacementOf + maxDisplacement
     index.ts                        BST operation registry + labels (insert only — search/delete have a different signature)
     {insert,search,delete}Sequence.snippet.ts        Python source + named line-number constants (BST)
@@ -306,7 +316,9 @@ src/lib/
     hopscotch{Insert,Search}.snippet.ts              Python source + named line-number constants (hopscotch)
     cuckoo{Insert,Search,Delete}.snippet.ts          Python source + named line-number constants (cuckoo hashing)
     cuckooFilter{Insert,Search,Delete}.snippet.ts    Python source + named line-number constants (cuckoo filter)
+    bloomFilter{Insert,Search}.snippet.ts            Python source + named line-number constants (Bloom filter)
     pairingHeap{Merge,DeleteMin}.snippet.ts          Python source + named line-number constants (pairing heap)
+    fibonacciHeap{Insert,ExtractMin,DecreaseKey}.snippet.ts  Python source + named line-number constants (Fibonacci heap)
     robinHood{Insert,Delete}.snippet.ts              Python source + named line-number constants (Robin Hood)
   hooks/
     useStepThrough.ts               Single-list reducer state machine
@@ -331,7 +343,51 @@ If you need to make a focused change, these are the files that matter for each s
 
 ## What changed in the most recent session
 
-This session was a **codebase-wide audit and cleanup pass** — no new lessons. Eight read-only audit agents reviewed every part of the repo through the `code-review-and-quality` / `code-simplification` lenses; the findings were then fixed and the duplication refactors landed. **18 commits, all behaviour-preserving.** The 751 unit + 124 e2e tests and the typecheck/lint gates were green before and after; two fresh-eyes review agents approved the refactors; Chrome DevTools MCP re-verified every fix in the live browser with zero console errors.
+This session shipped two new lessons: **Bloom Filter** and **Fibonacci Heap**. Six commits, all green: typecheck/lint/format gates clean, 826 unit tests at 100% line+branch+function+statement coverage on `src/lib/dataStructures/`, 135 Playwright e2e tests including 26 axe-core a11y routes (+2 since prior HEAD), Chrome DevTools MCP verified every counter and annotation matches hand calculation with zero console errors.
+
+### Bloom Filter — `/lessons/data-structures/bloom-filter`
+
+The cuckoo filter's prototype foil — bit array with $k$ hash functions, no false negatives, no delete. Two viz sections.
+
+- **Insert viz.** $m = 16$ bits, $k = 3$ hash functions $h_1(x) = x \bmod 16$, $h_2(x) = (3x+5) \bmod 16$, $h_3(x) = (7x+11) \bmod 16$. Curated input $[1, 6, 12, 9]$ — first three each set three fresh bits; fourth (key $9$) hits bit $9$ already set by inserting $12$. That set-bit step carries `alreadySet: true` so the viz renders the duplicate cell red. Counters: Items / Bits set (of 16) / Bit-set ops. Final: 4 items / 11 bits set / 12 ops.
+- **Contains viz.** Targets $[1, 9, 7, 5]$ exercise all four outcomes:
+  - **True positive** on $1$ — bits $\{1, 2, 8\}$ all set.
+  - **True positive** on $9$ — bits $\{9, 0, 10\}$ all set, with bit $9$ shared from inserting $12$.
+  - **False positive** on $7$ — bits $\{7, 10, 12\}$ each came from a _different_ prior insert (bit 7 from inserting 6, bit 10 from 9, bit 12 from 12). The viz colours the matched bits red and the `False+` counter ticks.
+  - **True negative** on $5$ — short-circuit miss on the second check (bit 4 is 0); the third bit never gets inspected.
+
+`BloomFilterView` is a single horizontal row of $m$ cells; set bits get a subtle filled background, unset bits use the shared dashed-outline treatment. Three highlights (`cursor`, `placed`, `duplicate`) drive insert/check colouring.
+
+### Fibonacci Heap — `/lessons/data-structures/fibonacci-heap`
+
+The third heap-merge variant after binary and pairing heaps — $O(1)$ amortized insert, merge, and decrease-key. Three viz sections.
+
+- **Insert viz** demonstrates the lazy O(1) design: each insert just prepends a singleton to the root list. No consolidation. 5 inserts of $[4, 9, 1, 7, 2]$ produce 5 singleton roots.
+- **Extract-min viz** is the lesson's centerpiece. From that 5-singleton state, removing 1 triggers a **consolidate** pass that pairs roots of equal degree until each degree appears at most once. Three pair-links fire: $(2, 7) \to 2$ (deg 1), $(4, 9) \to 4$ (deg 1), $(2, 4) \to 2$ (deg 2). Terminal: one tree of degree 2 rooted at value 2.
+- **Decrease-key viz** is the cascading-cut demo. Hand-built 3-level chain with two ancestors pre-marked (carried over from prior operations). Decreasing the deep leaf $4 \to 0$ triggers a 3-cut cascade: cut $4$ from $3$ (parent marked → cascade), cut $3$ from $2$ (parent marked → cascade), cut $2$ from $1$ (parent is a root → stop). Counters: Roots / Cuts / Cascade-marks. Final: 4 roots / 3 cuts / 0 cascade-marks.
+
+`FibonacciHeapView` extends pairing-heap's layout pattern with three additions: a dashed outer ring on the current min root, a small `dN` degree badge in the lower-right of any non-leaf, and a small filled circle in the upper-right of any marked non-root. The mark badge is what makes the cascading-cut moment legible.
+
+### Test count delta
+
+Before this session: 751 unit / 124 e2e. After: **826 unit / 135 e2e** — net **+75 unit (+40 fibonacci, +35 bloom), +11 e2e (+5 fibonacci, +4 bloom, +2 axe routes)**.
+
+### Six commits
+
+| #   | subject                                                             |
+| --- | ------------------------------------------------------------------- |
+| 1   | `feat(ds)`: add Bloom filter algorithm + tests                      |
+| 2   | `feat(viz)`: add Bloom filter view + insert/contains wrappers       |
+| 3   | `feat(lessons)`: add Bloom filter lesson MDX, registry entry, e2e   |
+| 4   | `feat(ds)`: add Fibonacci heap algorithm + tests                    |
+| 5   | `feat(viz)`: add Fibonacci heap view + 3 viz wrappers               |
+| 6   | `feat(lessons)`: add Fibonacci heap lesson MDX, registry entry, e2e |
+
+---
+
+## Previous session — codebase audit + cleanup
+
+This was a **codebase-wide audit and cleanup pass** — no new lessons. Eight read-only audit agents reviewed every part of the repo through the `code-review-and-quality` / `code-simplification` lenses; the findings were then fixed and the duplication refactors landed. **18 commits, all behaviour-preserving.** The 751 unit + 124 e2e tests and the typecheck/lint gates were green before and after; two fresh-eyes review agents approved the refactors; Chrome DevTools MCP re-verified every fix in the live browser with zero console errors.
 
 ### Bug fixes
 
