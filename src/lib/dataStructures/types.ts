@@ -701,6 +701,160 @@ export type PairingHeapDeleteMinStep =
     })
   | (StepBase & { kind: "done"; heap: PairingHeapSnapshot });
 
+// Fibonacci heap. A min-heap that maintains a forest of trees rooted in
+// a root list, with three load-bearing tricks:
+//   1. Insert is lazy — just prepend a singleton tree to the root list.
+//      O(1) amortized.
+//   2. Delete-min runs "consolidate": after removing the min, walk the
+//      root list pairing up any two trees with the same degree until
+//      each degree appears at most once. This is what bounds the
+//      amortized work and gives the heap its binomial-tree shapes.
+//   3. Decrease-key + cascading cut. Decreasing a non-root's value below
+//      its parent's triggers a cut: the node moves to the root list, its
+//      mark resets. If the parent was already marked (= it had lost a
+//      child before), the cut cascades up. Marks are what bound the
+//      amortized cost of decrease-key at O(1) — the key result that
+//      makes Fibonacci heaps faster than binary heaps in Dijkstra's
+//      analysis.
+//
+// Storage: id-keyed nodes (positional ids, like BST and pairing-heap),
+// children as a singly-linked list (firstChildId → nextSiblingId), and
+// an explicit `roots` array tracking the top-level forest. Each
+// non-root carries `parentId`; cut walks the parent's child list to
+// remove the node. The textbook uses doubly-linked circular sibling
+// lists for O(1) cuts; this teaching model is O(degree) per cut which
+// still preserves the amortized analysis at our demo sizes but is
+// dramatically easier to reason about and snapshot.
+export type FibonacciHeapNode = {
+  readonly id: number;
+  readonly value: number;
+  readonly parentId: number | null;
+  readonly firstChildId: number | null;
+  readonly nextSiblingId: number | null;
+  readonly degree: number;
+  // `mark` is meaningful only for non-roots; a node entering the root
+  // list always has mark=false. The viz renders a small ★ badge on
+  // marked nodes so the cascading-cut moment is visually traceable.
+  readonly mark: boolean;
+};
+
+export type FibonacciHeapSnapshot = {
+  readonly nodes: readonly FibonacciHeapNode[];
+  // Root list in display order. The minimum value sits at `minId`.
+  readonly roots: readonly number[];
+  // Convenience pointer to the root with the smallest value. null iff
+  // `roots` is empty. Maintained by every step.
+  readonly minId: number | null;
+};
+
+export type FibonacciHeapInsertStep =
+  | (StepBase & { kind: "begin"; heap: FibonacciHeapSnapshot; insertingValue: number })
+  | (StepBase & {
+      kind: "add-root";
+      heap: FibonacciHeapSnapshot;
+      newNodeId: number;
+      // True when this insert's value became the new minimum — the only
+      // bookkeeping insert ever does beyond the prepend itself.
+      updatedMin: boolean;
+    })
+  | (StepBase & { kind: "done"; heap: FibonacciHeapSnapshot });
+
+export type FibonacciHeapExtractMinStep =
+  | (StepBase & { kind: "begin"; heap: FibonacciHeapSnapshot })
+  | (StepBase & {
+      kind: "remove-min";
+      heap: FibonacciHeapSnapshot;
+      removedId: number;
+      removedValue: number;
+      // The min's former children, now promoted to roots. Carried for
+      // annotation purposes ("3 children join the root list").
+      promotedChildren: readonly number[];
+    })
+  | (StepBase & {
+      kind: "consolidate-start";
+      heap: FibonacciHeapSnapshot;
+    })
+  | (StepBase & {
+      kind: "consolidate-inspect";
+      heap: FibonacciHeapSnapshot;
+      // Current root being placed into the degree array.
+      rootId: number;
+      degree: number;
+    })
+  | (StepBase & {
+      kind: "consolidate-pair";
+      heap: FibonacciHeapSnapshot;
+      // Two roots of the same `degree` about to be linked.
+      aRootId: number;
+      bRootId: number;
+      degree: number;
+    })
+  | (StepBase & {
+      kind: "consolidate-link";
+      heap: FibonacciHeapSnapshot;
+      // After-link snapshot: `childId` is now a child of `parentId`.
+      // `newDegree` is the parent's degree post-link.
+      parentId: number;
+      childId: number;
+      newDegree: number;
+    })
+  | (StepBase & {
+      kind: "update-min";
+      heap: FibonacciHeapSnapshot;
+      newMinId: number | null;
+    })
+  | (StepBase & { kind: "empty"; heap: FibonacciHeapSnapshot })
+  | (StepBase & { kind: "done"; heap: FibonacciHeapSnapshot });
+
+export type FibonacciHeapDecreaseKeyStep =
+  | (StepBase & {
+      kind: "begin";
+      heap: FibonacciHeapSnapshot;
+      nodeId: number;
+      newValue: number;
+      oldValue: number;
+    })
+  | (StepBase & {
+      kind: "set-value";
+      heap: FibonacciHeapSnapshot;
+      nodeId: number;
+      newValue: number;
+    })
+  | (StepBase & {
+      kind: "check-parent";
+      heap: FibonacciHeapSnapshot;
+      nodeId: number;
+      parentId: number;
+    })
+  | (StepBase & {
+      kind: "no-violation";
+      heap: FibonacciHeapSnapshot;
+      nodeId: number;
+    })
+  | (StepBase & {
+      kind: "cut";
+      // Post-cut snapshot: `nodeId` is now a root. `parentId` is the
+      // node we just cut from. `parentWasMarked` decides whether the
+      // cascade continues (true) or stops at marking the parent (false).
+      heap: FibonacciHeapSnapshot;
+      nodeId: number;
+      parentId: number;
+      parentWasMarked: boolean;
+    })
+  | (StepBase & {
+      kind: "cascade-mark";
+      // Cascade stopped: `parentId` was unmarked, now marked. The
+      // parent stays attached to its own parent (or stays a root).
+      heap: FibonacciHeapSnapshot;
+      parentId: number;
+    })
+  | (StepBase & {
+      kind: "update-min";
+      heap: FibonacciHeapSnapshot;
+      newMinId: number;
+    })
+  | (StepBase & { kind: "done"; heap: FibonacciHeapSnapshot });
+
 // Hopscotch hashing: open addressing with a bounded probe distance H
 // (the "neighborhood"). Each slot owns a hopInfo bitmask of H bits; bit j
 // of slot i set means slot (i+j) mod capacity holds a key whose home is i.
