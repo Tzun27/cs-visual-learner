@@ -171,6 +171,14 @@ export const topics: readonly Topic[] = [
         blurb:
           "A heap built around fast merge. Insert is O(1), merge is O(1), delete-min is amortized O(log n).",
       },
+      {
+        status: "live",
+        slug: "fibonacci-heap",
+        title: "Fibonacci Heap",
+        difficulty: "advanced",
+        blurb:
+          "O(1) amortized insert and decrease-key via lazy consolidate + cascading cut. The structure behind the theoretical-best Dijkstra bound.",
+      },
     ],
   },
   {

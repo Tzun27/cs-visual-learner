@@ -23,6 +23,7 @@ const routes = [
   "/lessons/data-structures/cuckoo-filter",
   "/lessons/data-structures/bloom-filter",
   "/lessons/data-structures/pairing-heap",
+  "/lessons/data-structures/fibonacci-heap",
   "/lessons/ml/gradient-descent",
   "/lessons/ml/backprop",
   "/lessons/ml/attention",

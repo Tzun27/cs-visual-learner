@@ -1,0 +1,198 @@
+import { FibonacciHeapInsertViz } from "@/components/visualizations/FibonacciHeapInsertViz";
+import { FibonacciHeapExtractMinViz } from "@/components/visualizations/FibonacciHeapExtractMinViz";
+import { FibonacciHeapDecreaseKeyViz } from "@/components/visualizations/FibonacciHeapDecreaseKeyViz";
+
+export const metadata = {
+  title: "Fibonacci Heap",
+  description:
+    "A heap with O(1) amortized insert, merge, and decrease-key. The data structure behind the theoretical best bound for Dijkstra's algorithm.",
+};
+
+# Fibonacci Heap
+
+**Difficulty:** advanced · **Category:** data structures
+
+The [pairing heap](/lessons/data-structures/pairing-heap) and the
+[binary heap](/lessons/data-structures/heap) both bound delete-min at $O(\log n)$. The Fibonacci
+heap doesn't beat that — but it pushes _every other_ operation down to $O(1)$ amortized: insert,
+merge, decrease-key, find-min. The price is a more elaborate data structure and amortized analysis
+that's quietly famous for being hard to follow.
+
+It's the heap behind the theoretical-best Dijkstra bound: $O(E + V \log V)$ instead of binary
+heap's $O((E + V) \log V)$. Whether that constant-factor cost is worth it in practice is a
+separate argument, but the structural ideas — lazy consolidate, cascading cuts via marks — show
+up in adjacent data structures (Brodal queues, pairing-heap analyses) so the design is worth
+understanding even if you never reach for a Fibonacci heap directly.
+
+## The shape
+
+A Fibonacci heap is a **forest of trees** maintained in a flat root list. Each tree is a min-heap
+(each parent's value $\leq$ its children's). The whole heap maintains:
+
+- a **root list** containing every tree's root;
+- a **min pointer** into the smallest root (so find-min is $O(1)$);
+- per-node bookkeeping: **degree** (number of children) and a **mark** bit (more on this below).
+
+Unlike a binary heap, there is no shape constraint — trees can be deeply lopsided. The
+amortized analysis bounds the _total_ work over a sequence of operations, not any single one.
+
+## Inserting
+
+<FibonacciHeapInsertViz />
+
+Insert is the simplest operation in the whole library: **create a singleton tree and prepend it
+to the root list**. Update the min pointer if the new value is smaller. That's it. $O(1)$
+worst-case.
+
+After inserting $[4, 9, 1, 7, 2]$ the heap has five trees, each a single node, all degree $0$.
+The min pointer (dashed outer ring) sits on the root with value $1$. No restructuring runs —
+the work is deferred.
+
+This is the load-bearing design choice. **Inserts are lazy.** Every insert pushes the work onto
+the next delete-min, which will have to sort out the mess. The amortized analysis shows that the
+total cost across all operations stays low even though delete-min occasionally pays for many
+prior inserts.
+
+## Extracting the minimum
+
+<FibonacciHeapExtractMinViz />
+
+This is where the work actually happens. The algorithm is two phases:
+
+1. **Remove the min root.** Detach it from the root list, promote each of its children to the
+   root list. This is $O(\text{degree})$ — bounded by $O(\log n)$ because no tree's degree
+   exceeds $\log_\phi n$ (the Fibonacci-sequence bound that names the data structure).
+2. **Consolidate.** Walk the root list, maintaining a bucket array indexed by degree. For each
+   root: while a tree with the same degree is already in the bucket, link the two (smaller-value
+   tree becomes parent, the other its child) and bump the degree. Continue until every degree
+   appears in at most one bucket.
+
+The viz starts from the post-insert state (five degree-$0$ trees) and extract removes the $1$
+(which had no children, so no children are promoted). Then consolidate fires three pair-links:
+
+- Pair $(2, 7)$ — both degree $0$. Link $7$ under $2$. Now degree $1$.
+- Pair $(4, 9)$ — both degree $0$. Link $9$ under $4$. Now degree $1$.
+- Pair $(2, 4)$ — both degree $1$. Link $4$ under $2$. Now degree $2$.
+
+The terminal heap is a single tree of degree $2$, rooted at $2$, with children $\{4 \text{(with
+child } 9\text{)}, 7\}$. **The amortized cost of this operation is $O(\log n)$** — the linking
+work is paid for by the $O(1)$ credit each prior insert deposited.
+
+### Why degrees never grow too large
+
+The bound on tree degree is $\log_\phi n$ where $\phi = (1 + \sqrt 5)/2$ is the golden ratio.
+The proof connects degree to Fibonacci numbers: a node of degree $d$ has a subtree of at least
+$F_{d+2}$ nodes, and $F_n \geq \phi^{n-2}$. The cascading-cut invariant maintains this:
+**every non-root has lost at most one child since it became a non-root**. That's what mark bits
+track.
+
+## Decreasing a key
+
+<FibonacciHeapDecreaseKeyViz />
+
+Decrease-key on a node is what made Fibonacci heaps famous. The naive idea is straightforward:
+update the value; if it's now smaller than the parent, cut the subtree out and add it to the
+root list. But a naive cut breaks the degree-vs-subtree-size argument from the previous
+section — a series of decrease-keys could make a tree of degree $d$ have far fewer than $F_{d+2}$
+nodes.
+
+The fix is the **cascading cut**. Each non-root carries a mark bit, initially false. When a
+node loses its first child since becoming a non-root, mark it. When it loses a _second_ child,
+the node itself gets cut up to the root list — and the cascade continues to its parent. Cutting
+stops as soon as it reaches a node that's a root or wasn't marked.
+
+The viz exercises the worst case for the demo: a 3-level chain with the two intermediate nodes
+already marked (carried over from prior operations). Decreasing the deep leaf from $4 \to 0$
+triggers:
+
+1. **Cut** $4$ from $3$ — value $4 \to 0$ violates parent $3$'s value. $4$ becomes a root, its
+   mark resets. Parent $3$ was MARKED → cascade.
+2. **Cut** $3$ from $2$ — $3$ becomes a root. Parent $2$ was MARKED → cascade.
+3. **Cut** $2$ from $1$ — $2$ becomes a root. Parent $1$ is itself a root → cascade stops.
+
+The cascade walks two levels up the marked chain before reaching the root. After all three
+cuts, the heap has four roots: $1$ (still has $8$ as a child), $2$, $3$, $4$ (now with value $0$
+— the new minimum).
+
+### What marks are actually counting
+
+Each mark is a "this node owes one child-loss before the cascade has to act." The cascading-cut
+algorithm uses marks to amortize the cost of structural maintenance: when a cut cascades, the
+mark on that ancestor "pays" for the cascade's traversal. The first time an ancestor loses a
+child it gets marked but pays nothing; the cascade only fires when an ancestor loses its second
+child, at which point the mark is "spent" and the algorithm walks up. This gives **amortized
+$O(1)$** for decrease-key even though a single call can cut multiple levels.
+
+## The amortized analysis (sketch)
+
+Define a potential function $\Phi$ over the heap:
+
+$$
+\Phi(H) = t(H) + 2 \cdot m(H)
+$$
+
+where $t(H)$ is the number of trees in the root list and $m(H)$ is the number of marked
+non-roots. The amortized cost of an operation is its actual cost plus $\Delta \Phi$.
+
+- **Insert** adds one tree: $\Delta \Phi = 1$, amortized cost $O(1) + 1 = O(1)$.
+- **Decrease-key** with a cascade of $c$ cuts performs $c$ actual cuts (each $O(1)$), creates
+  $c$ new roots ($\Delta t = c$), and either marks one ancestor or clears a mark for each cut.
+  The marks "pay" for the cascade traversal — the $2m$ term shrinks by enough to absorb the
+  cost. Amortized cost: $O(1)$.
+- **Extract-min** does $O(\log n)$ consolidate work, but the $\Delta \Phi$ contribution from
+  trees disappearing during consolidate matches the work. Amortized $O(\log n)$.
+
+The full proof is a constant-factor accounting exercise and is laid out in Cormen et al.'s
+chapter 19. The amortized bounds are tight: a worst-case single decrease-key can do a $\Theta(\log n)$
+cascade, and a single extract-min can do $\Theta(\log n)$ links. But the _sequence_ averages out.
+
+## Comparing to other heaps
+
+|                 | Binary heap (array)    | Pairing heap         | Fibonacci heap       |
+| --------------- | ---------------------- | -------------------- | -------------------- |
+| Insert          | $O(\log n)$            | $O(1)$               | $O(1)$               |
+| Find-min        | $O(1)$                 | $O(1)$               | $O(1)$               |
+| Extract-min     | $O(\log n)$            | $O(\log n)$ amort.   | $O(\log n)$ amort.   |
+| Decrease-key    | $O(\log n)$            | $O(\log n)$ amort.\* | $O(1)$ amort.        |
+| Merge           | $O(n)$                 | $O(1)$               | $O(1)$               |
+| Implementation  | tiny                   | small                | substantial          |
+| Constant factor | very small             | small                | larger               |
+| Cache friendly  | excellent (contiguous) | poor (pointer-heavy) | poor (pointer-heavy) |
+
+\*Pairing heap's tight bound is $O(\log \log n)$ amortized for decrease-key (Iacono 2000); the
+exact tight bound is still a topic of research.
+
+The bound that put Fibonacci heaps on the map was decrease-key. Dijkstra's algorithm performs
+$O(E)$ decrease-keys and $O(V)$ extract-mins. With Fibonacci heaps the total is
+$O(E \cdot 1 + V \cdot \log V) = O(E + V \log V)$. With binary heaps it's
+$O((E + V) \log V)$. For dense graphs ($E \approx V^2$) Fibonacci wins by a $\log V$ factor.
+
+## When to actually use one
+
+Fibonacci heaps are taught for the algorithmic significance — they're the simplest data
+structure achieving $O(1)$ amortized decrease-key — but their _measured_ performance against
+simpler alternatives is often disappointing. The constant factors and pointer-chasing cache
+behavior usually mean that for $V \leq 10^6$, a well-tuned binary heap or pairing heap is
+faster in wall-clock time.
+
+The structure shows up most in two places:
+
+- **Theoretical bounds.** Algorithm analyses cite "if implemented with a Fibonacci heap, the
+  complexity is..." to get the tightest known bounds.
+- **Variants.** Brodal queues, soft heaps, and rank-pairing heaps build on Fibonacci-heap
+  ideas. Understanding the original makes the variants legible.
+
+In production, library implementers usually reach for pairing heaps when they need fast merge
+(LLVM's [SmallPtrSet](https://llvm.org/doxygen/SmallPtrSet_8h_source.html) and similar) or just
+stick with binary heaps when they don't.
+
+## What's next
+
+- **Soft heap** — a Fibonacci-heap variant that allows controlled "corruption" of element
+  values in exchange for $O(1)$ amortized operations across the board. Used in optimal-
+  selection algorithms.
+- **Rank-pairing heaps** — a 2009 design (Haeupler, Sen, Tarjan) achieving the same bounds as
+  Fibonacci heaps with simpler proofs.
+- **Strict Fibonacci heaps** — a Brodal-Lagogiannis-Tarjan 2012 redesign making decrease-key
+  $O(1)$ _worst-case_ (not amortized). The data structure is famously complex; the existence
+  is the practical takeaway.
