@@ -142,6 +142,14 @@ export const topics: readonly Topic[] = [
       },
       {
         status: "live",
+        slug: "bloom-filter",
+        title: "Bloom Filter",
+        difficulty: "intermediate",
+        blurb:
+          "The original probabilistic set: a bit array plus k hash functions. No false negatives, no delete — the design the cuckoo filter was built to improve on.",
+      },
+      {
+        status: "live",
         slug: "tree-traversal",
         title: "Tree Traversal",
         difficulty: "beginner",

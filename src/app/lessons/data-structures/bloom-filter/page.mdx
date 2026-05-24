@@ -1,0 +1,185 @@
+import { BloomFilterInsertViz } from "@/components/visualizations/BloomFilterInsertViz";
+import { BloomFilterSearchViz } from "@/components/visualizations/BloomFilterSearchViz";
+
+export const metadata = {
+  title: "Bloom Filter",
+  description:
+    "A probabilistic set built on a bit array — k hash functions per item. Constant-cost contains, no false negatives, no delete support. The original space-saving set membership data structure.",
+};
+
+# Bloom Filter
+
+**Difficulty:** intermediate · **Category:** data structures
+
+The [cuckoo filter](/lessons/data-structures/cuckoo-filter) was invented to give Bloom filters a
+delete operation. The Bloom filter is the prototype probabilistic set — invented by Burton Bloom
+in 1970, still ubiquitous today. **It answers "is this item in the set?"** in constant time and
+constant space _per insert_, with a small false-positive rate baked in and no delete operation
+available.
+
+The trade is the same shape every probabilistic set makes — give up exactness for memory — but
+the mechanism is delightfully simple: a single bit array $T$ of size $m$, and $k$ independent
+hash functions. Insert sets $k$ bits. Contains AND-checks those $k$ bits. That's it.
+
+## How it works
+
+For a Bloom filter with $m$ bits and $k$ hash functions $h_1, \ldots, h_k$:
+
+- **Insert** $x$: set $T[h_1(x)] = T[h_2(x)] = \cdots = T[h_k(x)] = 1$.
+- **Contains** $x$: return true iff $T[h_1(x)] = T[h_2(x)] = \cdots = T[h_k(x)] = 1$.
+
+If even one of the $k$ bits is $0$, the item can't be in the set (a real insert would have set
+it). So the data structure has **no false negatives** — every actually-inserted item is
+guaranteed to come back as found. But the converse fails: if all $k$ bits happen to be set
+because _other_ items touched them, the filter returns true for an item that was never inserted.
+That's a **false positive**.
+
+## Inserting
+
+<BloomFilterInsertViz />
+
+The demo uses $m = 16$ bits and $k = 3$ hash functions, deliberately simple so the math is
+hand-traceable:
+
+$$
+h_1(x) = x \bmod 16, \quad h_2(x) = (3x + 5) \bmod 16, \quad h_3(x) = (7x + 11) \bmod 16
+$$
+
+The curated input is $[1, 6, 12, 9]$:
+
+| Insert | $h_1$ | $h_2$ | $h_3$ | Bits set      | Notes                              |
+| ------ | ----- | ----- | ----- | ------------- | ---------------------------------- |
+| $1$    | $1$   | $8$   | $2$   | $\{1,2,8\}$   | three fresh bits                   |
+| $6$    | $6$   | $7$   | $5$   | $\{5,6,7\}$   | three fresh bits                   |
+| $12$   | $12$  | $9$   | $15$  | $\{9,12,15\}$ | three fresh bits                   |
+| $9$    | $9$   | $0$   | $10$  | $\{0,9,10\}$  | **bit 9 is already set** (from 12) |
+
+Watch the fourth insert. When $9$ tries to set bit $9$, the bit is already $1$ — set earlier by
+inserting $12$. The viz colors that cell red. **The filter has no idea who set the bit.** It
+just writes $1$, no-ops if the bit was already $1$, moves on. This is the property that makes
+delete impossible — but we'll get to that.
+
+After all four inserts, $11$ of $16$ bits are set. The filter is roughly $69\%$ saturated.
+
+## Searching
+
+<BloomFilterSearchViz />
+
+Contains hashes the target into the same $k$ bit positions and AND-checks all of them. If any
+bit is $0$, **short-circuit miss** — the loop exits on the first off-bit without checking the
+rest. The viz exercises all four outcomes:
+
+- $\text{contains}(1)$ — bits $\{1, 8, 2\}$ all set → **true positive**. Three checks.
+- $\text{contains}(9)$ — bits $\{9, 0, 10\}$ all set → **true positive**. Notice bit $9$ was
+  also set by inserting $12$, but the filter doesn't care which item set it. Yes is yes.
+- $\text{contains}(7)$ — bits $\{7, 10, 12\}$. **Never inserted**, but all three bits happen to
+  be set: bit $7$ from inserting $6$, bit $10$ from inserting $9$, bit $12$ from inserting $12$.
+  Each bit comes from a _different_ prior item. **This is a false positive** — the viz colors
+  the matched bits red and the False+ counter ticks. The algorithm has no way to tell.
+- $\text{contains}(5)$ — bits $\{5, 4, 14\}$. Bit $5$ is set (from inserting $6$), but bit $4$
+  is $0$ → short-circuit miss. The third bit (14) is never checked. **True negative**.
+
+The false positive on $7$ is the heart of the data structure. Three independent inserts each
+touched one of $7$'s bits, and from the filter's perspective that's indistinguishable from
+having inserted $7$ itself.
+
+## Why delete is impossible
+
+Cuckoo filters store one fingerprint per slot — deleting an item clears one slot, affecting
+only that item. **Bloom filters share bits across items.** A single bit can be set by any
+number of inserts, and the data structure doesn't remember any of them.
+
+Suppose we tried to delete $12$ by clearing its bits $\{9, 12, 15\}$. After the clear:
+
+- Bit $9$ → $0$. But $9$ also set bit $9$ on its own insert! Now $\text{contains}(9)$ would
+  return false. **We've silently lost $9$.**
+
+That's the textbook impossibility argument. Every item shares bits with potentially many other
+items, and clearing one item's bits can break the membership of any item that happened to
+overlap. A correct delete would have to know which item set each bit — but storing that
+information defeats the whole memory-savings argument.
+
+### Counting Bloom filters
+
+If you _need_ delete and can pay the cost, swap the bit array for a counter array. Each "set"
+becomes an increment, each "delete" becomes a decrement, and a slot is "set" iff its counter is
+positive. With $4$-bit counters per slot, memory grows by $4\times$ — a meaningful overhead
+but sometimes worth paying. Delete works because each item's $k$ counter increments are
+independent; decrementing $12$'s counters doesn't affect $9$'s separate counter contributions.
+
+That's the design space probabilistic sets occupy. Bloom (no delete, smallest), counting
+Bloom (delete, $4\times$ memory), cuckoo (delete with caveats, comparable memory to Bloom).
+The cuckoo filter ultimately wins on memory _and_ delete; but Bloom remains the conceptual
+foundation everyone benchmarks against.
+
+## False-positive rate
+
+With $m$ bits, $k$ hash functions, and $n$ items inserted, the probability that any specific
+bit is still $0$ after $n$ inserts is approximately:
+
+$$
+\Pr[\text{bit }i\text{ is }0] \approx \left(1 - \frac{1}{m}\right)^{kn} \approx e^{-kn/m}
+$$
+
+(assuming the hash functions are independent and uniform). A false positive happens when all
+$k$ bits of a query are set, so:
+
+$$
+\epsilon = \left(1 - e^{-kn/m}\right)^k
+$$
+
+The optimal $k$ that minimizes $\epsilon$ for a given $m/n$ ratio is $k^\ast = (m/n) \ln 2
+\approx 0.693 \cdot (m/n)$. At that optimum, $\epsilon = (1/2)^{k^\ast}$. **Each extra bit per
+item roughly halves the false-positive rate**, which is the single most important practical
+fact about Bloom filters.
+
+For the demo above, $m=16$, $k=3$, $n=4$ gives an expected per-query rate of
+$\epsilon \approx (1 - e^{-12/16})^3 \approx (1 - 0.472)^3 \approx 0.147$, i.e. roughly $1$ in
+$7$ random queries would be a false positive. We saw exactly one false positive in four
+queries — well within the expected rate for a small sample.
+
+Real-world Bloom filters use $m/n \in [8, 16]$ (8–16 bits per item) and $k \in [4, 11]$,
+driving $\epsilon$ down to $0.01$ or lower. At the same false-positive rate, a cuckoo filter
+typically uses about $30\%$ less memory; but Bloom remains the default when delete isn't
+needed because the data structure is so simple to implement, audit, and parallelize.
+
+## Comparing with cuckoo filters
+
+|                     | Bloom filter                               | Cuckoo filter                          |
+| ------------------- | ------------------------------------------ | -------------------------------------- |
+| Storage shape       | Bit array                                  | Fingerprint table                      |
+| Hash functions      | $k$ (typically 4–11)                       | 2 (with XOR-trick alternate)           |
+| Insert touches      | $k$ bits                                   | 1 slot (+ cascade on collision)        |
+| Contains touches    | $k$ bits                                   | 2 slots                                |
+| Delete              | **Not supported**                          | Supported (with caveat)                |
+| False-positive rate | $(1 - e^{-kn/m})^k$                        | $\approx 2 \cdot 2^{-b}$               |
+| Memory vs cuckoo    | Comparable at high $\epsilon$, more at low | $\sim 30\%$ less at typical $\epsilon$ |
+| Cache behavior      | $k$ random bit reads                       | 2 random slot reads (one bucket each)  |
+
+For "is it _maybe_ in the set?" with no delete need, Bloom is the simplest correct answer.
+When delete matters or memory is precious, reach for the cuckoo filter. When delete matters
+AND you can't afford an unsafe-delete edge case, reach for the counting Bloom filter.
+
+## Where Bloom filters show up
+
+- **Database query planners** (Cassandra, PostgreSQL HOT extension, RocksDB) — skip reading
+  SSTable files that definitely don't contain a key.
+- **Web crawlers** — dedupe URLs to avoid re-crawling. False positives mean some unique URLs
+  are skipped; tolerable for crawl politeness.
+- **CDN cache hierarchies** — quickly answer "is this object _maybe_ in our cache?" before
+  doing a slow lookup.
+- **Bitcoin SPV clients** — query peers for transactions involving a wallet without revealing
+  exactly which addresses you care about (the Bloom filter's false positives provide cover).
+- **Pwned-password checks** (in concept; Cloudflare uses a closely related design) — store the
+  set of breached passwords in a Bloom-style filter so client-side checks reveal nothing about
+  what's being checked.
+
+## What's next
+
+- **Counting Bloom filter** — Bloom filter with delete support by replacing bits with small
+  counters. Closes the "no delete" gap, at the cost of $\sim 4\times$ memory.
+- **HyperLogLog** — probabilistic count-distinct rather than set membership. A different
+  question from the same family.
+- **Cuckoo filter with $d$-way buckets** — already mentioned in the [cuckoo filter
+  lesson](/lessons/data-structures/cuckoo-filter); pushes the cuckoo design from $\sim 50\%$
+  load factor to $\sim 95\%$.
