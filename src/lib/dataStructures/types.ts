@@ -1112,6 +1112,83 @@ export type CuckooFilterSearchStep =
     })
   | (StepBase & { kind: "done"; table: CuckooFilterSnapshot });
 
+// Bloom filter: probabilistic set membership built on a bit array.
+// `m` bits, `k` independent hash functions. Insert sets the k bits
+// indicated by the hash functions; contains AND-checks the same k
+// bits. False positives possible (a query's k bits happened to all
+// be set by other items); false negatives are impossible (a true
+// positive sets exactly the queried bits). Crucially the data
+// structure CANNOT support delete: each bit can be shared by multiple
+// items, so clearing one item's bits would silently break others.
+// This is the load-bearing distinction from cuckoo filters, which
+// store one item per slot and can delete (with caveats).
+export type BloomFilterSnapshot = {
+  readonly m: number;
+  readonly k: number;
+  // Each bit is 0 or 1. Length === m.
+  readonly bits: readonly number[];
+};
+
+export type BloomFilterInsertStep =
+  | (StepBase & { kind: "begin"; table: BloomFilterSnapshot; insertingKey: number })
+  | (StepBase & {
+      kind: "compute-hashes";
+      table: BloomFilterSnapshot;
+      insertingKey: number;
+      // The k bit indices that this insert is about to set, in hash-function
+      // order. The viz uses these to preview the bits-to-be-touched as
+      // cursors before the set-bit steps fire.
+      bitIndices: readonly number[];
+    })
+  | (StepBase & {
+      kind: "set-bit";
+      table: BloomFilterSnapshot;
+      insertingKey: number;
+      // Which of the k hash functions we're applying (0-indexed).
+      hashIndex: number;
+      bitIndex: number;
+      // True when the bit was already 1 before this step ran. The viz
+      // uses this to colour the cell "duplicate" (red) instead of
+      // "placed" (yellow) — the pedagogical moment where the user sees
+      // that Bloom filters don't track who set what.
+      alreadySet: boolean;
+    })
+  | (StepBase & { kind: "done"; table: BloomFilterSnapshot });
+
+export type BloomFilterSearchStep =
+  | (StepBase & { kind: "begin"; table: BloomFilterSnapshot; targetKey: number })
+  | (StepBase & {
+      kind: "compute-hashes";
+      table: BloomFilterSnapshot;
+      targetKey: number;
+      bitIndices: readonly number[];
+    })
+  | (StepBase & {
+      kind: "check-bit";
+      table: BloomFilterSnapshot;
+      targetKey: number;
+      hashIndex: number;
+      bitIndex: number;
+      isSet: boolean;
+    })
+  | (StepBase & {
+      kind: "found";
+      table: BloomFilterSnapshot;
+      targetKey: number;
+      // The k bit indices that just passed the all-ones check. Carried
+      // so the viz can flash all k as "matched" simultaneously.
+      bitIndices: readonly number[];
+    })
+  | (StepBase & {
+      kind: "miss";
+      table: BloomFilterSnapshot;
+      targetKey: number;
+      // The first bit found to be 0 — short-circuits the check. The
+      // remaining bits in `bitIndices` after this one are never inspected.
+      offBitIndex: number;
+    })
+  | (StepBase & { kind: "done"; table: BloomFilterSnapshot });
+
 export type CuckooFilterDeleteStep =
   | (StepBase & { kind: "begin"; table: CuckooFilterSnapshot; targetKey: number })
   | (StepBase & {
