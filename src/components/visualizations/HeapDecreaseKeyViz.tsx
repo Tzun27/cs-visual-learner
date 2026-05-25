@@ -4,12 +4,9 @@ import { useMemo } from "react";
 import { buildHeap, heapDecreaseKeySequence, heapToTree } from "@/lib/dataStructures/heap";
 import { heapDecreaseKeyPython } from "@/lib/dataStructures/heapDecreaseKey.snippet";
 import type { HeapDecreaseKeyStep, HeapSnapshot } from "@/lib/dataStructures/types";
-import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { countKind } from "@/lib/stepCount";
-import { CodePanel } from "./CodePanel";
-import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
+import { VizSection } from "./VizSection";
 
 // Curated demo heap built from values inserted in order — produces a
 // valid min-heap with exactly the layout:
@@ -91,78 +88,27 @@ export function HeapDecreaseKeyViz({ initialSpeedMs = 450 }: HeapDecreaseKeyVizP
     [initialHeap],
   );
 
-  const reducedMotion = useReducedMotion();
-  const playback = useStepThrough(steps, {
-    initialSpeed: initialSpeedMs,
-    reducedMotion,
-  });
-
-  const currentStep = playback.currentStep;
-  const heap = currentStep?.heap ?? initialHeap;
-  const tree = heapToTree(heap);
-  const highlights = highlightsFor(currentStep);
-  const annotation = annotationFor(currentStep);
-
-  const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const compares = countKind(visibleSteps, "compare-parent");
-  const swaps = countKind(visibleSteps, "swap-up");
-  const ops = countKind(visibleSteps, "begin");
-
   return (
-    <section
-      aria-label="Min-heap decrease-key visualization"
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
-    >
-      <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        decrease_key(6, 2) then decrease_key(4, 10) on the demo heap
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
-        <TreeView tree={tree} highlights={highlights} className="w-full" />
-        <CodePanel
-          source={heapDecreaseKeyPython}
-          highlightedLines={currentStep?.codeLines}
-          language="python"
-          ariaLabel="Min-heap decrease-key pseudocode"
+    <VizSection
+      ariaLabel="Min-heap decrease-key visualization"
+      codePanelAriaLabel="Min-heap decrease-key pseudocode"
+      caption="decrease_key(6, 2) then decrease_key(4, 10) on the demo heap"
+      steps={steps}
+      source={heapDecreaseKeyPython}
+      initialSpeedMs={initialSpeedMs}
+      annotationFor={annotationFor}
+      counters={(visible) => [
+        { label: "Comparisons", value: countKind(visible, "compare-parent") },
+        { label: "Swaps", value: countKind(visible, "swap-up") },
+        { label: "Operations", value: countKind(visible, "begin") },
+      ]}
+      renderView={(currentStep) => (
+        <TreeView
+          tree={heapToTree(currentStep?.heap ?? initialHeap)}
+          highlights={highlightsFor(currentStep)}
+          className="w-full"
         />
-      </div>
-
-      <p
-        aria-live="polite"
-        className="min-h-[1.25rem] font-mono text-sm text-zinc-600 dark:text-zinc-400"
-      >
-        {annotation ?? "Idle — press play or step forward."}
-      </p>
-
-      <dl className="grid grid-cols-3 gap-3 text-sm">
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Comparisons</dt>
-          <dd className="font-mono text-lg">{compares}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Swaps</dt>
-          <dd className="font-mono text-lg">{swaps}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Operations</dt>
-          <dd className="font-mono text-lg">{ops}</dd>
-        </div>
-      </dl>
-
-      <Controls
-        status={playback.status}
-        speed={playback.speed}
-        reducedMotion={reducedMotion}
-        canStepBack={playback.stepIndex > -1}
-        canStepForward={playback.stepIndex < steps.length - 1}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStepBack={playback.stepBackward}
-        onStepForward={playback.stepForward}
-        onReset={playback.reset}
-        onRunToCompletion={playback.runToCompletion}
-        onSpeedChange={playback.setSpeed}
-      />
-    </section>
+      )}
+    />
   );
 }
