@@ -8,12 +8,9 @@ import type {
   FibonacciHeapNode,
   FibonacciHeapSnapshot,
 } from "@/lib/dataStructures/types";
-import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { countKind } from "@/lib/stepCount";
-import { CodePanel } from "./CodePanel";
-import { Controls } from "./Controls";
 import { FibonacciHeapView, type FibonacciHeapHighlight } from "./FibonacciHeapView";
+import { VizSection } from "./VizSection";
 
 // Hand-built cascade demo. Tree shape (* = marked):
 //        1
@@ -143,73 +140,31 @@ export function FibonacciHeapDecreaseKeyViz({
     [],
   );
 
-  const reducedMotion = useReducedMotion();
-  const playback = useStepThrough(steps, { initialSpeed: initialSpeedMs, reducedMotion });
-
-  const currentStep = playback.currentStep;
-  const heap = currentStep?.heap ?? INITIAL;
-  const highlights = highlightsFor(currentStep);
-  const annotation = annotationFor(currentStep);
-
-  const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const cuts = countKind(visibleSteps, "cut");
-  const cascades = countKind(visibleSteps, "cascade-mark");
-
   return (
-    <section
-      aria-label="Fibonacci heap decrease-key"
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
-    >
-      <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Decrease deep node 4 → 0 — two marked ancestors trigger a 3-cut cascade
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
-        <FibonacciHeapView heap={heap} highlights={highlights} className="w-full" />
-        <CodePanel
-          source={fibonacciHeapDecreaseKeyPython}
-          highlightedLines={currentStep?.codeLines}
-          language="python"
-          ariaLabel="Fibonacci heap decrease-key pseudocode"
+    <VizSection
+      ariaLabel="Fibonacci heap decrease-key"
+      codePanelAriaLabel="Fibonacci heap decrease-key pseudocode"
+      caption="Decrease deep node 4 → 0 — two marked ancestors trigger a 3-cut cascade"
+      steps={steps}
+      source={fibonacciHeapDecreaseKeyPython}
+      initialSpeedMs={initialSpeedMs}
+      annotationFor={annotationFor}
+      counters={(visible) => {
+        const lastVisible = visible.at(-1);
+        const rootCount = lastVisible?.heap.roots.length ?? INITIAL.roots.length;
+        return [
+          { label: "Roots", value: rootCount },
+          { label: "Cuts", value: countKind(visible, "cut") },
+          { label: "Cascade-marks", value: countKind(visible, "cascade-mark") },
+        ];
+      }}
+      renderView={(currentStep) => (
+        <FibonacciHeapView
+          heap={currentStep?.heap ?? INITIAL}
+          highlights={highlightsFor(currentStep)}
+          className="w-full"
         />
-      </div>
-
-      <p
-        aria-live="polite"
-        className="min-h-[1.25rem] font-mono text-sm text-zinc-600 dark:text-zinc-400"
-      >
-        {annotation ?? "Idle — press play or step forward."}
-      </p>
-
-      <dl className="grid grid-cols-3 gap-3 text-sm">
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Roots</dt>
-          <dd className="font-mono text-lg">{heap.roots.length}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Cuts</dt>
-          <dd className="font-mono text-lg">{cuts}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Cascade-marks</dt>
-          <dd className="font-mono text-lg">{cascades}</dd>
-        </div>
-      </dl>
-
-      <Controls
-        status={playback.status}
-        speed={playback.speed}
-        reducedMotion={reducedMotion}
-        canStepBack={playback.stepIndex > -1}
-        canStepForward={playback.stepIndex < steps.length - 1}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStepBack={playback.stepBackward}
-        onStepForward={playback.stepForward}
-        onReset={playback.reset}
-        onRunToCompletion={playback.runToCompletion}
-        onSpeedChange={playback.setSpeed}
-      />
-    </section>
+      )}
+    />
   );
 }
