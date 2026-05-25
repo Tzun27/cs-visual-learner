@@ -4,12 +4,9 @@ import { useMemo } from "react";
 import { buildTree, searchSequence } from "@/lib/dataStructures/binarySearchTree";
 import { bstSearchPython } from "@/lib/dataStructures/searchSequence.snippet";
 import type { BstSearchStep } from "@/lib/dataStructures/types";
-import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { countKind } from "@/lib/stepCount";
-import { CodePanel } from "./CodePanel";
-import { Controls } from "./Controls";
 import { TreeView, type TreeHighlight } from "./TreeView";
+import { VizSection } from "./VizSection";
 
 const BUILD_SEQUENCE = [50, 25, 75, 12, 38, 63, 88, 6, 19, 31, 56, 81] as const;
 // Curated mix: 12 (left subtree hit), 56 (right subtree hit), 50 (root hit),
@@ -65,77 +62,27 @@ export function BSTSearchViz({ initialSpeedMs = 350 }: BSTSearchVizProps) {
     [tree],
   );
 
-  const reducedMotion = useReducedMotion();
-  const playback = useStepThrough(steps, {
-    initialSpeed: initialSpeedMs,
-    reducedMotion,
-  });
-
-  const currentStep = playback.currentStep;
-  const displayTree = currentStep?.tree ?? tree;
-  const highlights = highlightsFor(currentStep);
-  const annotation = annotationFor(currentStep);
-
-  const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const compares = countKind(visibleSteps, "compare");
-  const found = countKind(visibleSteps, "found");
-  const misses = countKind(visibleSteps, "miss");
-
   return (
-    <section
-      aria-label="Binary search tree search"
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
-    >
-      <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Searching for {SEARCH_TARGETS.join(", ")}
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
-        <TreeView tree={displayTree} highlights={highlights} className="w-full" />
-        <CodePanel
-          source={bstSearchPython}
-          highlightedLines={currentStep?.codeLines}
-          language="python"
-          ariaLabel="BST search pseudocode"
+    <VizSection
+      ariaLabel="Binary search tree search"
+      codePanelAriaLabel="BST search pseudocode"
+      caption={`Searching for ${SEARCH_TARGETS.join(", ")}`}
+      steps={steps}
+      source={bstSearchPython}
+      initialSpeedMs={initialSpeedMs}
+      annotationFor={annotationFor}
+      counters={(visible) => [
+        { label: "Comparisons", value: countKind(visible, "compare") },
+        { label: "Found", value: countKind(visible, "found") },
+        { label: "Misses", value: countKind(visible, "miss") },
+      ]}
+      renderView={(currentStep) => (
+        <TreeView
+          tree={currentStep?.tree ?? tree}
+          highlights={highlightsFor(currentStep)}
+          className="w-full"
         />
-      </div>
-
-      <p
-        aria-live="polite"
-        className="min-h-[1.25rem] font-mono text-sm text-zinc-600 dark:text-zinc-400"
-      >
-        {annotation ?? "Idle — press play or step forward."}
-      </p>
-
-      <dl className="grid grid-cols-3 gap-3 text-sm">
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Comparisons</dt>
-          <dd className="font-mono text-lg">{compares}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Found</dt>
-          <dd className="font-mono text-lg">{found}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Misses</dt>
-          <dd className="font-mono text-lg">{misses}</dd>
-        </div>
-      </dl>
-
-      <Controls
-        status={playback.status}
-        speed={playback.speed}
-        reducedMotion={reducedMotion}
-        canStepBack={playback.stepIndex > -1}
-        canStepForward={playback.stepIndex < steps.length - 1}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStepBack={playback.stepBackward}
-        onStepForward={playback.stepForward}
-        onReset={playback.reset}
-        onRunToCompletion={playback.runToCompletion}
-        onSpeedChange={playback.setSpeed}
-      />
-    </section>
+      )}
+    />
   );
 }
