@@ -90,7 +90,9 @@ function detachChild(nodes: FibonacciHeapNode[], parentId: number, childId: numb
 // Link `yId` as a child of `xId`. Caller has already established that
 // nodes[xId].value <= nodes[yId].value. Mutates `nodes` in place.
 // Adds y at the head of x's child list (any position is valid; head is
-// O(1)). y leaves the root list — caller updates `roots`.
+// O(1)). y leaves the root list — caller updates `roots`. y's mark
+// resets: the textbook link() does so because the child became a non-
+// root via consolidate, not via losing one of its own children.
 function linkChild(nodes: FibonacciHeapNode[], xId: number, yId: number): void {
   const x = nodes[xId];
   const y = nodes[yId];
@@ -98,10 +100,7 @@ function linkChild(nodes: FibonacciHeapNode[], xId: number, yId: number): void {
     ...y,
     parentId: xId,
     nextSiblingId: x.firstChildId,
-    mark: false, // mark resets when becoming a child? Actually no -
-    // in standard Fibonacci heap, link() resets the mark on the new
-    // child because the child has just become non-root via a path
-    // that didn't involve losing one of its own children.
+    mark: false,
   };
   nodes[xId] = {
     ...x,
@@ -139,8 +138,7 @@ export function* fibonacciHeapInsertSequence(
     // Prepend: newest insert sits at the head of the root list so the
     // viz reads left-to-right as newest-to-oldest, matching insert order.
     roots = [newId, ...roots];
-    const wasMin = minId;
-    const updatedMin = wasMin === null || value < nodes[wasMin].value;
+    const updatedMin = minId === null || value < nodes[minId].value;
     if (updatedMin) minId = newId;
 
     yield {
@@ -334,59 +332,55 @@ export function* fibonacciHeapDecreaseKeySequence(
       parentId,
       codeLines: fibonacciHeapDecreaseKeyLines.checkParent,
     };
-  }
 
-  if (parentId !== null && nodes[nodeId].value < nodes[parentId].value) {
-    // Cut + cascading cut loop. We walk up the tree as long as the
-    // node being cut had a marked parent.
-    let cursor = nodeId;
-    let parent = parentId;
-    // First cut.
-    while (true) {
-      const parentWasMarked = nodes[parent].mark;
-      // Perform the cut.
-      detachChild(nodes, parent, cursor);
-      // Reset cursor's mark (it's now a root, marks meaningless on roots).
-      nodes[cursor] = { ...nodes[cursor], mark: false };
-      roots = [...roots, cursor];
-      yield {
-        kind: "cut",
-        heap: snapshot(nodes, roots, minId),
-        nodeId: cursor,
-        parentId: parent,
-        parentWasMarked,
-        codeLines: fibonacciHeapDecreaseKeyLines.cut,
-      };
-
-      const grandparent = nodes[parent].parentId;
-      if (grandparent === null) {
-        // Parent is a root: cascade stops without marking (marks on
-        // roots are meaningless).
-        break;
-      }
-      if (!parentWasMarked) {
-        // Mark the parent and stop.
-        nodes[parent] = { ...nodes[parent], mark: true };
+    if (nodes[nodeId].value < nodes[parentId].value) {
+      // Cut + cascading cut loop. We walk up the tree as long as the
+      // node being cut had a marked parent.
+      let cursor = nodeId;
+      let parent = parentId;
+      while (true) {
+        const parentWasMarked = nodes[parent].mark;
+        detachChild(nodes, parent, cursor);
+        // Reset cursor's mark — it's now a root, marks meaningless on roots.
+        nodes[cursor] = { ...nodes[cursor], mark: false };
+        roots = [...roots, cursor];
         yield {
-          kind: "cascade-mark",
+          kind: "cut",
           heap: snapshot(nodes, roots, minId),
+          nodeId: cursor,
           parentId: parent,
-          codeLines: fibonacciHeapDecreaseKeyLines.cascadeMark,
+          parentWasMarked,
+          codeLines: fibonacciHeapDecreaseKeyLines.cut,
         };
-        break;
+
+        const grandparent = nodes[parent].parentId;
+        if (grandparent === null) {
+          // Parent is itself a root — cascade stops without marking.
+          break;
+        }
+        if (!parentWasMarked) {
+          // Mark the parent and stop.
+          nodes[parent] = { ...nodes[parent], mark: true };
+          yield {
+            kind: "cascade-mark",
+            heap: snapshot(nodes, roots, minId),
+            parentId: parent,
+            codeLines: fibonacciHeapDecreaseKeyLines.cascadeMark,
+          };
+          break;
+        }
+        // Cascade up: cut the parent too.
+        cursor = parent;
+        parent = grandparent;
       }
-      // Cascade up: cut the parent too.
-      cursor = parent;
-      parent = grandparent;
+    } else {
+      yield {
+        kind: "no-violation",
+        heap: snapshot(nodes, roots, minId),
+        nodeId,
+        codeLines: fibonacciHeapDecreaseKeyLines.noViolation,
+      };
     }
-  } else if (parentId !== null) {
-    // Parent exists but no violation — just emit no-violation and skip.
-    yield {
-      kind: "no-violation",
-      heap: snapshot(nodes, roots, minId),
-      nodeId,
-      codeLines: fibonacciHeapDecreaseKeyLines.noViolation,
-    };
   }
 
   // Update min if needed.

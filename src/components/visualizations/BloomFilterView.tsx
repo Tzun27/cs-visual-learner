@@ -1,3 +1,4 @@
+import { bloomFilterPopcount } from "@/lib/dataStructures/bloomFilter";
 import type { BloomFilterSnapshot } from "@/lib/dataStructures/types";
 import { SlotRect, slotHighlightPalette } from "./svgPrimitives";
 import type { SlotCellKind } from "./svgPrimitives";
@@ -42,7 +43,7 @@ export function BloomFilterView({ table, highlights = [], className }: BloomFilt
   const xOfBit = (i: number) => PADDING_X + i * cellWidth;
   const cellY = PADDING_Y + INDEX_LABEL_HEIGHT;
 
-  const popcount = bits.reduce((acc, b) => acc + (b === 1 ? 1 : 0), 0);
+  const popcount = bloomFilterPopcount(table);
   const labelParts: string[] = [];
   for (const h of highlights) {
     const bit = bits[h.bitIndex];
