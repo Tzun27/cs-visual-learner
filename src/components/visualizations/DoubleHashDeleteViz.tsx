@@ -9,7 +9,7 @@ import {
 import { doubleHashDeletePython } from "@/lib/dataStructures/doubleHashDelete.snippet";
 import type { LinearProbeDeleteStep, LinearProbeSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 11;
@@ -81,7 +81,7 @@ export function DoubleHashDeleteViz({ initialSpeedMs = 400 }: DoubleHashDeleteVi
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Double-hash delete"
       codePanelAriaLabel="Double-hash delete pseudocode"
       caption={`Deleting ${DELETE_TARGETS.join(", ")} from a ${CAPACITY}-slot table`}

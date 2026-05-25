@@ -5,7 +5,7 @@ import { buildRobinHoodTable, robinHoodDeleteSequence } from "@/lib/dataStructur
 import { robinHoodDeletePython } from "@/lib/dataStructures/robinHoodDelete.snippet";
 import type { LinearProbeSnapshot, RobinHoodDeleteStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 8;
@@ -95,7 +95,7 @@ export function RobinHoodDeleteViz({ initialSpeedMs = 450 }: RobinHoodDeleteVizP
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Robin Hood delete"
       codePanelAriaLabel="Robin Hood delete pseudocode"
       caption={`Deleting ${DELETE_TARGETS.join(", ")} via backshift — no tombstones produced`}

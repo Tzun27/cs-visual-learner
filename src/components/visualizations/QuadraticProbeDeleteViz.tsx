@@ -8,7 +8,7 @@ import {
 import { quadraticProbeDeletePython } from "@/lib/dataStructures/quadraticProbeDelete.snippet";
 import type { LinearProbeDeleteStep, LinearProbeSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 11;
@@ -76,7 +76,7 @@ export function QuadraticProbeDeleteViz({ initialSpeedMs = 400 }: QuadraticProbe
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Quadratic-probe delete"
       codePanelAriaLabel="Quadratic-probe delete pseudocode"
       caption={`Deleting ${DELETE_TARGETS.join(", ")} from a ${CAPACITY}-slot table`}

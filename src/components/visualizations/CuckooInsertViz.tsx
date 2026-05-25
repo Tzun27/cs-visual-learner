@@ -11,7 +11,7 @@ import { cuckooInsertPython } from "@/lib/dataStructures/cuckooInsert.snippet";
 import type { CuckooInsertStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { CuckooView, type CuckooHighlight } from "./CuckooView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 const CAPACITY = 7;
 // Curated cascade: [5, 0] place directly; 12 triggers a 1-step swap; 14
@@ -90,7 +90,7 @@ export function CuckooInsertViz({ initialSpeedMs = 400 }: CuckooInsertVizProps) 
   ).join(", ");
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Cuckoo insert"
       codePanelAriaLabel="Cuckoo insert pseudocode"
       caption={legend}

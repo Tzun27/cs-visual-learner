@@ -12,7 +12,7 @@ import { cuckooFilterDeletePython } from "@/lib/dataStructures/cuckooFilterDelet
 import type { CuckooFilterDeleteStep, CuckooFilterSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { CuckooFilterView, type CuckooFilterHighlight } from "./CuckooFilterView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 const CAPACITY = 8;
 const INSERT_SEQUENCE = [5, 0, 7, 13] as const;
@@ -95,7 +95,7 @@ export function CuckooFilterDeleteViz({ initialSpeedMs = 400 }: CuckooFilterDele
   }).join(" · ");
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Cuckoo filter delete"
       codePanelAriaLabel="Cuckoo filter delete pseudocode"
       caption={legend}

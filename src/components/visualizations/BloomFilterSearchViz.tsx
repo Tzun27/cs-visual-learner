@@ -11,7 +11,7 @@ import { bloomFilterSearchPython } from "@/lib/dataStructures/bloomFilterSearch.
 import type { BloomFilterSearchStep, BloomFilterSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { BloomFilterView, type BloomFilterHighlight } from "./BloomFilterView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 const INSERT_SEQUENCE = [1, 6, 12, 9] as const;
 
@@ -110,7 +110,7 @@ export function BloomFilterSearchViz({ initialSpeedMs = 400 }: BloomFilterSearch
   }).join(" · ");
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Bloom filter contains"
       codePanelAriaLabel="Bloom filter contains pseudocode"
       caption={legend}

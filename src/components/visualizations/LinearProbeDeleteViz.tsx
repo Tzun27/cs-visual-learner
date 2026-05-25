@@ -5,7 +5,7 @@ import { buildLinearProbeTable, linearProbeDeleteSequence } from "@/lib/dataStru
 import { linearProbeDeletePython } from "@/lib/dataStructures/linearProbeDelete.snippet";
 import type { LinearProbeDeleteStep, LinearProbeSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 8;
@@ -74,7 +74,7 @@ export function LinearProbeDeleteViz({ initialSpeedMs = 400 }: LinearProbeDelete
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Linear-probe delete"
       codePanelAriaLabel="Linear-probe delete pseudocode"
       caption={`Deleting ${DELETE_TARGETS.join(", ")} from a ${CAPACITY}-slot table`}

@@ -6,7 +6,7 @@ import { quadraticProbeInsertSequence } from "@/lib/dataStructures/quadraticProb
 import { quadraticProbeInsertPython } from "@/lib/dataStructures/quadraticProbeInsert.snippet";
 import type { LinearProbeInsertStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 // 11 (prime) keeps the probe sequence i*i mod cap well-defined for load
@@ -73,7 +73,7 @@ export function QuadraticProbeInsertViz({ initialSpeedMs = 400 }: QuadraticProbe
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Quadratic-probe insert"
       codePanelAriaLabel="Quadratic-probe insert pseudocode"
       caption={`Inserting ${INSERT_SEQUENCE.join(", ")} into ${CAPACITY} slots`}

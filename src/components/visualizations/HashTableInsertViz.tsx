@@ -6,7 +6,7 @@ import { hashTableInsertPython } from "@/lib/dataStructures/hashTableInsert.snip
 import type { HashTableKV, HashTableSnapshot, HashTableStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { HashTableView, type HashCellHighlight } from "./HashTableView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 // Curated to show collisions building up in bucket 5, a smaller chain in
 // bucket 4, and an OVERWRITE on the second put with key 5 (map semantics —
@@ -101,7 +101,7 @@ export function HashTableInsertViz({ initialSpeedMs = 400 }: HashTableInsertVizP
   const steps = useMemo<readonly HashTableStep[]>(() => [...insertSequence(INSERT_SEQUENCE)], []);
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Hash table insert"
       codePanelAriaLabel="Hash table insert pseudocode"
       caption={`Putting ${INSERT_SEQUENCE.map(insertLabel).join(", ")} into 8 buckets`}

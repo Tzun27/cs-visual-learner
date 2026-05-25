@@ -6,7 +6,7 @@ import { hashTableSearchPython } from "@/lib/dataStructures/hashTableSearch.snip
 import type { HashTableKV, HashTableSearchStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { HashTableView, type HashCellHighlight } from "./HashTableView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 // Pre-built table:
 //   bucket 1 = [(1, 10), (9, 90), (17, 170)]
@@ -79,7 +79,7 @@ export function HashTableSearchViz({ initialSpeedMs = 400 }: HashTableSearchVizP
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Hash table search"
       codePanelAriaLabel="Hash table search pseudocode"
       caption={`get(${SEARCH_TARGETS.join("), get(")})`}

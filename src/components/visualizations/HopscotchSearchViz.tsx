@@ -5,7 +5,7 @@ import { buildHopscotchTable, hopscotchSearchSequence } from "@/lib/dataStructur
 import { hopscotchSearchPython } from "@/lib/dataStructures/hopscotchSearch.snippet";
 import type { HopscotchSearchStep, HopscotchSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import {
   HopscotchView,
   type HopscotchBitHighlight,
@@ -103,7 +103,7 @@ export function HopscotchSearchViz({ initialSpeedMs = 450 }: HopscotchSearchVizP
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Hopscotch search"
       codePanelAriaLabel="Hopscotch search pseudocode"
       caption={`Searching ${SEARCH_TARGETS.join(", ")} — lookups always look at at most ${

@@ -9,7 +9,7 @@ import {
 import { linearProbeSearchPython } from "@/lib/dataStructures/linearProbeSearch.snippet";
 import type { LinearProbeSearchStep, LinearProbeSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 8;
@@ -83,7 +83,7 @@ export function LinearProbeSearchViz({ initialSpeedMs = 400 }: LinearProbeSearch
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Linear-probe search"
       codePanelAriaLabel="Linear-probe search pseudocode"
       caption={`Searching ${SEARCH_TARGETS.join(", ")} (slot 6 is a tombstone — 13 was deleted)`}

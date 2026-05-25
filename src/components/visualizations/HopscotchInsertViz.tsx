@@ -5,7 +5,7 @@ import { emptyHopscotchTable, hopscotchInsertSequence } from "@/lib/dataStructur
 import { hopscotchInsertPython } from "@/lib/dataStructures/hopscotchInsert.snippet";
 import type { HopscotchInsertStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { HopscotchView, type HopscotchHighlight } from "./HopscotchView";
 
 const CAPACITY = 8;
@@ -88,7 +88,7 @@ export function HopscotchInsertViz({ initialSpeedMs = 450 }: HopscotchInsertVizP
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Hopscotch insert"
       codePanelAriaLabel="Hopscotch insert pseudocode"
       caption={`Inserting ${INSERT_SEQUENCE.join(", ")} into ${CAPACITY} slots (neighborhood H = 4)`}

@@ -12,7 +12,7 @@ import { cuckooFilterSearchPython } from "@/lib/dataStructures/cuckooFilterSearc
 import type { CuckooFilterSearchStep, CuckooFilterSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { CuckooFilterView, type CuckooFilterHighlight } from "./CuckooFilterView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 const CAPACITY = 8;
 const INSERT_SEQUENCE = [5, 0, 7, 13] as const;
@@ -122,7 +122,7 @@ export function CuckooFilterSearchViz({ initialSpeedMs = 400 }: CuckooFilterSear
   }).join(" · ");
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Cuckoo filter contains"
       codePanelAriaLabel="Cuckoo filter contains pseudocode"
       caption={legend}

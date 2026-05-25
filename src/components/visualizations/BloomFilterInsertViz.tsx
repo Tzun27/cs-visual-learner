@@ -11,7 +11,7 @@ import { bloomFilterInsertPython } from "@/lib/dataStructures/bloomFilterInsert.
 import type { BloomFilterInsertStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { BloomFilterView, type BloomFilterHighlight } from "./BloomFilterView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 // Curated input. [1, 6, 12, 9] is chosen so that:
 //   - 1 → bits {1, 2, 8} (three fresh bits)
@@ -84,7 +84,7 @@ export function BloomFilterInsertViz({ initialSpeedMs = 400 }: BloomFilterInsert
   }).join(" · ");
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Bloom filter insert"
       codePanelAriaLabel="Bloom filter insert pseudocode"
       caption={legend}

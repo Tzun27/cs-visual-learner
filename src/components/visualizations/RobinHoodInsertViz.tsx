@@ -5,7 +5,7 @@ import { robinHoodInsertSequence } from "@/lib/dataStructures/robinHood";
 import { robinHoodInsertPython } from "@/lib/dataStructures/robinHoodInsert.snippet";
 import type { LinearProbeSnapshot, RobinHoodInsertStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 8;
@@ -78,7 +78,7 @@ export function RobinHoodInsertViz({ initialSpeedMs = 450 }: RobinHoodInsertVizP
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Robin Hood insert"
       codePanelAriaLabel="Robin Hood insert pseudocode"
       caption={`Inserting ${INSERT_SEQUENCE.join(

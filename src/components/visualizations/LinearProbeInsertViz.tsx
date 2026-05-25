@@ -5,7 +5,7 @@ import { emptyTable, linearProbeInsertSequence } from "@/lib/dataStructures/line
 import { linearProbeInsertPython } from "@/lib/dataStructures/linearProbeInsert.snippet";
 import type { LinearProbeInsertStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 8;
@@ -68,7 +68,7 @@ export function LinearProbeInsertViz({ initialSpeedMs = 400 }: LinearProbeInsert
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Linear-probe insert"
       codePanelAriaLabel="Linear-probe insert pseudocode"
       caption={`Inserting ${INSERT_SEQUENCE.join(", ")} into ${CAPACITY} slots`}

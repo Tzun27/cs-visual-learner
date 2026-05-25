@@ -11,7 +11,7 @@ import { cuckooDeletePython } from "@/lib/dataStructures/cuckooDelete.snippet";
 import type { CuckooDeleteStep, CuckooSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { CuckooView, type CuckooHighlight } from "./CuckooView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 const CAPACITY = 7;
 const INSERT_SEQUENCE = [5, 0, 12, 14] as const;
@@ -90,7 +90,7 @@ export function CuckooDeleteViz({ initialSpeedMs = 400 }: CuckooDeleteVizProps) 
   ).join(", ");
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Cuckoo delete"
       codePanelAriaLabel="Cuckoo delete pseudocode"
       caption={legend}

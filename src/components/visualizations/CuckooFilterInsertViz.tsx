@@ -12,7 +12,7 @@ import { cuckooFilterInsertPython } from "@/lib/dataStructures/cuckooFilterInser
 import type { CuckooFilterInsertStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { CuckooFilterView, type CuckooFilterHighlight } from "./CuckooFilterView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 const CAPACITY = 8;
 // Curated cascade: [5, 0, 7] place directly via the home-check path;
@@ -101,7 +101,7 @@ export function CuckooFilterInsertViz({ initialSpeedMs = 400 }: CuckooFilterInse
   }).join(" · ");
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Cuckoo filter insert"
       codePanelAriaLabel="Cuckoo filter insert pseudocode"
       caption={legend}

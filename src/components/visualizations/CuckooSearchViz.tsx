@@ -11,7 +11,7 @@ import { cuckooSearchPython } from "@/lib/dataStructures/cuckooSearch.snippet";
 import type { CuckooSearchStep, CuckooSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { CuckooView, type CuckooHighlight } from "./CuckooView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 const CAPACITY = 7;
 const INSERT_SEQUENCE = [5, 0, 12, 14] as const;
@@ -88,7 +88,7 @@ export function CuckooSearchViz({ initialSpeedMs = 400 }: CuckooSearchVizProps) 
   ).join(", ");
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Cuckoo search"
       codePanelAriaLabel="Cuckoo search pseudocode"
       caption={legend}

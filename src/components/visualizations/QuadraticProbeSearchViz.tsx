@@ -9,7 +9,7 @@ import {
 import { quadraticProbeSearchPython } from "@/lib/dataStructures/quadraticProbeSearch.snippet";
 import type { LinearProbeSearchStep, LinearProbeSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 11;
@@ -87,7 +87,7 @@ export function QuadraticProbeSearchViz({ initialSpeedMs = 400 }: QuadraticProbe
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Quadratic-probe search"
       codePanelAriaLabel="Quadratic-probe search pseudocode"
       caption={`Searching ${SEARCH_TARGETS.join(", ")} (slot 6 is a tombstone — 16 was deleted)`}

@@ -10,7 +10,7 @@ import {
 import { doubleHashSearchPython } from "@/lib/dataStructures/doubleHashSearch.snippet";
 import type { LinearProbeSearchStep, LinearProbeSnapshot } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 const CAPACITY = 11;
@@ -91,7 +91,7 @@ export function DoubleHashSearchViz({ initialSpeedMs = 400 }: DoubleHashSearchVi
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Double-hash search"
       codePanelAriaLabel="Double-hash search pseudocode"
       caption={`Searching ${SEARCH_TARGETS.join(", ")} (slot 1 is a tombstone — 16 was deleted)`}

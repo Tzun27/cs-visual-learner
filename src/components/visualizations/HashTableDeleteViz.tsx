@@ -6,7 +6,7 @@ import { hashTableDeletePython } from "@/lib/dataStructures/hashTableDelete.snip
 import type { HashTableDeleteStep, HashTableKV } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
 import { HashTableView, type HashCellHighlight } from "./HashTableView";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 
 // Pre-built table:
 //   bucket 1 = [(1, 10), (9, 90), (17, 170), (25, 250)]
@@ -79,7 +79,7 @@ export function HashTableDeleteViz({ initialSpeedMs = 400 }: HashTableDeleteVizP
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Hash table delete"
       codePanelAriaLabel="Hash table delete pseudocode"
       caption={`remove(${DELETE_TARGETS.join("), remove(")})`}

@@ -6,7 +6,7 @@ import { doubleHashInsertPython } from "@/lib/dataStructures/doubleHashInsert.sn
 import { emptyTable } from "@/lib/dataStructures/linearProbe";
 import type { LinearProbeInsertStep } from "@/lib/dataStructures/types";
 import { countKind } from "@/lib/stepCount";
-import { HashVizSection } from "./HashVizSection";
+import { VizSection } from "./VizSection";
 import { LinearProbeView, type LinearProbeHighlight } from "./LinearProbeView";
 
 // 11 (prime) means h2(k) ∈ [1, 10] is always coprime with c, so probe
@@ -77,7 +77,7 @@ export function DoubleHashInsertViz({ initialSpeedMs = 400 }: DoubleHashInsertVi
   );
 
   return (
-    <HashVizSection
+    <VizSection
       ariaLabel="Double-hash insert"
       codePanelAriaLabel="Double-hash insert pseudocode"
       caption={`Inserting ${INSERT_SEQUENCE.join(", ")} into ${CAPACITY} slots — every key has h1=5, distinct h2`}
