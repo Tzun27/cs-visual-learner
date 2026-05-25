@@ -4,12 +4,9 @@ import { useMemo } from "react";
 import { pairingHeapDeleteMinSequence } from "@/lib/dataStructures/pairingHeap";
 import { pairingHeapDeleteMinPython } from "@/lib/dataStructures/pairingHeapDeleteMin.snippet";
 import type { PairingHeapDeleteMinStep, PairingHeapSnapshot } from "@/lib/dataStructures/types";
-import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
-import { useStepThrough } from "@/lib/hooks/useStepThrough";
 import { countKind } from "@/lib/stepCount";
-import { CodePanel } from "./CodePanel";
-import { Controls } from "./Controls";
 import { PairingHeapView, type PairingHeapHighlight } from "./PairingHeapView";
+import { VizSection } from "./VizSection";
 
 // Build a heap from a sequence that yields a root with four children
 // after the build settles — exercises both pair-link (two passes) and
@@ -101,69 +98,26 @@ export function PairingHeapDeleteMinViz({ initialSpeedMs = 500 }: PairingHeapDel
     [],
   );
 
-  const reducedMotion = useReducedMotion();
-  const playback = useStepThrough(steps, { initialSpeed: initialSpeedMs, reducedMotion });
-
-  const currentStep = playback.currentStep;
-  const heap = currentStep?.heap ?? INITIAL;
-  const highlights = highlightsFor(currentStep);
-  const annotation = annotationFor(currentStep);
-
-  const visibleSteps = playback.stepIndex >= 0 ? steps.slice(0, playback.stepIndex + 1) : [];
-  const pairs = countKind(visibleSteps, "pair-link");
-  const folds = countKind(visibleSteps, "fold-link");
-
   return (
-    <section
-      aria-label="Pairing-heap delete-min"
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
-    >
-      <p className="text-[11px] tracking-wider text-zinc-500 uppercase">
-        Delete-min on a heap with four children of root
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
-        <PairingHeapView heap={heap} highlights={highlights} className="w-full" />
-        <CodePanel
-          source={pairingHeapDeleteMinPython}
-          highlightedLines={currentStep?.codeLines}
-          language="python"
-          ariaLabel="Pairing-heap delete-min pseudocode"
+    <VizSection
+      ariaLabel="Pairing-heap delete-min"
+      codePanelAriaLabel="Pairing-heap delete-min pseudocode"
+      caption="Delete-min on a heap with four children of root"
+      steps={steps}
+      source={pairingHeapDeleteMinPython}
+      initialSpeedMs={initialSpeedMs}
+      annotationFor={annotationFor}
+      counters={(visible) => [
+        { label: "Pair-links (pass 1)", value: countKind(visible, "pair-link") },
+        { label: "Fold-links (pass 2)", value: countKind(visible, "fold-link") },
+      ]}
+      renderView={(currentStep) => (
+        <PairingHeapView
+          heap={currentStep?.heap ?? INITIAL}
+          highlights={highlightsFor(currentStep)}
+          className="w-full"
         />
-      </div>
-
-      <p
-        aria-live="polite"
-        className="min-h-[1.25rem] font-mono text-sm text-zinc-600 dark:text-zinc-400"
-      >
-        {annotation ?? "Idle — press play or step forward."}
-      </p>
-
-      <dl className="grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Pair-links (pass 1)</dt>
-          <dd className="font-mono text-lg">{pairs}</dd>
-        </div>
-        <div className="rounded border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-950">
-          <dt className="text-xs text-zinc-500">Fold-links (pass 2)</dt>
-          <dd className="font-mono text-lg">{folds}</dd>
-        </div>
-      </dl>
-
-      <Controls
-        status={playback.status}
-        speed={playback.speed}
-        reducedMotion={reducedMotion}
-        canStepBack={playback.stepIndex > -1}
-        canStepForward={playback.stepIndex < steps.length - 1}
-        onPlay={playback.play}
-        onPause={playback.pause}
-        onStepBack={playback.stepBackward}
-        onStepForward={playback.stepForward}
-        onReset={playback.reset}
-        onRunToCompletion={playback.runToCompletion}
-        onSpeedChange={playback.setSpeed}
-      />
-    </section>
+      )}
+    />
   );
 }
